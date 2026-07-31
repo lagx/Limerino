@@ -37,6 +37,12 @@ struct LimerinoAuthAccount {
     bool valid = false;
     QString lastError;
     QDateTime lastValidatedAt;
+    // Granted scopes as reported by /oauth2/validate (empty before first validation).
+    QStringList scopes;
+    // Device-grant refresh token (may be empty for pasted/script tokens).
+    QString refreshToken;
+    // Access-token expiry as reported by the token endpoint/validate (may be invalid).
+    QDateTime expiresAt;
     QVector<LimerinoAuthChannel> moderatedChannels;
 };
 
@@ -45,6 +51,9 @@ struct LimerinoAuthToken {
     QString userId;
     QString login;
     bool fromScript = false;
+    // Optional: device-grant refresh token + lifetime (seconds), persisted on the account.
+    QString refreshToken;
+    long expiresInSec = 0;
 
     bool hasToken() const
     {
