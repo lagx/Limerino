@@ -13,8 +13,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <QTimer>
 #include <QUrl>
+#include <QUrlQuery>
 
 #include <algorithm>
 #include <memory>
@@ -552,6 +554,240 @@ void scheduleStartupRefresh()
     }
     scheduled = true;
     QTimer::singleShot(30000, [] { refreshAccounts(); });
+}
+
+// ---------------------------------------------------------------------------
+// Device login (OAuth 2.0 Device Authorization Grant, RFC 8628 shape)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+const QString DEVICE_GRANT_TYPE =
+    QStringLiteral("urn:ietf:params:oauth:grant-type:device_code");
+constexpr int POLL_FLOOR_MS = 3000;
+constexpr int SLOW_DOWN_EXTRA_MS = 5000;
+
+QByteArray formBody(std::initializer_list<std::pair<QString, QString>> items)
+{
+    QUrlQuery q;
+    for (const auto &[key, value] : items)
+    {
+        q.addQueryItem(key, value);
+    }
+    return q.query(QUrl::FullyEncoded).toUtf8();
+}
+
+// Twitch reports device-flow errors as {"status": 400, "message": "..."};
+// RFC 8628 implementations use {"error": "..."} - check both.
+QString oauthErrorCode(const QJsonObject &body)
+{
+    QString code = body[QStringLiteral("error")].toString();
+    if (code.isEmpty())
+    {
+        code = body[QStringLiteral("message")].toString();
+    }
+    return code;
+}
+
+}  // namespace
+
+DeviceLogin::DeviceLogin(QObject *parent)
+    : QObject(parent)
+{
+}
+
+void DeviceLogin::setStatus(State state, const QString &message)
+{
+    this->status_.state = state;
+    this->status_.message = message;
+    if (state != State::WaitingForUser)
+    {
+        this->status_.secondsRemaining = 0;
+    }
+    emit this->statusChanged(this->status_);
+}
+
+void DeviceLogin::start()
+{
+    ++this->generation_;
+    const quint64 generation = this->generation_;
+
+    this->setStatus(State::RequestingCode,
+                    QStringLiteral("Requesting a device code..."));
+
+    NetworkRequest(QUrl(AUTH_DEVICE_URL), NetworkRequestType::Post)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .payload(formBody({{QStringLiteral("client_id"), CLIENT_ID},
+                           {QStringLiteral("scopes"), CLIENT_SCOPES}}))
+        .timeout(REQUEST_TIMEOUT_MS)
+        .onSuccess(
+            [guard = QPointer<DeviceLogin>(this),
+             generation](NetworkResult result) {
+                if (!guard || generation != guard->generation_)
+                {
+                    return;
+                }
+                const QJsonObject o = result.parseJson();
+                guard->onDeviceCode(
+                    o[QStringLiteral("device_code")].toString(),
+                    o[QStringLiteral("user_code")].toString(),
+                    o[QStringLiteral("verification_uri")].toString(),
+                    o[QStringLiteral("interval")].toInt(5),
+                    o[QStringLiteral("expires_in")].toInt(1800));
+            })
+        .onError(
+            [guard = QPointer<DeviceLogin>(this),
+             generation](NetworkResult result) {
+                if (!guard || generation != guard->generation_)
+                {
+                    return;
+                }
+                guard->setStatus(
+                    State::Failed,
+                    QStringLiteral("Could not request a device code: ") +
+                        result.formatError());
+            })
+        .execute();
+}
+
+void DeviceLogin::onDeviceCode(const QString &deviceCode,
+                               const QString &userCode,
+                               const QString &verificationUri, int intervalSec,
+                               int expiresInSec)
+{
+    if (deviceCode.isEmpty() || userCode.isEmpty())
+    {
+        this->setStatus(State::Failed,
+                        QStringLiteral("Unexpected response: no device code or "
+                                       "user code in reply."));
+        return;
+    }
+
+    this->deviceCode_ = deviceCode;
+    this->intervalMs_ = std::max(intervalSec * 1000, POLL_FLOOR_MS);
+    this->expiresAtMs_ =
+        QDateTime::currentMSecsSinceEpoch() + qint64(expiresInSec) * 1000;
+
+    this->status_.userCode = userCode;
+    this->status_.verificationUri = verificationUri.isEmpty()
+                                        ? QStringLiteral("https://www.twitch.tv/"
+                                                         "activate")
+                                        : verificationUri;
+    this->status_.secondsRemaining = expiresInSec;
+    this->setStatus(State::WaitingForUser,
+                    QStringLiteral("Open %1 and enter code %2.")
+                        .arg(this->status_.verificationUri,
+                             this->status_.userCode));
+
+    this->schedulePoll(this->intervalMs_);
+}
+
+void DeviceLogin::schedulePoll(int milliseconds)
+{
+    const quint64 generation = this->generation_;
+    QTimer::singleShot(milliseconds, this,
+                       [guard = QPointer<DeviceLogin>(this), generation]() {
+                           if (!guard || generation != guard->generation_)
+                           {
+                               return;
+                           }
+                           guard->poll(generation);
+                       });
+}
+
+void DeviceLogin::poll(quint64 generation)
+{
+    if (QDateTime::currentMSecsSinceEpoch() >= this->expiresAtMs_)
+    {
+        this->status_.userCode.clear();
+        this->setStatus(State::Expired,
+                        QStringLiteral("The device code expired. Start the "
+                                       "login again to get a new one."));
+        return;
+    }
+
+    this->status_.secondsRemaining =
+        int((this->expiresAtMs_ - QDateTime::currentMSecsSinceEpoch()) / 1000);
+    emit this->statusChanged(this->status_);
+
+    NetworkRequest(QUrl(AUTH_TOKEN_URL), NetworkRequestType::Post)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .payload(formBody({{QStringLiteral("client_id"), CLIENT_ID},
+                           {QStringLiteral("device_code"), this->deviceCode_},
+                           {QStringLiteral("grant_type"), DEVICE_GRANT_TYPE}}))
+        .timeout(REQUEST_TIMEOUT_MS)
+        .onSuccess(
+            [guard = QPointer<DeviceLogin>(this),
+             generation](NetworkResult result) {
+                if (!guard || generation != guard->generation_)
+                {
+                    return;
+                }
+                const QString accessToken =
+                    result.parseJson()[QStringLiteral("access_token")]
+                        .toString();
+                if (accessToken.isEmpty())
+                {
+                    guard->setStatus(State::Failed,
+                                     QStringLiteral("Unexpected response: no "
+                                                    "access token in reply."));
+                    return;
+                }
+                addOrUpdateToken(LimerinoAuthToken{accessToken, {}, {}, false});
+                guard->deviceCode_.clear();
+                guard->status_.userCode.clear();
+                guard->setStatus(State::Authorized,
+                                 QStringLiteral("Authorized - account added."));
+            })
+        .onError(
+            [guard = QPointer<DeviceLogin>(this),
+             generation](NetworkResult result) {
+                if (!guard || generation != guard->generation_)
+                {
+                    return;
+                }
+                const QString code = oauthErrorCode(result.parseJson());
+                if (code == QLatin1String("authorization_pending"))
+                {
+                    guard->schedulePoll(guard->intervalMs_);
+                }
+                else if (code == QLatin1String("slow_down"))
+                {
+                    guard->intervalMs_ += SLOW_DOWN_EXTRA_MS;
+                    guard->schedulePoll(guard->intervalMs_);
+                }
+                else if (code == QLatin1String("access_denied"))
+                {
+                    guard->deviceCode_.clear();
+                    guard->status_.userCode.clear();
+                    guard->setStatus(State::Denied,
+                                     QStringLiteral("Authorization was "
+                                                    "declined."));
+                }
+                else if (code == QLatin1String("expired_token"))
+                {
+                    guard->deviceCode_.clear();
+                    guard->status_.userCode.clear();
+                    guard->setStatus(State::Expired,
+                                     QStringLiteral("The device code expired. "
+                                                    "Start again."));
+                }
+                else
+                {
+                    guard->setStatus(State::Failed,
+                                     QStringLiteral("Token request failed: ") +
+                                         result.formatError());
+                }
+            })
+        .execute();
+}
+
+void DeviceLogin::cancel()
+{
+    ++this->generation_;  // orphan every in-flight callback for this attempt
+    this->deviceCode_.clear();
+    this->status_.userCode.clear();
+    this->setStatus(State::Idle, QString());
 }
 
 }  // namespace chatterino::LimerinoAuth

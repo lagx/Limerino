@@ -6,6 +6,7 @@
 #pragma once
 
 #include <QDateTime>
+#include <QObject>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -87,6 +88,62 @@ void scheduleStartupRefresh();
 
 // Emitted whenever the account store changes (add/remove/update/validate).
 extern pajlada::Signals::Signal<void()> accountsChanged;
+
+// Device Authorization Grant flow state machine (OAuth 2.0 RFC 8628 shape).
+// Owns an entire login attempt; the UI connects to statusChanged and may call
+// cancel() at any point. A generation counter plus QPointer guards ensure a
+// cancelled/restarted attempt can never be mutated by stale callbacks.
+class DeviceLogin final : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit DeviceLogin(QObject *parent = nullptr);
+
+    enum class State {
+        Idle,
+        RequestingCode,
+        WaitingForUser,
+        Authorized,
+        Denied,
+        Expired,
+        Failed,
+    };
+
+    struct Status {
+        State state = State::Idle;
+        // User-facing text; NEVER contains token material or the device code.
+        QString message;
+        QString userCode;
+        QString verificationUri;
+        int secondsRemaining = 0;
+    };
+
+    void start();
+    void cancel();
+
+    Status status() const
+    {
+        return this->status_;
+    }
+
+Q_SIGNALS:
+    void statusChanged(const LimerinoAuth::DeviceLogin::Status &status);
+
+private:
+    void setStatus(State state, const QString &message);
+    void schedulePoll(int milliseconds);
+    void poll(quint64 generation);
+    void onDeviceCode(const QString &deviceCode, const QString &userCode,
+                      const QString &verificationUri, int intervalSec,
+                      int expiresInSec);
+
+    Status status_;
+    quint64 generation_ = 0;
+    QString deviceCode_;  // kept out of Status/messages deliberately
+    int intervalMs_ = 3000;
+    qint64 expiresAtMs_ = 0;
+};
 
 // --- exposed for the device login flow (Phase 2) and feature resolver (Phase 5) ---
 
