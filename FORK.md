@@ -72,6 +72,8 @@ Entirely ours; will never conflict with upstream merges:
 | Path | Created in |
 |---|---|
 | `FORK.md` | fork setup |
+| `AGENTS.md` | fork setup |
+| `src/limerino/` (`src/limerino/.gitkeep`) | fork setup |
 
 ## Cherry-picks
 
