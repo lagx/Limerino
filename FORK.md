@@ -63,7 +63,7 @@ close to zero as possible — every entry is future merge pain.
 
 | File | Why | Hook description | Risk on merge |
 |---|---|---|---|
-| _none yet_ | | | |
+| `.gitignore` | ignore local `.ccache/` dir | appended 2-line "Limerino local dev" section at the end | Low — append-only; re-add if upstream rewrites the tail |
 
 ## Limerino-owned files
 
@@ -74,6 +74,9 @@ Entirely ours; will never conflict with upstream merges:
 | `FORK.md` | fork setup |
 | `AGENTS.md` | fork setup |
 | `src/limerino/` (`src/limerino/.gitkeep`) | fork setup |
+| `scripts/dev-build.sh` | fork setup |
+| `scripts/dev-test.sh` | fork setup |
+| `scripts/merge-upstream.sh` | fork setup |
 
 ## Cherry-picks
 
