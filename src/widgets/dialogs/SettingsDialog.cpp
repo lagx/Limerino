@@ -9,6 +9,7 @@
 #include "common/QLogging.hpp"
 #include "controllers/commands/CommandController.hpp"
 #include "controllers/hotkeys/HotkeyController.hpp"
+#include "limerino/LimerinoPage.hpp"
 #include "singletons/Settings.hpp"
 #include "util/LayoutCreator.hpp"
 #include "widgets/BaseWindow.hpp"
@@ -247,7 +248,8 @@ void SettingsDialog::addTabs()
 
     // clang-format off
     this->addTab([]{return new GeneralPage;},          "General",        ":/settings/about.svg", SettingsTabId::General);
-    this->addTab([]{return new TechnorinoPage;},          "Limerino",        technorinoIconPath, SettingsTabId::Technorino);
+    this->addTab([]{return new TechnorinoPage;},          "Technorino",        technorinoIconPath, SettingsTabId::Technorino);
+    this->addTab([]{return new LimerinoPage;},            "Limerino",        ":/settings/about.svg");
     this->ui_.tabContainer->addSpacing(16);
     this->addTab([]{return new AccountsPage;},         "Accounts",       ":/settings/accounts.svg", SettingsTabId::Accounts);
     this->addTab([]{return new NicknamesPage;},        "Nicknames",      ":/settings/accounts.svg");

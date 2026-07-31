@@ -935,6 +935,10 @@ set(SOURCE_FILES
         widgets/splits/SplitOverlay.hpp
         widgets/splits/PinnedMessageWidget.cpp
         widgets/splits/PinnedMessageWidget.hpp
+
+        # Limerino fork files (owned by this fork; see FORK.md)
+        limerino/LimerinoPage.cpp
+        limerino/LimerinoPage.hpp
         )
 
 if (APPLE)

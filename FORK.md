@@ -66,8 +66,8 @@ close to zero as possible — every entry is future merge pain.
 | `.gitignore` | ignore local `.ccache/` dir | appended 2-line "Limerino local dev" section at the end | Low — append-only; re-add if upstream rewrites the tail |
 | `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | two edits: `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino` | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these two exact edits.** |
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino` | Low — narrow context, rarely touched upstream |
-| `src/widgets/dialogs/SettingsDialog.cpp` | settings tab shows the fork name | one string literal: tab label `"Technorino"` → `"Limerino"` (class/enum/icon paths unchanged) | Low |
-| `src/widgets/settingspages/AboutPage.cpp` | About page credits the fork | one added QLabel (first line of the existing "About Chatterino..." group): `<a href="https://github.com/lagx/Limerino">Limerino</a> is a Chatterino fork built on top of technorino.` | Low — additive, inside an existing `clang-format off` block |
+| `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg); upstream Technorino tab label unchanged | Low |
+| `src/CMakeLists.txt` | compile the Limerino-owned page | 3 lines appended at the end of `SOURCE_FILES` (comment + `limerino/LimerinoPage.{cpp,hpp}`) | Low — append-only at list tail |
 | `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
 | `flake.nix` | flake description reflects the fork | `description = "Technorino"` → `"Limerino"` | Low |
 
@@ -79,7 +79,7 @@ Entirely ours; will never conflict with upstream merges:
 |---|---|
 | `FORK.md` | fork setup |
 | `AGENTS.md` | fork setup |
-| `src/limerino/` (`src/limerino/.gitkeep`) | fork setup |
+| `src/limerino/` (incl. `src/limerino/LimerinoPage.{hpp,cpp}`, Limerino settings page) | fork setup / Limerino tab |
 | `scripts/dev-build.sh` | fork setup |
 | `scripts/dev-test.sh` | fork setup |
 | `scripts/merge-upstream.sh` | fork setup |
