@@ -15,6 +15,7 @@ public:
     LimerinoPage();
 
     bool filterElements(const QString &query) override;
+    void onShow() override;
 
 private:
     void initLayout(GeneralPageView &layout);

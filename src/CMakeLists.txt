@@ -951,10 +951,14 @@ set(SOURCE_FILES
         providers/limerino/gql/LimerinoGql.hpp
         providers/limerino/gql/PersistedQueries.cpp
         providers/limerino/gql/PersistedQueries.hpp
+        providers/limerino/commands/Identity.cpp
+        providers/limerino/commands/Identity.hpp
         providers/limerino/commands/LimerinoCommands.cpp
         providers/limerino/commands/LimerinoCommands.hpp
         widgets/dialogs/LimerinoAuthDialog.cpp
         widgets/dialogs/LimerinoAuthDialog.hpp
+        widgets/dialogs/limerino/LimerinoResultDialog.cpp
+        widgets/dialogs/limerino/LimerinoResultDialog.hpp
         widgets/dialogs/limerino/LimerinoResultList.cpp
         widgets/dialogs/limerino/LimerinoResultList.hpp
         )

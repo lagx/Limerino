@@ -1,6 +1,7 @@
 #include "limerino/LimerinoPage.hpp"
 
 #include "providers/limerino/LimerinoAuth.hpp"
+#include "providers/limerino/commands/Identity.hpp"
 #include "singletons/Settings.hpp"
 #include "widgets/dialogs/LimerinoAuthDialog.hpp"
 #include "widgets/settingspages/GeneralPageView.hpp"
@@ -41,6 +42,18 @@ bool LimerinoPage::filterElements(const QString &query)
 
 void LimerinoPage::initLayout(GeneralPageView &layout)
 {
+    // Commands wiki (top of page, registry-driven; batches extend it).
+    layout.addTitle("Limerino commands");
+    layout.addDescription(QStringLiteral(
+        "Commands ported from the reference plugin, running natively. "
+        "Usage and backends are documented here."));
+    for (const auto &doc : LimerinoCommands::commandDocs())
+    {
+        layout.addDescription(
+            QStringLiteral("%1 - %2 - %3")
+                .arg(doc.names, doc.usage, doc.description));
+    }
+
     layout.addTitle("Limerino");
     layout.addDescription(QStringLiteral(
         R"(<a href="https://github.com/lagx/Limerino">Limerino</a> is a Chatterino fork built on top of technorino.)"));
@@ -74,6 +87,13 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
     this->rebuildAuthSummary();
 
     layout.addStretch();
+}
+
+void LimerinoPage::onShow()
+{
+    // Opening the Limerino tab always refreshes the auth cache (validity +
+    // moderated-channel lists may have drifted since the last check).
+    LimerinoAuth::refreshAccounts();
 }
 
 void LimerinoPage::rebuildAuthSummary()
