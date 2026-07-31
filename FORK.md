@@ -70,6 +70,10 @@ close to zero as possible — every entry is future merge pain.
 | `src/CMakeLists.txt` | compile the Limerino-owned page | 3 lines appended at the end of `SOURCE_FILES` (comment + `limerino/LimerinoPage.{cpp,hpp}`) | Low — append-only at list tail |
 | `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
 | `flake.nix` | flake description reflects the fork | `description = "Technorino"` → `"Limerino"` | Low |
+| `resources/icon.svg` | new Limerino app icon (master artwork) | content replaced, byte-same filename | Medium — binary; upstream icon change = binary conflict. Resolution: always ours |
+| `resources/icon.png` | new Limerino app icon (Linux hicolor install, qrc) | content replaced; same 256x256 as before | Medium — see icon.svg |
+| `resources/icon.ico` | Windows exe icon (via `cmake/resources/windows.rc.in`) | regenerated from new master; same 5 frames as upstream (16/32/48/64/256) | Medium — see icon.svg |
+| `resources/chatterino.icns` | macOS bundle icon (`src/CMakeLists.txt:941`) | regenerated from new master; modern ic07–ic14 PNG chunks only (upstream's pre-OS-X il32/l8mk/is32/s8mk bitmap chunks dropped — irrelevant for Qt6 apps) | Medium — see icon.svg |
 
 ## Limerino-owned files
 
