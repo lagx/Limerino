@@ -1,5 +1,5 @@
 {
-  description = "Technorino";
+  description = "Limerino";
 
   inputs = {
     self.submodules = true;

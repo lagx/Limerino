@@ -65,6 +65,11 @@ close to zero as possible — every entry is future merge pain.
 |---|---|---|---|
 | `.gitignore` | ignore local `.ccache/` dir | appended 2-line "Limerino local dev" section at the end | Low — append-only; re-add if upstream rewrites the tail |
 | `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | two edits: `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino` | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these two exact edits.** |
+| `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino` | Low — narrow context, rarely touched upstream |
+| `src/widgets/dialogs/SettingsDialog.cpp` | settings tab shows the fork name | one string literal: tab label `"Technorino"` → `"Limerino"` (class/enum/icon paths unchanged) | Low |
+| `src/widgets/settingspages/AboutPage.cpp` | About page credits the fork | one added QLabel (first line of the existing "About Chatterino..." group): `<a href="https://github.com/lagx/Limerino">Limerino</a> is a Chatterino fork built on top of technorino.` | Low — additive, inside an existing `clang-format off` block |
+| `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
+| `flake.nix` | flake description reflects the fork | `description = "Technorino"` → `"Limerino"` | Low |
 
 ## Limerino-owned files
 
@@ -92,9 +97,19 @@ Entirely ours; will never conflict with upstream merges:
 - Executable/CMake target name: still `chatterino` (`project(chatterino …)` in `CMakeLists.txt`,
   `${EXECUTABLE_PROJECT}` in `src/CMakeLists.txt`), to keep `.CI/` and workflow scripts working.
   Branding is user-facing only.
-- Settings/config path deliberately still upstream-derived for now
-  (`QStandardPaths::AppDataLocation` + the `Chatterino2` suffix hack in `src/singletons/Paths.cpp`);
-  any change here must be a conscious, documented decision because it means settings migration.
+- Settings/config path **shared with technorino/Chatterino7 on purpose (decided 2026-07-31)**:
+  `%APPDATA%\Chatterino2` (win) / `~/.local/share/chatterino` (linux). Limerino *replaces*
+  technorino on the machine rather than coexisting with it. `src/main.cpp` app name and
+  `src/singletons/Paths.cpp` therefore stay untouched. If coexistence is ever wanted, this is
+  the single riskiest change (needs `setApplicationName("limerino")` + Paths rewrite +
+  opt-in first-run copy; see Phase 6 plan in git history).
+- Windows AppUserModelID stays `SevenTV.Chatterino7TV` (`src/common/Version.cpp`) and the Inno
+  `AppId` GUID stays upstream's (`.CI/chatterino-installer.iss`) — taskbar/toast identity and
+  installer upgrade path intentionally shared with technorino/c7 (decided 2026-07-31).
+- User-visible "Chatterino"/"Chatterino 7TV" branding (window titles, toasts, windows.rc,
+  macOS bundle, .desktop/appdata, Inno app name/publisher) is kept; only "Technorino"
+  became "Limerino". `TechnorinoPage` class/filenames, `SettingsTabId::Technorino`, and the
+  `technorino.client_detection` filter identifier stay (internal/user-filter compatibility).
 - Persisted settings keys (e.g. `/x-chatterino7/*`) and filter identifiers
   (e.g. `technorino.client_detection`) stay as-is — renaming orphans user data / breaks filters.
 - No formatting or style changes to upstream code, ever.
