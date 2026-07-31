@@ -939,10 +939,24 @@ set(SOURCE_FILES
         # Limerino fork files (owned by this fork; see FORK.md)
         limerino/LimerinoPage.cpp
         limerino/LimerinoPage.hpp
+        providers/limerino/LimerinoApi.cpp
+        providers/limerino/LimerinoApi.hpp
         providers/limerino/LimerinoAuth.cpp
         providers/limerino/LimerinoAuth.hpp
+        providers/limerino/LimerinoErrors.cpp
+        providers/limerino/LimerinoErrors.hpp
+        providers/limerino/LimerinoRateLimiter.cpp
+        providers/limerino/LimerinoRateLimiter.hpp
+        providers/limerino/gql/LimerinoGql.cpp
+        providers/limerino/gql/LimerinoGql.hpp
+        providers/limerino/gql/PersistedQueries.cpp
+        providers/limerino/gql/PersistedQueries.hpp
+        providers/limerino/commands/LimerinoCommands.cpp
+        providers/limerino/commands/LimerinoCommands.hpp
         widgets/dialogs/LimerinoAuthDialog.cpp
         widgets/dialogs/LimerinoAuthDialog.hpp
+        widgets/dialogs/limerino/LimerinoResultList.cpp
+        widgets/dialogs/limerino/LimerinoResultList.hpp
         )
 
 if (APPLE)

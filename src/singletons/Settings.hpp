@@ -896,6 +896,9 @@ public:
     // Separate from the primary account store (/accounts/uid<id>/).
     QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};
 
+    // Limerino: paste host used by ported commands (/listfollows, /modlist, ...).
+    QStringSetting limerinoPasteHost{"/limerino/paste/host", "https://h.potat.app"};
+
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =
         {"/highlighting/highlights"};
