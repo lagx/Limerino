@@ -45,6 +45,7 @@
 #include "messages/MessageBuilder.hpp"
 #include "messages/MessageThread.hpp"
 #include "providers/emoji/Emojis.hpp"
+#include "providers/limerino/commands/LimerinoCommands.hpp"
 #include "providers/IvrApi.hpp"
 #include "providers/kick/KickChannel.hpp"
 #include "providers/twitch/api/Helix.hpp"
@@ -584,6 +585,16 @@ CommandController::CommandController(const Paths &paths)
 
     this->registerCommand("/c2-set-logging-rules", &commands::setLoggingRules);
     this->registerCommand("/c2-theme-autoreload", &commands::toggleThemeReload);
+
+    // Limerino fork hook: ported extra-features commands (see FORK.md)
+    LimerinoCommands::initialize(*this);
+}
+
+void CommandController::registerExternalCommand(
+    const QString &commandName,
+    std::function<QString(CommandContext)> commandFunction)
+{
+    this->registerCommand(commandName, std::move(commandFunction));
 }
 
 void CommandController::save()

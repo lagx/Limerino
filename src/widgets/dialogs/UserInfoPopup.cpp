@@ -21,6 +21,7 @@
 #include "providers/kick/KickAccount.hpp"
 #include "providers/kick/KickApi.hpp"
 #include "providers/kick/KickChatServer.hpp"
+#include "providers/limerino/commands/Identity.hpp"
 #include "providers/pronouns/Pronouns.hpp"
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
@@ -510,6 +511,14 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
 
         auto stvUser = user.emplace<LabelButton>("7tv User", this)
                            .assign(&this->ui_.stvUserLabel);
+
+        // Limerino fork hook: view this user's name history
+        auto nameHistory = user.emplace<LabelButton>("Name history", this);
+        QObject::connect(nameHistory.getElement(), &Button::leftClicked,
+                         [this] {
+                             LimerinoCommands::showNameHistoryDialog(
+                                 this->userName_, this);
+                         });
 
         userlogs->setVisible(false);
         stvUser->setVisible(false);
