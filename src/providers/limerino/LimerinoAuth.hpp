@@ -161,4 +161,20 @@ extern const QString CLIENT_SCOPES;
 extern const QString AUTH_DEVICE_URL;
 extern const QString AUTH_TOKEN_URL;
 
+// --- feature resolver API (Phase 5) ---
+// Local-only resolution over the cached account store; never a network call.
+// `err` (optional) receives a friendly, token-free failure reason.
+LimerinoAuthToken resolveModerationToken(const QString &channelId,
+                                         const QString &channelLogin,
+                                         QString *err = nullptr);
+LimerinoAuthToken resolveBroadcasterToken(const QString &channelId,
+                                          const QString &channelLogin,
+                                          QString *err = nullptr);
+LimerinoAuthToken resolveCurrentUserToken(QString *err = nullptr);
+LimerinoAuthToken resolveReadToken(QString *err = nullptr);
+
+// Consistent, friendly error texts for feature code.
+QString authRequiredMessage(const QString &action);
+QString authExpiredMessage(const QString &action);
+
 }  // namespace chatterino::LimerinoAuth

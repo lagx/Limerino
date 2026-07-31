@@ -5,9 +5,12 @@
 
 #include "providers/limerino/LimerinoAuth.hpp"
 
+#include "Application.hpp"
 #include "common/network/NetworkCommon.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"
+#include "providers/twitch/TwitchAccount.hpp"
+#include "providers/twitch/TwitchAccountManager.hpp"
 #include "singletons/Settings.hpp"
 
 #include <QJsonArray>
@@ -786,6 +789,203 @@ void DeviceLogin::cancel()
     this->deviceCode_.clear();
     this->status_.userCode.clear();
     this->setStatus(State::Idle, QString());
+}
+
+// ---------------------------------------------------------------------------
+// Feature resolver API (local-only; cached account state)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+QString primaryUserId()
+{
+    const auto user = getApp()->getAccounts()->twitch.getCurrent();
+    if (!user || user->isAnon())
+    {
+        return {};
+    }
+    return user->getUserId();
+}
+
+bool accountCoversChannel(const LimerinoAuthAccount &account,
+                          const QString &channelId, const QString &channelLogin)
+{
+    for (const LimerinoAuthChannel &c : account.moderatedChannels)
+    {
+        if (!channelId.isEmpty() && !c.id.isEmpty() && c.id == channelId)
+        {
+            return true;
+        }
+        if (!channelLogin.isEmpty() && !c.login.isEmpty() &&
+            c.login.compare(channelLogin, Qt::CaseInsensitive) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+LimerinoAuthToken makeToken(const LimerinoAuthAccount &a)
+{
+    return LimerinoAuthToken{a.token, a.userId, a.login, false};
+}
+
+void setErr(QString *err, const QString &message)
+{
+    if (err != nullptr)
+    {
+        *err = message;
+    }
+}
+
+}  // namespace
+
+LimerinoAuthToken resolveModerationToken(const QString &channelId,
+                                         const QString &channelLogin,
+                                         QString *err)
+{
+    ensureLoaded();
+    const QString pid = primaryUserId();
+    const LimerinoAuthAccount *fallback = nullptr;
+    for (const LimerinoAuthAccount &a : store().items)
+    {
+        if (!a.valid || !accountCoversChannel(a, channelId, channelLogin))
+        {
+            continue;
+        }
+        if (a.userId == pid)
+        {
+            return makeToken(a);
+        }
+        if (fallback == nullptr)
+        {
+            fallback = &a;
+        }
+    }
+    if (fallback != nullptr)
+    {
+        return makeToken(*fallback);
+    }
+    setErr(err, authRequiredMessage(QStringLiteral("moderate in %1")
+                                        .arg(channelLogin.isEmpty()
+                                                 ? QStringLiteral("this channel")
+                                                 : "#" + channelLogin)));
+    return {};
+}
+
+LimerinoAuthToken resolveBroadcasterToken(const QString &channelId,
+                                          const QString &channelLogin,
+                                          QString *err)
+{
+    ensureLoaded();
+    const QString pid = primaryUserId();
+    const LimerinoAuthAccount *fallback = nullptr;
+    for (const LimerinoAuthAccount &a : store().items)
+    {
+        // Broadcaster-only actions need the broadcaster's own token.
+        if (!a.valid || channelId.isEmpty() || a.userId != channelId)
+        {
+            continue;
+        }
+        if (a.userId == pid)
+        {
+            return makeToken(a);
+        }
+        if (fallback == nullptr)
+        {
+            fallback = &a;
+        }
+    }
+    if (fallback != nullptr)
+    {
+        return makeToken(*fallback);
+    }
+    setErr(err, authRequiredMessage(QStringLiteral("manage %1 as its "
+                                                   "broadcaster")
+                                        .arg(channelLogin.isEmpty()
+                                                 ? QStringLiteral("this channel")
+                                                 : "#" + channelLogin)));
+    return {};
+}
+
+LimerinoAuthToken resolveCurrentUserToken(QString *err)
+{
+    ensureLoaded();
+    const QString pid = primaryUserId();
+    if (pid.isEmpty())
+    {
+        setErr(err, authRequiredMessage(
+                        QStringLiteral("act as your signed-in Twitch user")));
+        return {};
+    }
+    const LimerinoAuthAccount *matched = nullptr;
+    for (const LimerinoAuthAccount &a : store().items)
+    {
+        if (a.userId == pid)
+        {
+            matched = &a;
+            break;
+        }
+    }
+    if (matched == nullptr)
+    {
+        setErr(err, authRequiredMessage(
+                        QStringLiteral("act as your signed-in Twitch user")));
+        return {};
+    }
+    if (!matched->valid)
+    {
+        setErr(err, authExpiredMessage(QStringLiteral("act as %1")
+                                           .arg(matched->displayName.isEmpty()
+                                                    ? matched->login
+                                                    : matched->displayName)));
+        return {};
+    }
+    return makeToken(*matched);
+}
+
+LimerinoAuthToken resolveReadToken(QString *err)
+{
+    ensureLoaded();
+    const QString pid = primaryUserId();
+    const LimerinoAuthAccount *matched = nullptr;
+    for (const LimerinoAuthAccount &a : store().items)
+    {
+        if (!a.valid)
+        {
+            continue;
+        }
+        if (a.userId == pid && !pid.isEmpty())
+        {
+            return makeToken(a);
+        }
+        if (matched == nullptr)
+        {
+            matched = &a;
+        }
+    }
+    if (matched != nullptr)
+    {
+        return makeToken(*matched);
+    }
+    setErr(err, authRequiredMessage(QStringLiteral("read chat data")));
+    return {};
+}
+
+QString authRequiredMessage(const QString &action)
+{
+    return QStringLiteral(
+               "This needs an extra-features sign-in (Settings > Limerino > "
+               "Extra features) to %1.")
+        .arg(action);
+}
+
+QString authExpiredMessage(const QString &action)
+{
+    return QStringLiteral(
+               "The matching extra-features login expired or was revoked. "
+               "Re-add it (Settings > Limerino > Extra features) to %1.")
+        .arg(action);
 }
 
 }  // namespace chatterino::LimerinoAuth
