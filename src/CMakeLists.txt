@@ -939,6 +939,8 @@ set(SOURCE_FILES
         # Limerino fork files (owned by this fork; see FORK.md)
         limerino/LimerinoPage.cpp
         limerino/LimerinoPage.hpp
+        providers/limerino/LimerinoAuth.cpp
+        providers/limerino/LimerinoAuth.hpp
         )
 
 if (APPLE)

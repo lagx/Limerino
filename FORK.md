@@ -68,7 +68,8 @@ close to zero as possible — every entry is future merge pain.
 | `.github/workflows/create-installer.yml` | installer workflow must fire after builds on `limerino` | one edit: `limerino` added to the `workflow_run.branches` filter | **High — same rule as build.yml: keep upstream's file, re-apply this edit** |
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino` | Low — narrow context, rarely touched upstream |
 | `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged | Low |
-| `src/CMakeLists.txt` | compile the Limerino-owned page | 3 lines appended at the end of `SOURCE_FILES` (comment + `limerino/LimerinoPage.{cpp,hpp}`) | Low — append-only at list tail |
+| `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries | Low — append-only at list tail |
+| `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/` | Low |
 | `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
 | `flake.nix` | flake description reflects the fork | `description = "Technorino"` → `"Limerino"` | Low |
 | `resources/icon.svg` | new Limerino app icon (master artwork) | content replaced, byte-same filename | Medium — binary; upstream icon change = binary conflict. Resolution: always ours |
@@ -85,6 +86,7 @@ Entirely ours; will never conflict with upstream merges:
 | `FORK.md` | fork setup |
 | `AGENTS.md` | fork setup |
 | `src/limerino/` (incl. `src/limerino/LimerinoPage.{hpp,cpp}`, Limerino settings page) | fork setup / Limerino tab |
+| `src/providers/limerino/` (`LimerinoAuth.{hpp,cpp}`) | extra-features auth subsystem |
 | `scripts/dev-build.sh` | fork setup |
 | `scripts/dev-test.sh` | fork setup |
 | `scripts/merge-upstream.sh` | fork setup |

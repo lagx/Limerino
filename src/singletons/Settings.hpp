@@ -892,6 +892,10 @@ public:
 
     BoolSetting xChatterino7NoHttp2{"/x-chatterino7/no-http2", false};
 
+    // Limerino: secondary extra-features auth store (JSON array of accounts).
+    // Separate from the primary account store (/accounts/uid<id>/).
+    QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};
+
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =
         {"/highlighting/highlights"};
