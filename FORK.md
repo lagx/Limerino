@@ -88,7 +88,13 @@ Entirely ours; will never conflict with upstream merges:
 | `AGENTS.md` | fork setup |
 | `src/limerino/` (incl. `src/limerino/LimerinoPage.{hpp,cpp}`, Limerino settings page) | fork setup / Limerino tab |
 | `src/providers/limerino/` (`LimerinoAuth.{hpp,cpp}`) | extra-features auth subsystem |
+| `src/providers/limerino/LimerinoApi.{hpp,cpp}` | Helix client for the ported plugin (tokens: primary-if-scopable else resolvers) |
+| `src/providers/limerino/LimerinoErrors.{hpp,cpp}` | shared user-facing error mapping |
+| `src/providers/limerino/LimerinoRateLimiter.{hpp,cpp}` | per-host request queue + 429 backoff |
+| `src/providers/limerino/gql/` (`LimerinoGql`, `PersistedQueries`) | GQL client (persisted + inline) with central errors[] extraction; query/hashes transcribed from `pluginforreference/requests.lua` |
+| `src/providers/limerino/commands/` (`LimerinoCommands.*`) | ported-command registration entry (batches 1-12) |
 | `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Script/Accounts tabs) |
+| `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
 | `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
 
 ### Extra-features auth (secondary login)

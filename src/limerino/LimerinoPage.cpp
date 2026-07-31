@@ -1,8 +1,10 @@
 #include "limerino/LimerinoPage.hpp"
 
 #include "providers/limerino/LimerinoAuth.hpp"
+#include "singletons/Settings.hpp"
 #include "widgets/dialogs/LimerinoAuthDialog.hpp"
 #include "widgets/settingspages/GeneralPageView.hpp"
+#include "widgets/settingspages/SettingWidget.hpp"
 
 #include <QFrame>
 #include <QHBoxLayout>
@@ -57,6 +59,16 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
                          dialog->show();
                      });
 
+    layout.addDescription(QStringLiteral(
+        "Paste host used by list commands (/listfollows, /modlist, ...): "
+        "your generated list output is uploaded publicly to this "
+        "third-party service. Change only if you trust it."));
+    SettingWidget::lineEdit(
+        QStringLiteral("Paste host"), getSettings()->limerinoPasteHost,
+        QStringLiteral("List output is uploaded to this service "
+                       "(defaults to https://h.potat.app)"))
+        ->addTo(layout);
+
     LimerinoAuth::accountsChanged.connect(
         [this] { this->rebuildAuthSummary(); }, this->managedConnections_);
     this->rebuildAuthSummary();
@@ -70,9 +82,10 @@ void LimerinoPage::rebuildAuthSummary()
     {
         return;
     }
+    const auto accounts = LimerinoAuth::accounts();
     const auto s = LimerinoAuth::summary();
     QString text;
-    if (s.accountCount == 0)
+    if (accounts.isEmpty())
     {
         text = QStringLiteral("No extra-features accounts signed in.");
     }
@@ -87,6 +100,22 @@ void LimerinoPage::rebuildAuthSummary()
             text += QStringLiteral(" (%1 account(s) need attention, see "
                                    "Manage extra-features login)")
                         .arg(s.invalidAccountCount);
+        }
+        for (const auto &a : accounts)
+        {
+            text += QStringLiteral("\n%1: %2, scopes: %3, checked: %4, "
+                                   "channels: %5")
+                        .arg(a.displayName.isEmpty() ? a.login : a.displayName)
+                        .arg(a.valid ? QStringLiteral("valid")
+                                     : QStringLiteral("invalid: ") + a.lastError)
+                        .arg(a.scopes.isEmpty()
+                                 ? QStringLiteral("(not validated yet)")
+                                 : QString::number(a.scopes.size()))
+                        .arg(a.lastValidatedAt.isValid()
+                                 ? a.lastValidatedAt.toString(
+                                       QStringLiteral("yyyy-MM-dd hh:mm"))
+                                 : QStringLiteral("never"))
+                        .arg(a.moderatedChannels.size());
         }
     }
     this->authSummaryLabel_->setText(text);

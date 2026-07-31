@@ -286,12 +286,15 @@ void LimerinoAuthDialog::rebuildAccountsTable()
         auto *channelsItem =
             new QTableWidgetItem(channelListText(account));
 
-        QString statusText = account.valid
-                                 ? QStringLiteral("valid (checked %1)")
-                                       .arg(account.lastValidatedAt.toString(
-                                           QStringLiteral("hh:mm")))
-                                 : QStringLiteral("invalid: %1")
-                                       .arg(account.lastError);
+        QString statusText =
+            account.valid
+                ? QStringLiteral("valid, %1 scopes, checked %2")
+                      .arg(account.scopes.size())
+                      .arg(account.lastValidatedAt.isValid()
+                               ? account.lastValidatedAt.toString(
+                                     QStringLiteral("yyyy-MM-dd hh:mm"))
+                               : QStringLiteral("never"))
+                : QStringLiteral("invalid: %1").arg(account.lastError);
         auto *statusItem = new QTableWidgetItem(statusText);
 
         this->ui_.accountsTable->setItem(row, 0, accountItem);
