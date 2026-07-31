@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+
+const CLIENT_ID = `ue6666qo983tsx6so1t0vnawi233wa`;
+const POLLING_MS = 1000;
+const SCOPES = 'chat:read chat:edit channel:moderate\
+channel:manage:predictions channel:read:redemptions channel:manage:redemptions\
+moderator:manage:announcements moderator:manage:chat_messages\
+moderator:manage:chat_settings moderator:read:chat_settings\
+moderator:read:followers';
+
+function log(str) { process.stdout.write(str + '\n'); }
+function fatal(str) { process.stderr.write(str + '\n'); process.exit(1); }
+
+async function oauthRequest(url, urlParams) {
+	const res = await fetch(url, {
+		method: 'POST',
+		body: urlParams,
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+	});
+	if (!res.ok) throw new Error(await res.text());
+
+	return res.json();
+}
+
+async function main() {
+	if (!CLIENT_ID) fatal('client id is required');
+	let deviceCodeResponse;
+	try {
+		deviceCodeResponse = await oauthRequest(
+			'https://id.twitch.tv/oauth2/device',
+			new URLSearchParams({ client_id: CLIENT_ID, scopes: SCOPES })
+		);
+	} catch (err) {
+		fatal(`error getting device code: ${err.message}`);
+	}
+
+	const {
+		user_code: userCode,
+		device_code: deviceCode,
+		verification_uri: verificationUrl = 'https://www.twitch.tv/activate',
+	} = deviceCodeResponse;
+	const expiresIn = (deviceCodeResponse.expires_in || 1800) * 1000;
+
+	if (!userCode || !deviceCode)
+		fatal(
+			'unexpected response format: no user_code or device_code: ' +
+				JSON.stringify(deviceCodeResponse)
+		);
+
+	const expiresAt = Date.now() + expiresIn;
+	log(
+		`${verificationUrl}\ncode: ${userCode} ` +
+			`(expires in ${expiresIn / 1000 / 60} minutes)`
+	);
+
+	const tokenParams = new URLSearchParams({
+		client_id: CLIENT_ID,
+		device_code: deviceCode,
+		grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+	});
+
+	for (;;) {
+		if (Date.now() >= expiresAt) fatal('code expired');
+		try {
+			const tokenResponse = await oauthRequest(
+				'https://id.twitch.tv/oauth2/token',
+				tokenParams
+			);
+			if (!tokenResponse.access_token)
+				fatal(
+					'unexpected response format: no access_token: ' +
+						JSON.stringify(tokenResponse)
+				);
+			log(
+				JSON.stringify(tokenResponse) +
+					`\n\nclient_id: ${CLIENT_ID}, access_token: ${tokenResponse.access_token}`
+			);
+			break;
+		} catch (err) {
+			const errorBody = JSON.parse(err.message);
+			if (errorBody.message !== 'authorization_pending')
+				fatal(`error getting access token: ${err.message}`);
+		} finally {
+			await new Promise(r => setTimeout(r, POLLING_MS));
+		}
+	}
+}
+
+main().catch(err => fatal(err.stack ?? err.message));

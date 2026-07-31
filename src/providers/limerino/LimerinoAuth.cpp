@@ -47,8 +47,6 @@ const QString HELIX_MODERATED_CHANNELS_URL =
 
 constexpr int REQUEST_TIMEOUT_MS = 15000;
 
-pajlada::Signals::Signal<void()> accountsChangedSignal;
-
 // RULE: never log a token. Use this on every externally-sourced error text.
 QString redact(QString text, const QString &token)
 {
@@ -170,12 +168,12 @@ void save()
     }
     getSettings()->limerinoAuthAccounts.setValue(QString::fromUtf8(
         QJsonDocument(arr).toJson(QJsonDocument::Compact)));
-    accountsChangedSignal.invoke();
+    accountsChanged.invoke();
 }
 
 }  // namespace
 
-pajlada::Signals::Signal<void()> &accountsChanged = accountsChangedSignal;
+pajlada::Signals::Signal<void()> accountsChanged;
 
 QString normalizeToken(QString raw)
 {

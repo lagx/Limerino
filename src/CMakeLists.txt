@@ -941,6 +941,8 @@ set(SOURCE_FILES
         limerino/LimerinoPage.hpp
         providers/limerino/LimerinoAuth.cpp
         providers/limerino/LimerinoAuth.hpp
+        widgets/dialogs/LimerinoAuthDialog.cpp
+        widgets/dialogs/LimerinoAuthDialog.hpp
         )
 
 if (APPLE)
