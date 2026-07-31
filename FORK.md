@@ -88,6 +88,31 @@ Entirely ours; will never conflict with upstream merges:
 | `AGENTS.md` | fork setup |
 | `src/limerino/` (incl. `src/limerino/LimerinoPage.{hpp,cpp}`, Limerino settings page) | fork setup / Limerino tab |
 | `src/providers/limerino/` (`LimerinoAuth.{hpp,cpp}`) | extra-features auth subsystem |
+| `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Script/Accounts tabs) |
+| `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
+
+### Extra-features auth (secondary login)
+
+A second, independent Twitch authorization (OAuth 2.0 Device Authorization Grant shape) used
+only by extra features — completely separate from the primary login (`/accounts/uid<id>/`), with
+zero diff on `src/widgets/dialogs/LoginDialog.*`.
+
+- Store: `src/providers/limerino/LimerinoAuth.{hpp,cpp}` — JSON array in the
+  `/limerino/auth/accounts` setting; validation via `id.twitch.tv/oauth2/validate` + Helix
+  `users` + (best-effort) `moderation/channels`; locale-aware sorted; dedupe userId → token.
+- Device login: `LimerinoAuth::DeviceLogin` (same module) — generation counter + `QPointer`
+  guards, RFC error handling (`authorization_pending` / `slow_down` / `access_denied` /
+  `expired_token`), 3 s poll floor, stops at `expires_in`.
+- UI: `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` (new dialog; Device Login / Script
+  Login / Accounts), entered from the Extra features section of the Limerino settings page
+  (live-updating summary via `accountsChanged`).
+- Script fallback: frozen `resources/limerino/limerinoauth.txt` shown read-only; paste-token
+  ingest runs through `normalizeToken()` and clears the clipboard afterward.
+- Resolver API for feature code (not wired yet): `resolveModerationToken`,
+  `resolveBroadcasterToken`, `resolveCurrentUserToken`, `resolveReadToken`,
+  `authRequiredMessage`, `authExpiredMessage`. Local-only over cached account state.
+- Invariants: never log token material (`redact()` on every stored error text), no telemetry
+  piggybacking, no silent clipboard copies (user code copy is announced in the status label).
 | `scripts/dev-build.sh` | fork setup |
 | `scripts/dev-test.sh` | fork setup |
 | `scripts/merge-upstream.sh` | fork setup |
