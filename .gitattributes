@@ -1,2 +1,5 @@
 # Normalize line endings to LF for files that Git detects as text
 *   text=auto
+
+# Limerino: the frozen auth script must survive round-trips byte-identically
+resources/limerino/limerinoauth.txt -text
