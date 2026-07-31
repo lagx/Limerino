@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - technorino
+      - limerino
       - "bugfix-release/**"
       - "release/*"
   pull_request:
@@ -459,7 +460,7 @@ jobs:
   create-release:
     needs: [build-ubuntu-docker, build-flatpak, build]
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/technorino')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/limerino')
     permissions:
       contents: write # create release
 
