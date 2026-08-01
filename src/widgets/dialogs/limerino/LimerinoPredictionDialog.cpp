@@ -34,6 +34,7 @@ namespace chatterino::limerino {
 namespace {
 
 constexpr int MAX_OPTIONS = 10;
+constexpr int MAX_POLL_OPTIONS = 5;  // Twitch polls cap
 constexpr int RESOLVED_HISTORY_COUNT = 10;
 
 // Plugin's generateRandomHexString(32) equivalent for transaction IDs.
@@ -104,6 +105,37 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
                                           this->createBox_);
     createLayout->addWidget(this->createButton_);
     root->addWidget(this->createBox_);
+
+    // ------------------------- Create poll (mod) -------------------------
+    this->createPollBox_ = new QGroupBox(QStringLiteral("Create poll"), this);
+    auto *pollLayout = new QVBoxLayout(this->createPollBox_);
+
+    auto *pollForm = new QFormLayout;
+    this->pollTitleEdit_ = new QLineEdit(this->createPollBox_);
+    pollForm->addRow(QStringLiteral("Title"), this->pollTitleEdit_);
+    this->pollDurationSpin_ = new QSpinBox(this->createPollBox_);
+    this->pollDurationSpin_->setRange(60, 1800);  // Twitch poll limits
+    this->pollDurationSpin_->setValue(300);
+    pollForm->addRow(QStringLiteral("Duration (seconds)"),
+                     this->pollDurationSpin_);
+    pollLayout->addLayout(pollForm);
+
+    this->pollOptionsLayout_ = new QVBoxLayout;
+    pollLayout->addLayout(this->pollOptionsLayout_);
+    this->addPollOptionRow();
+    this->addPollOptionRow();
+
+    auto *pollAddRow = new QHBoxLayout;
+    this->addPollOptionButton_ =
+        new QPushButton(QStringLiteral("+ Add option"), this->createPollBox_);
+    pollAddRow->addWidget(this->addPollOptionButton_);
+    pollAddRow->addStretch(1);
+    pollLayout->addLayout(pollAddRow);
+
+    this->createPollButton_ =
+        new QPushButton(QStringLiteral("Create poll"), this->createPollBox_);
+    pollLayout->addWidget(this->createPollButton_);
+    root->addWidget(this->createPollBox_);
 
     // ------------------- Draft history (mod) -------------------
     this->draftsBox_ =
@@ -180,6 +212,10 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
                      [this] { this->addOptionRow(); });
     QObject::connect(this->createButton_, &QPushButton::clicked, this,
                      [this] { this->submitCreate(); });
+    QObject::connect(this->addPollOptionButton_, &QPushButton::clicked, this,
+                     [this] { this->addPollOptionRow(); });
+    QObject::connect(this->createPollButton_, &QPushButton::clicked, this,
+                     [this] { this->submitCreatePoll(); });
     QObject::connect(this->draftsUseButton_, &QPushButton::clicked, this,
                      [this] {
                          const int index = this->draftsCombo_->currentIndex();
@@ -223,6 +259,7 @@ void LimerinoPredictionDialog::applyModGating()
         this->split_->getSelectedChannel().get());
     const bool mod = tchan != nullptr && tchan->hasModRights();
     this->createBox_->setVisible(mod);
+    this->createPollBox_->setVisible(mod);
     this->draftsBox_->setVisible(mod);
     this->lockButton_->setVisible(mod);
     this->refundButton_->setVisible(mod);
@@ -262,6 +299,130 @@ void LimerinoPredictionDialog::addOptionRow(const QString &text)
         this->addOptionButton_->setEnabled(this->optionsLayout_->count() <
                                            MAX_OPTIONS);
     });
+}
+
+void LimerinoPredictionDialog::addPollOptionRow(const QString &text)
+{
+    if (this->pollOptionsLayout_->count() >= MAX_POLL_OPTIONS)
+    {
+        return;
+    }
+    auto *row = new QHBoxLayout;
+    auto *edit = new QLineEdit(this);
+    edit->setText(text);
+    edit->setPlaceholderText(
+        QStringLiteral("Option %1").arg(this->pollOptionsLayout_->count() + 1));
+    row->addWidget(edit, 1);
+    auto *remove = new QPushButton(QStringLiteral("x"), this);
+    remove->setFixedWidth(26);
+    remove->setVisible(this->pollOptionsLayout_->count() >= 2);
+    row->addWidget(remove);
+    this->pollOptionsLayout_->addLayout(row);
+    this->addPollOptionButton_->setEnabled(this->pollOptionsLayout_->count() <
+                                           MAX_POLL_OPTIONS);
+    QObject::connect(remove, &QPushButton::clicked, this, [this, row] {
+        if (this->pollOptionsLayout_->count() <= 2)
+        {
+            return;
+        }
+        while (auto *item = row->takeAt(0))
+        {
+            delete item->widget();
+            delete item;
+        }
+        this->pollOptionsLayout_->removeItem(row);
+        delete row;
+        this->addPollOptionButton_->setEnabled(
+            this->pollOptionsLayout_->count() < MAX_POLL_OPTIONS);
+    });
+}
+
+void LimerinoPredictionDialog::submitCreatePoll()
+{
+    auto *tchan = dynamic_cast<TwitchChannel *>(
+        this->split_->getSelectedChannel().get());
+    if (tchan == nullptr)
+    {
+        return;
+    }
+    const QString title = this->pollTitleEdit_->text().trimmed();
+    QStringList options;
+    for (int i = 0; i < this->pollOptionsLayout_->count(); ++i)
+    {
+        auto *row =
+            qobject_cast<QHBoxLayout *>(this->pollOptionsLayout_->itemAt(i));
+        if (row == nullptr)
+        {
+            continue;
+        }
+        auto *edit = qobject_cast<QLineEdit *>(row->itemAt(0)->widget());
+        const QString t = edit != nullptr ? edit->text().trimmed() : QString();
+        if (!t.isEmpty())
+        {
+            options.append(t);
+        }
+    }
+    if (title.isEmpty() || options.size() < 2)
+    {
+        this->activeLabel_->setText(
+            QStringLiteral("poll needs a title and at least 2 options"));
+        return;
+    }
+
+    QString err;
+    auto token = LimerinoAuth::resolveModerationToken(
+        tchan->roomId(), tchan->getName(), &err);
+    if (!token.hasToken())
+    {
+        this->activeLabel_->setText(err.isEmpty()
+                                        ? LimerinoAuth::errors::tokenRequiredMessage(
+                                              QStringLiteral("create polls"))
+                                        : err);
+        return;
+    }
+
+    // Plugin's CreatePoll variables, verbatim.
+    QJsonArray choices;
+    for (const QString &o : options)
+    {
+        choices.append(QJsonObject{{QStringLiteral("title"), o}});
+    }
+    gql::executePersisted(
+        gql::PQ_CREATE_POLL,
+        QJsonObject{{QStringLiteral("input"),
+                     QJsonObject{{QStringLiteral("title"), title},
+                                 {QStringLiteral("choices"), choices},
+                                 {QStringLiteral("durationSeconds"),
+                                  this->pollDurationSpin_->value()},
+                                 {QStringLiteral("communityPointsCost"), 1},
+                                 {QStringLiteral("isCommunityPointsVotingEnabled"),
+                                  false},
+                                 {QStringLiteral("ownedBy"), tchan->roomId()}}}},
+        token.token,
+        [g = QPointer<LimerinoPredictionDialog>(this)](
+            const QJsonObject &data) {
+            if (!g)
+            {
+                return;
+            }
+            const QString code =
+                data[QStringLiteral("createPoll")]
+                    .toObject()[QStringLiteral("error")]
+                    .toObject()[QStringLiteral("code")]
+                    .toString();
+            g->activeLabel_->setText(
+                code.isEmpty() ? QStringLiteral("Successfully created poll!")
+                               : QStringLiteral("Unable to create poll! Status: %1")
+                                     .arg(code));
+        },
+        [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
+            if (g)
+            {
+                g->activeLabel_->setText(
+                    QStringLiteral("Unable to create poll! Status: %1")
+                        .arg(e.message));
+            }
+        });
 }
 
 void LimerinoPredictionDialog::refillFromDraft(int index)

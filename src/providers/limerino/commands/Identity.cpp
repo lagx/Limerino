@@ -356,9 +356,10 @@ QVector<CommandDoc> commandDocs()
                         "dots, notifications, right-click to open chat/channel).")},
         {QStringLiteral("(icon)"),
          QStringLiteral("channel-points icon (mod toolbar)"),
-         QStringLiteral("Opens the predictions window: create predictions "
-                        "(title, window, 2-10 options), history of last 5, "
-                        "lock and payout for the active prediction.")},
+         QStringLiteral("Opens the channel-points window: create predictions "
+                        "and polls (title, window, 2-10 / 2-5 options), "
+                        "draft history of last 5, make prediction with "
+                        "confirm, lock, payout, cancel/refund, past predictions.")},
         {QStringLiteral("/pinmessage"),
          QStringLiteral("/pinmessage <message id>"),
          QStringLiteral("Pin a message in this channel (persisted PinChatMessage).")},

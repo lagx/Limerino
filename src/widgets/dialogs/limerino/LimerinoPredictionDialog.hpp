@@ -37,6 +37,8 @@ private:
     void applyModGating();
     void submitCreate();
     void addOptionRow(const QString &text = QString());
+    void submitCreatePoll();
+    void addPollOptionRow(const QString &text = QString());
     void appendDraft(const QString &title, const QStringList &options,
                      int windowSeconds);
     void refillFromDraft(int index);
@@ -54,6 +56,14 @@ private:
     QVBoxLayout *optionsLayout_ = nullptr;
     QPushButton *addOptionButton_ = nullptr;
     QPushButton *createButton_ = nullptr;
+
+    // create poll (mod)
+    QGroupBox *createPollBox_ = nullptr;
+    QLineEdit *pollTitleEdit_ = nullptr;
+    QSpinBox *pollDurationSpin_ = nullptr;
+    QVBoxLayout *pollOptionsLayout_ = nullptr;
+    QPushButton *addPollOptionButton_ = nullptr;
+    QPushButton *createPollButton_ = nullptr;
 
     // draft history (mod)
     QGroupBox *draftsBox_ = nullptr;
