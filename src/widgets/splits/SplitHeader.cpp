@@ -17,6 +17,7 @@
 #include "providers/kick/KickChannel.hpp"
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
+#include "providers/limerino/commands/Follows.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
 #include "singletons/Settings.hpp"
@@ -525,6 +526,10 @@ std::unique_ptr<QMenu> SplitHeader::createMainMenu()
     menu->addAction("Set filters",
                     h->getDisplaySequence(HotkeyCategory::Split, "pickFilters"),
                     this->split_, &Split::setFiltersDialog);
+    // Limerino fork hook: follow the currently selected channel
+    menu->addAction("Follow channel", this->split_, [this] {
+        LimerinoCommands::followChannelFromMenu(this->split_->getSelectedChannel());
+    });
     menu->addSeparator();
 
     auto selected = this->split_->getSelectedChannel();
@@ -790,6 +795,31 @@ std::unique_ptr<QMenu> SplitHeader::createChatModeMenu()
     menu->addAction(this->modeActionSetSlow);
     menu->addAction(this->modeActionSetR9k);
     menu->addAction(this->modeActionSetFollowers);
+
+    // Limerino fork hook: view followers/following (own channel only)
+    menu->addSeparator();
+    auto *viewFollowers = menu->addAction("View followers");
+    auto *viewFollowing = menu->addAction("View following");
+    QObject::connect(viewFollowers, &QAction::triggered, this, [this] {
+        LimerinoCommands::openFollowerListFor(this->split_);
+    });
+    QObject::connect(viewFollowing, &QAction::triggered, this, [this] {
+        LimerinoCommands::openFollowingListFor(this->split_);
+    });
+    QObject::connect(menu.get(), &QMenu::aboutToShow, this,
+                     [viewFollowers, viewFollowing, this] {
+                         const auto selected = this->split_->getSelectedChannel();
+                         const auto *twitch = dynamic_cast<TwitchChannel *>(selected.get());
+                         bool own = false;
+                         if (twitch != nullptr)
+                         {
+                             const auto self = getApp()->getAccounts()->twitch.getCurrent();
+                             own = self && !self->isAnon() &&
+                                   self->getUserName().compare(twitch->getName(), Qt::CaseInsensitive) == 0;
+                         }
+                         viewFollowers->setVisible(own);
+                         viewFollowing->setVisible(own);
+                     });
 
     auto execCommand = [this](const QString &command) {
         auto text = getApp()->getCommands()->execCommand(
