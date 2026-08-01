@@ -354,6 +354,21 @@ QVector<CommandDoc> commandDocs()
          QStringLiteral("Open the followers window (searchable, since + for, "
                         "right-click to block) and the following window (live "
                         "dots, notifications, right-click to open chat/channel).")},
+        {QStringLiteral("/pinmessage"),
+         QStringLiteral("/pinmessage <message id>"),
+         QStringLiteral("Pin a message in this channel (persisted PinChatMessage).")},
+        {QStringLiteral("/sendpinnedmessage"),
+         QStringLiteral("/sendpinnedmessage <text>"),
+         QStringLiteral("Send a message that goes straight to the pin banner.")},
+        {QStringLiteral("/unpin"),
+         QStringLiteral("/unpin"),
+         QStringLiteral("Unpin the channel's most-recent pin (GQL). Replaces "
+                        "upstream's /unpin; upstream /pin stays.")},
+        {QStringLiteral("/viewpin, /getpin"),
+         QStringLiteral("/viewpin"),
+         QStringLiteral("Show the pinned message in a banner at the top of "
+                        "this chat (exact chat rendering, dismissible, tinted "
+                        "via Settings > Highlights color).")},
     };
 }
 

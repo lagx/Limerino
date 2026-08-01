@@ -99,6 +99,8 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/commands/` (`LimerinoCommands.*`) | ported-command registration entry (batches 1-12) |
 | `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Script/Accounts tabs) |
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
+| `src/widgets/dialogs/limerino/LimerinoResultDialog.{hpp,cpp}` | thin dialog shell for result lists |
+| `src/widgets/dialogs/limerino/LimerinoPinView.{hpp,cpp}` | on-demand pinned-message banner (mounted via runtime layout insert, zero Split.cpp edits) |
 | `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
 
 ### Extra-features auth (secondary login)

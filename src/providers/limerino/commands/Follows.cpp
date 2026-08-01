@@ -217,11 +217,6 @@ void followById(const ChannelPtr &channel, const QString &targetId)
         });
 }
 
-void sayTokenNeeded(const ChannelPtr &channel, const QString &action)
-{
-    say(channel, LimerinoAuth::errors::tokenRequiredMessage(action));
-}
-
 }  // namespace
 
 void followChannelFromMenu(ChannelPtr channel)
