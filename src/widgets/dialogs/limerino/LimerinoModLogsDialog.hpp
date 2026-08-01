@@ -7,7 +7,10 @@
 
 #include "widgets/BasePopup.hpp"
 
+#include <QDateTime>
+#include <QMap>
 #include <QString>
+#include <QVector>
 
 class QJsonObject;
 class QLabel;

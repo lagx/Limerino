@@ -13,6 +13,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
+#include <QPointer>
 #include <QUrl>
 #include <QVBoxLayout>
 
