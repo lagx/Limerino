@@ -8,10 +8,11 @@
 #include <QString>
 #include <QVector>
 
+class QWidget;
+
 namespace chatterino {
 
 struct CommandContext;
-class QWidget;
 
 namespace LimerinoCommands {
 

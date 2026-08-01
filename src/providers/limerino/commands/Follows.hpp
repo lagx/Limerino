@@ -9,7 +9,6 @@
 namespace chatterino {
 
 struct CommandContext;
-class QWidget;
 class Split;
 
 namespace LimerinoCommands {
