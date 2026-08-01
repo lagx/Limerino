@@ -20,6 +20,8 @@
 
 namespace chatterino::limerino {
 
+namespace gql = chatterino::LimerinoAuth::gql;
+
 namespace {
 
 // Hard cap: 100 pages of 100 edges = 10k actions.

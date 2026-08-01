@@ -8,6 +8,7 @@
 #include "providers/limerino/gql/PersistedQueries.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/LimerinoErrors.hpp"
+#include "providers/twitch/TwitchChannel.hpp"
 #include "widgets/dialogs/limerino/LimerinoModLogsDialog.hpp"
 
 #include <QJsonObject>

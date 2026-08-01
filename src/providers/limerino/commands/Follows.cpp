@@ -16,6 +16,7 @@
 #include "providers/twitch/TwitchIrcServer.hpp"
 #include "singletons/WindowManager.hpp"
 #include "widgets/Notebook.hpp"
+#include "widgets/Window.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultList.hpp"
 #include "widgets/splits/Split.hpp"

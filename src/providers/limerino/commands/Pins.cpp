@@ -5,6 +5,7 @@
 #include "Application.hpp"
 #include "common/Channel.hpp"
 #include "controllers/commands/CommandContext.hpp"
+#include "messages/Message.hpp"
 #include "providers/limerino/gql/LimerinoGql.hpp"
 #include "providers/limerino/gql/PersistedQueries.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
@@ -13,6 +14,7 @@
 #include "providers/twitch/TwitchChannel.hpp"
 #include "singletons/WindowManager.hpp"
 #include "widgets/Notebook.hpp"
+#include "widgets/Window.hpp"
 #include "widgets/dialogs/limerino/LimerinoPinView.hpp"
 #include "widgets/splits/Split.hpp"
 

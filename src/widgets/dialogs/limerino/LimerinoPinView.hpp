@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "messages/Message.hpp"
 #include "widgets/BaseWidget.hpp"
 
 #include <pajlada/signals/signalholder.hpp>
