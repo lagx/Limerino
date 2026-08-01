@@ -18,6 +18,7 @@
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/limerino/commands/Follows.hpp"
+#include "widgets/dialogs/limerino/LimerinoPredictionDialog.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
 #include "singletons/Settings.hpp"
@@ -401,6 +402,21 @@ void SplitHeader::initializeLayout()
                          this->dropdownButton_->setMenu(this->createMainMenu());
                      });
 
+    // Limerino fork: channel-points icon (opens the prediction manager),
+    // placed between the moderation sword and the chatter list buttons.
+    this->pointsButton_ = new SvgButton(
+        {
+            .dark = ":/buttons/channelPoints-darkMode.svg",
+            .light = ":/buttons/channelPoints-lightMode.svg",
+        },
+        this, {5, 5});
+    this->pointsButton_->setToolTip(QStringLiteral("Predictions (Limerino)"));
+    this->pointsButton_->hide();
+    QObject::connect(this->pointsButton_, &Button::leftClicked, this, [this]() {
+        auto *dialog = new limerino::LimerinoPredictionDialog(this->split_);
+        dialog->show();
+    });
+
     auto *layout = makeLayout<QHBoxLayout>({
         // space
         makeWidget<BaseWidget>([](auto w) {
@@ -427,6 +443,8 @@ void SplitHeader::initializeLayout()
         this->pinButton_,
         // moderator
         this->moderationButton_,
+        // channel points (Limerino predictions)
+        this->pointsButton_,
         // chatter list
         this->chattersButton_,
         // dropdown
@@ -1024,6 +1042,10 @@ void SplitHeader::scaleChangedEvent(float scale)
     this->setFixedHeight(w);
     this->dropdownButton_->setFixedWidth(w);
     this->moderationButton_->setFixedWidth(w);
+    if (this->pointsButton_)
+    {
+        this->pointsButton_->setFixedWidth(w);
+    }
     this->chattersButton_->setFixedWidth(w);
     this->pinButton_->setFixedWidth(w);
 
@@ -1208,16 +1230,29 @@ void SplitHeader::updateIcons()
 
         if (channel->hasModRights() && channel->isTwitchChannel())
         {
+            // Limerino fork: show the points button only when modded here.
+            if (this->pointsButton_)
+            {
+                this->pointsButton_->show();
+            }
             this->chattersButton_->show();
         }
         else
         {
+            if (this->pointsButton_)
+            {
+                this->pointsButton_->hide();
+            }
             this->chattersButton_->hide();
         }
     }
     else
     {
         this->moderationButton_->hide();
+        if (this->pointsButton_)
+        {
+            this->pointsButton_->hide();
+        }
         this->chattersButton_->hide();
     }
 }

@@ -89,6 +89,7 @@ private:
     SvgButton *pinButton_{};
 
     SvgButton *moderationButton_{};
+    SvgButton *pointsButton_{};  // Limerino: channel points / predictions
     SvgButton *chattersButton_{};
     DrawnButton *addButton_{};
 
