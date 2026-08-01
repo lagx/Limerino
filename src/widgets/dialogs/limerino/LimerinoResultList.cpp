@@ -10,6 +10,7 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -17,6 +18,30 @@
 #include <algorithm>
 
 namespace chatterino::limerino {
+
+namespace {
+
+// Numeric-aware cell for columns declared numeric via setNumericColumns().
+class NumericTableWidgetItem : public QTableWidgetItem
+{
+public:
+    using QTableWidgetItem::QTableWidgetItem;
+
+    bool operator<(const QTableWidgetItem &other) const override
+    {
+        bool okA = false;
+        bool okB = false;
+        const double a = this->text().toDouble(&okA);
+        const double b = other.text().toDouble(&okB);
+        if (okA && okB)
+        {
+            return a < b;
+        }
+        return QTableWidgetItem::operator<(other);
+    }
+};
+
+}  // namespace
 
 LimerinoResultList::LimerinoResultList(QWidget *parent)
     : QWidget(parent)
@@ -136,6 +161,11 @@ void LimerinoResultList::setRowMenuProvider(RowMenuProvider provider)
     this->rowMenuProvider_ = std::move(provider);
 }
 
+void LimerinoResultList::setNumericColumns(const QSet<int> &columns)
+{
+    this->numericColumns_ = columns;
+}
+
 void LimerinoResultList::setRowOpenUrlProvider(
     std::function<QString(const QStringList &)> provider)
 {
@@ -222,8 +252,16 @@ void LimerinoResultList::applyPage()
         const QStringList &cols = this->filteredRows_.at(r);
         for (int c = 0; c < cols.size() && c < this->headers_.size(); ++c)
         {
-            this->table_->setItem(r - start, c,
-                                  new QTableWidgetItem(cols.at(c)));
+            QTableWidgetItem *item;
+            if (this->numericColumns_.contains(c))
+            {
+                item = new NumericTableWidgetItem(cols.at(c));
+            }
+            else
+            {
+                item = new QTableWidgetItem(cols.at(c));
+            }
+            this->table_->setItem(r - start, c, item);
         }
 
         auto *copyButton = new QPushButton(QStringLiteral("copy"), this->table_);

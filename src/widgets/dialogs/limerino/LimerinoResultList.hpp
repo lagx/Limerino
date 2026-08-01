@@ -8,6 +8,8 @@
 
 #include <QWidget>
 
+#include <QSet>
+
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -45,6 +47,9 @@ public:
     void setRowOpenUrlProvider(
         std::function<QString(const QStringList &row)> provider);
 
+    // Columns that should sort numerically (default: lexicographic).
+    void setNumericColumns(const QSet<int> &columns);
+
 private:
     void applyPage();
     void copyCell(int row, int column);
@@ -66,6 +71,7 @@ private:
     int page_ = 0;
     RowMenuProvider rowMenuProvider_{};
     std::function<QString(const QStringList &)> rowOpenUrlProvider_{};
+    QSet<int> numericColumns_;
 };
 
 }  // namespace chatterino::limerino
