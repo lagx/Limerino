@@ -20,6 +20,8 @@
 
 namespace chatterino::LimerinoCommands {
 
+namespace gql = chatterino::LimerinoAuth::gql;
+
 namespace {
 
 void say(const ChannelPtr &channel, const QString &text)
@@ -336,7 +338,7 @@ QString logsExtended(const CommandContext &ctx)
                         else
                         {
                             // plugin's final step: upload the whole log to the paste host.
-                            uploadPaste(
+                            LimerinoApi::uploadPaste(
                                 QStringLiteral("Total messages: %1\n%2")
                                     .arg(lines->size())
                                     .arg(lines->join(QStringLiteral("\n"))),

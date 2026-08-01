@@ -32,6 +32,8 @@
 
 namespace chatterino::LimerinoCommands {
 
+namespace gql = chatterino::LimerinoAuth::gql;
+
 namespace {
 
 // Hard caps per batch-2 spec: 10k rows => 100 pages of 100.

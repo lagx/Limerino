@@ -12,6 +12,7 @@
 #include "providers/limerino/LimerinoErrors.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultDialog.hpp"
+#include "widgets/dialogs/limerino/LimerinoResultList.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -270,7 +271,7 @@ QString modList(const CommandContext &ctx)
     const ChannelPtr channel = ctx.channel;
 
     // /modlist always re-fetches first (cache may be stale), then displays.
-    auto *invokeGuard = new QObject(channel.get());
+    auto *invokeGuard = new QObject();
     QPointer<QObject> guard(invokeGuard);
     LimerinoAuth::refreshAccounts(
         [guard, channel, invokeGuard,

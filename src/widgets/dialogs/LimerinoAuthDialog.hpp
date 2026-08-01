@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "providers/limerino/LimerinoAuth.hpp"
 #include "widgets/BasePopup.hpp"
 
 #include <QPointer>
@@ -19,10 +20,6 @@ class QTableWidget;
 class QTextEdit;
 
 namespace chatterino {
-
-namespace LimerinoAuth {
-    class DeviceLogin;
-}
 
 class LimerinoAuthDialog final : public BasePopup
 {

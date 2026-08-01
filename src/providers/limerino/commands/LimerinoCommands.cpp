@@ -3,6 +3,7 @@
 #include "providers/limerino/commands/LimerinoCommands.hpp"
 
 #include "controllers/commands/CommandController.hpp"
+#include "controllers/commands/CommandContext.hpp"
 #include "providers/limerino/commands/Follows.hpp"
 #include "providers/limerino/commands/Identity.hpp"
 #include "providers/limerino/commands/ChatUtils.hpp"
