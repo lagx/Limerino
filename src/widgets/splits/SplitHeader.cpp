@@ -1228,14 +1228,14 @@ void SplitHeader::updateIcons()
             this->moderationButton_->hide();
         }
 
-        if (channel->hasModRights() && channel->isTwitchChannel())
+        // Limerino fork: the predictions window is for everyone (its mod
+        // features are gated inside the dialog).
+        if (channel->isTwitchChannel())
         {
-            // Limerino fork: show the points button only when modded here.
             if (this->pointsButton_)
             {
                 this->pointsButton_->show();
             }
-            this->chattersButton_->show();
         }
         else
         {
@@ -1243,6 +1243,14 @@ void SplitHeader::updateIcons()
             {
                 this->pointsButton_->hide();
             }
+        }
+
+        if (channel->hasModRights() && channel->isTwitchChannel())
+        {
+            this->chattersButton_->show();
+        }
+        else
+        {
             this->chattersButton_->hide();
         }
     }

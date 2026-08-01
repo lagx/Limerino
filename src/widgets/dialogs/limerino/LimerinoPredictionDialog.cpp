@@ -9,9 +9,11 @@
 #include "providers/limerino/LimerinoErrors.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "singletons/Settings.hpp"
+#include "widgets/dialogs/limerino/LimerinoResultList.hpp"
 #include "widgets/splits/Split.hpp"
 
 #include <QComboBox>
+#include <QDateTime>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -23,6 +25,7 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QPushButton>
+#include <QRandomGenerator>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -31,23 +34,32 @@ namespace chatterino::limerino {
 namespace {
 
 constexpr int MAX_OPTIONS = 10;
+constexpr int RESOLVED_HISTORY_COUNT = 10;
 
-QStringSetting &historySetting()
+// Plugin's generateRandomHexString(32) equivalent for transaction IDs.
+QString randomHex(int length)
 {
-    return getSettings()->limerinoPredictionHistory;
+    static const QString chars = QStringLiteral("0123456789abcdef");
+    QString out;
+    out.reserve(length);
+    for (int i = 0; i < length; ++i)
+    {
+        out += chars[QRandomGenerator::global()->bounded(chars.size())];
+    }
+    return out;
 }
 
-QJsonArray readHistory()
+QJsonArray readDrafts()
 {
     QJsonParseError err{};
     const auto doc = QJsonDocument::fromJson(
-        historySetting().getValue().toUtf8(), &err);
+        getSettings()->limerinoPredictionHistory.getValue().toUtf8(), &err);
     return doc.isArray() ? doc.array() : QJsonArray{};
 }
 
-void writeHistory(const QJsonArray &arr)
+void writeDrafts(const QJsonArray &arr)
 {
-    historySetting().setValue(QString::fromUtf8(
+    getSettings()->limerinoPredictionHistory.setValue(QString::fromUtf8(
         QJsonDocument(arr).toJson(QJsonDocument::Compact)));
 }
 
@@ -57,20 +69,20 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     : BasePopup({BaseWindow::Flags::Dialog}, split)
     , split_(split)
 {
-    this->setWindowTitle(QStringLiteral("Limerino - predictions"));
-    this->resize(420, 560);
+    this->setWindowTitle(QStringLiteral("Limerino - channel points"));
+    this->resize(460, 640);
     this->setAttribute(Qt::WA_DeleteOnClose);
 
     auto *root = new QVBoxLayout(this);
 
-    // ---------------- create ----------------
-    auto *createBox = new QGroupBox(QStringLiteral("Create prediction"), this);
-    auto *createLayout = new QVBoxLayout(createBox);
+    // ------------------------- Create (mod) -------------------------
+    this->createBox_ = new QGroupBox(QStringLiteral("Create prediction"), this);
+    auto *createLayout = new QVBoxLayout(this->createBox_);
 
     auto *form = new QFormLayout;
-    this->titleEdit_ = new QLineEdit(createBox);
+    this->titleEdit_ = new QLineEdit(this->createBox_);
     form->addRow(QStringLiteral("Title"), this->titleEdit_);
-    this->windowSpin_ = new QSpinBox(createBox);
+    this->windowSpin_ = new QSpinBox(this->createBox_);
     this->windowSpin_->setRange(30, 3600);
     this->windowSpin_->setValue(120);
     form->addRow(QStringLiteral("Window (seconds)"), this->windowSpin_);
@@ -78,78 +90,102 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
 
     this->optionsLayout_ = new QVBoxLayout;
     createLayout->addLayout(this->optionsLayout_);
-
     this->addOptionRow();
     this->addOptionRow();
 
     auto *addRow = new QHBoxLayout;
-    this->addOptionButton_ = new QPushButton(QStringLiteral("+ Add option"),
-                                             createBox);
+    this->addOptionButton_ =
+        new QPushButton(QStringLiteral("+ Add option"), this->createBox_);
     addRow->addWidget(this->addOptionButton_);
     addRow->addStretch(1);
     createLayout->addLayout(addRow);
 
-    this->createButton_ = new QPushButton(QStringLiteral("Create"), createBox);
+    this->createButton_ = new QPushButton(QStringLiteral("Create"),
+                                          this->createBox_);
     createLayout->addWidget(this->createButton_);
-    root->addWidget(createBox);
+    root->addWidget(this->createBox_);
 
-    // ---------------- history ----------------
-    auto *historyBox = new QGroupBox(QStringLiteral("Last 5 created"), this);
-    auto *historyLayout = new QVBoxLayout(historyBox);
-    this->historyBox_ = new QComboBox(historyBox);
-    historyLayout->addWidget(this->historyBox_);
-    this->historyUseButton_ =
-        new QPushButton(QStringLiteral("Use as template"), historyBox);
-    historyLayout->addWidget(this->historyUseButton_);
-    root->addWidget(historyBox);
+    // ------------------- Draft history (mod) -------------------
+    this->draftsBox_ =
+        new QGroupBox(QStringLiteral("Last 5 created (drafts)"), this);
+    auto *draftsLayout = new QVBoxLayout(this->draftsBox_);
+    this->draftsCombo_ = new QComboBox(this->draftsBox_);
+    draftsLayout->addWidget(this->draftsCombo_);
+    this->draftsUseButton_ =
+        new QPushButton(QStringLiteral("Use as template"), this->draftsBox_);
+    draftsLayout->addWidget(this->draftsUseButton_);
+    root->addWidget(this->draftsBox_);
 
-    // ---------------- active prediction ----------------
-    auto *activeBox = new QGroupBox(QStringLiteral("Active prediction"), this);
+    // --------------------- Active prediction (all) ---------------------
+    auto *activeBox = new QGroupBox(QStringLiteral("Prediction"), this);
     auto *activeOuter = new QVBoxLayout(activeBox);
     this->activeLabel_ = new QLabel(activeBox);
+    this->activeLabel_->setWordWrap(true);
     activeOuter->addWidget(this->activeLabel_);
     this->activeLayout_ = new QVBoxLayout;
     activeOuter->addLayout(this->activeLayout_);
-    auto *activeButtons = new QHBoxLayout;
-    this->lockButton_ = new QPushButton(QStringLiteral("Lock"), activeBox);
-    this->refreshButton_ = new QPushButton(QStringLiteral("Refresh"), activeBox);
-    activeButtons->addWidget(this->lockButton_);
-    activeButtons->addWidget(this->refreshButton_);
-    activeButtons->addStretch(1);
-    activeOuter->addLayout(activeButtons);
-    root->addWidget(activeBox);
-    root->addStretch(1);
 
-    this->historyBox_->addItems(
-        QStringList{QStringLiteral("(select a previous prediction)")});
+    // makePrediction (everyone, when active & unlocked)
+    auto *makeRow = new QHBoxLayout;
+    makeRow->addWidget(new QLabel(QStringLiteral("Points:"), activeBox));
+    this->pointsSpin_ = new QSpinBox(activeBox);
+    this->pointsSpin_->setRange(1, 100000000);
+    makeRow->addWidget(this->pointsSpin_);
+    this->outcomeCombo_ = new QComboBox(activeBox);
+    makeRow->addWidget(this->outcomeCombo_, 1);
+    this->makeButton_ = new QPushButton(QStringLiteral("Make prediction"),
+                                        activeBox);
+    makeRow->addWidget(this->makeButton_);
+    activeOuter->addLayout(makeRow);
+
+    auto *manageRow = new QHBoxLayout;
+    this->lockButton_ = new QPushButton(QStringLiteral("Lock"), activeBox);
+    this->refundButton_ =
+        new QPushButton(QStringLiteral("Cancel & refund"), activeBox);
+    this->refreshButton_ = new QPushButton(QStringLiteral("Refresh"), activeBox);
+    manageRow->addWidget(this->lockButton_);
+    manageRow->addWidget(this->refundButton_);
+    manageRow->addWidget(this->refreshButton_);
+    manageRow->addStretch(1);
+    activeOuter->addLayout(manageRow);
+    root->addWidget(activeBox);
+
+    // ------------------- Past predictions (all) -------------------
+    auto *pastBox = new QGroupBox(QStringLiteral("Past predictions"), this);
+    auto *pastLayout = new QVBoxLayout(pastBox);
+    this->pastList_ = new LimerinoResultList(pastBox);
+    this->pastList_->setColumns({QStringLiteral("prediction"),
+                                 QStringLiteral("by"),
+                                 QStringLiteral("outcome")});
+    pastLayout->addWidget(this->pastList_);
+    root->addWidget(pastBox, 1);
+
+    // ------------------------------ data ------------------------------
+    this->draftsCombo_->addItem(QStringLiteral("(select a previous prediction)"));
+    for (const QJsonValue &v : readDrafts())
     {
-        const QJsonArray history = readHistory();
-        for (const QJsonValue &v : history)
+        const QJsonObject o = v.toObject();
+        QStringList options;
+        for (const QJsonValue &ov : o[QStringLiteral("options")].toArray())
         {
-            const QJsonObject o = v.toObject();
-            QStringList options;
-            for (const QJsonValue &ov : o[QStringLiteral("options")].toArray())
-            {
-                options.append(ov.toString());
-            }
-            this->historyBox_->addItem(
-                QStringLiteral("%1 (%2)")
-                    .arg(o[QStringLiteral("title")].toString(),
-                         options.join(QStringLiteral(" / "))));
+            options.append(ov.toString());
         }
+        this->draftsCombo_->addItem(
+            QStringLiteral("%1 (%2)")
+                .arg(o[QStringLiteral("title")].toString(),
+                     options.join(QStringLiteral(" / "))));
     }
 
-    // ---------------- logic ----------------
     QObject::connect(this->addOptionButton_, &QPushButton::clicked, this,
                      [this] { this->addOptionRow(); });
     QObject::connect(this->createButton_, &QPushButton::clicked, this,
                      [this] { this->submitCreate(); });
-    QObject::connect(this->historyUseButton_, &QPushButton::clicked, this,
+    QObject::connect(this->draftsUseButton_, &QPushButton::clicked, this,
                      [this] {
-                         const int index = this->historyBox_->currentIndex();
+                         const int index = this->draftsCombo_->currentIndex();
                          if (index > 0)
                          {
-                             this->refillFromHistory(index - 1);
+                             this->refillFromDraft(index - 1);
                          }
                      });
     QObject::connect(this->lockButton_, &QPushButton::clicked, this, [this] {
@@ -158,10 +194,38 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
             this->lockPrediction(this->activeEventId_);
         }
     });
+    QObject::connect(this->refundButton_, &QPushButton::clicked, this, [this] {
+        if (this->activeEventId_.isEmpty())
+        {
+            return;
+        }
+        const auto answer = QMessageBox::question(
+            this, QStringLiteral("Cancel prediction"),
+            QStringLiteral("Cancel the active prediction and refund all "
+                           "points? This cannot be undone."));
+        if (answer == QMessageBox::Yes)
+        {
+            this->refundPrediction(this->activeEventId_);
+        }
+    });
     QObject::connect(this->refreshButton_, &QPushButton::clicked, this,
                      [this] { this->refreshContext(); });
+    QObject::connect(this->makeButton_, &QPushButton::clicked, this,
+                     [this] { this->makePrediction(); });
 
+    this->applyModGating();
     this->refreshContext();
+}
+
+void LimerinoPredictionDialog::applyModGating()
+{
+    const auto *tchan = dynamic_cast<TwitchChannel *>(
+        this->split_->getSelectedChannel().get());
+    const bool mod = tchan != nullptr && tchan->hasModRights();
+    this->createBox_->setVisible(mod);
+    this->draftsBox_->setVisible(mod);
+    this->lockButton_->setVisible(mod);
+    this->refundButton_->setVisible(mod);
 }
 
 void LimerinoPredictionDialog::addOptionRow(const QString &text)
@@ -200,17 +264,16 @@ void LimerinoPredictionDialog::addOptionRow(const QString &text)
     });
 }
 
-void LimerinoPredictionDialog::refillFromHistory(int index)
+void LimerinoPredictionDialog::refillFromDraft(int index)
 {
-    const QJsonArray history = readHistory();
-    if (index < 0 || index >= history.size())
+    const QJsonArray drafts = readDrafts();
+    if (index < 0 || index >= drafts.size())
     {
         return;
     }
-    const QJsonObject o = history[index].toObject();
+    const QJsonObject o = drafts[index].toObject();
     this->titleEdit_->setText(o[QStringLiteral("title")].toString());
-    this->windowSpin_->setValue(
-        o[QStringLiteral("windowSeconds")].toInt(120));
+    this->windowSpin_->setValue(o[QStringLiteral("windowSeconds")].toInt(120));
     while (this->optionsLayout_->count() > 0)
     {
         auto *item = this->optionsLayout_->takeAt(0);
@@ -228,33 +291,192 @@ void LimerinoPredictionDialog::refillFromHistory(int index)
     this->createButton_->setFocus();
 }
 
-void LimerinoPredictionDialog::appendHistory(const QString &title,
-                                             const QStringList &options,
-                                             int windowSeconds)
+void LimerinoPredictionDialog::appendDraft(const QString &title,
+                                           const QStringList &options,
+                                           int windowSeconds)
 {
-    QJsonArray history = readHistory();
+    QJsonArray drafts = readDrafts();
     QJsonArray optionsArr;
     for (const QString &o : options)
     {
         optionsArr.append(o);
     }
-    history.prepend(QJsonObject{
+    drafts.prepend(QJsonObject{
         {QStringLiteral("title"), title},
         {QStringLiteral("options"), optionsArr},
         {QStringLiteral("windowSeconds"), windowSeconds},
     });
-    while (history.size() > 5)
+    while (drafts.size() > 5)
     {
-        history.removeLast();
+        drafts.removeLast();
     }
-    writeHistory(history);
+    writeDrafts(drafts);
 
-    this->historyBox_->insertItem(
+    this->draftsCombo_->insertItem(
         1, QStringLiteral("%1 (%2)").arg(title, options.join(QStringLiteral(" / "))));
-    while (this->historyBox_->count() > 6)
+    while (this->draftsCombo_->count() > 6)
     {
-        this->historyBox_->removeItem(this->historyBox_->count() - 1);
+        this->draftsCombo_->removeItem(this->draftsCombo_->count() - 1);
     }
+}
+
+void LimerinoPredictionDialog::refreshContext()
+{
+    auto *tchan = dynamic_cast<TwitchChannel *>(
+        this->split_->getSelectedChannel().get());
+    if (tchan == nullptr)
+    {
+        return;
+    }
+    this->applyModGating();
+
+    QString err;
+    auto token = LimerinoAuth::resolveReadToken(&err);
+    if (!token.hasToken())
+    {
+        this->activeLabel_->setText(
+            err.isEmpty() ? LimerinoAuth::errors::tokenRequiredMessage(
+                                QStringLiteral("view predictions"))
+                          : err);
+        return;
+    }
+
+    gql::executePersisted(
+        gql::PQ_CHANNEL_POINTS_PREDICTION_CONTEXT,
+        QJsonObject{{QStringLiteral("count"), RESOLVED_HISTORY_COUNT},
+                    {QStringLiteral("channelLogin"), tchan->getName()}},
+        token.token,
+        [g = QPointer<LimerinoPredictionDialog>(this), this,
+         tchan](const QJsonObject &data) {
+            if (!g)
+            {
+                return;
+            }
+            const QJsonObject channel =
+                data[QStringLiteral("community")].toObject()[
+                    QStringLiteral("channel")].toObject();
+            const QJsonArray active =
+                channel[QStringLiteral("activePredictionEvents")].toArray();
+            const QJsonArray locked =
+                channel[QStringLiteral("lockedPredictionEvents")].toArray();
+            const QJsonObject event =
+                (!active.isEmpty() ? active.first()
+                                   : (!locked.isEmpty() ? locked.first()
+                                                        : QJsonObject{}))
+                    .toObject();
+
+            this->outcomeCombo_->clear();
+            if (event.isEmpty())
+            {
+                this->activeEventId_.clear();
+                this->predictionLocked_ = true;
+                this->activeLabel_->setText(
+                    QStringLiteral("There is currently no live prediction."));
+                this->makeButton_->setEnabled(false);
+                this->lockButton_->setEnabled(false);
+                this->refundButton_->setEnabled(false);
+            }
+            else
+            {
+                this->activeEventId_ = event[QStringLiteral("id")].toString();
+                this->predictionLocked_ = locked.contains(event);
+
+                this->activeLabel_->setText(
+                    (this->predictionLocked_ ? QStringLiteral("[locked] ")
+                                             : QStringLiteral("[active] ")) +
+                    event[QStringLiteral("title")].toString() +
+                    QStringLiteral(" (by ") +
+                    event[QStringLiteral("createdBy")].toObject()[
+                        QStringLiteral("displayName")].toString() +
+                    QStringLiteral(", window %1s)")
+                        .arg(event[QStringLiteral("predictionWindowSeconds")]
+                                 .toInt()));
+
+                // Replace outcome rows
+                while (auto *item = this->activeLayout_->takeAt(0))
+                {
+                    while (auto *sub = item->takeAt(0))
+                    {
+                        delete sub->widget();
+                        delete sub;
+                    }
+                    delete item;
+                }
+                const QJsonArray outcomes =
+                    event[QStringLiteral("outcomes")].toArray();
+                const QString eventId = this->activeEventId_;
+                const bool mod = tchan->hasModRights();
+                for (const QJsonValue &ov : outcomes)
+                {
+                    const QJsonObject outcome = ov.toObject();
+                    const QString outcomeId =
+                        outcome[QStringLiteral("id")].toString();
+                    const QString outcomeTitle =
+                        outcome[QStringLiteral("title")].toString();
+                    this->outcomeCombo_->addItem(outcomeTitle, outcomeId);
+
+                    auto *row = new QHBoxLayout;
+                    row->addWidget(
+                        new QLabel(QStringLiteral("%1 (%2 points)")
+                                       .arg(outcomeTitle)
+                                       .arg(outcome[QStringLiteral("totalPoints")]
+                                                .toInt())));
+                    if (mod)
+                    {
+                        auto *payButton = new QPushButton(
+                            QStringLiteral("Payout"), this);
+                        QObject::connect(payButton, &QPushButton::clicked, this,
+                                         [this, eventId, outcomeId, outcomeTitle] {
+                                             const auto answer =
+                                                 QMessageBox::question(
+                                                     this,
+                                                     QStringLiteral("Pay out"),
+                                                     QStringLiteral("Resolve this "
+                                                                    "prediction paying "
+                                                                    "outcome \"%1\"?")
+                                                         .arg(outcomeTitle));
+                                             if (answer == QMessageBox::Yes)
+                                             {
+                                                 this->payoutPrediction(
+                                                     eventId, outcomeId);
+                                             }
+                                         });
+                        row->addWidget(payButton);
+                    }
+                    row->addStretch(1);
+                    this->activeLayout_->addLayout(row);
+                }
+                this->makeButton_->setEnabled(!this->predictionLocked_);
+                this->lockButton_->setEnabled(!this->predictionLocked_);
+                this->refundButton_->setEnabled(true);
+            }
+
+            // ------- past predictions (resolved events) -------
+            QVector<QStringList> rows;
+            for (const QJsonValue &v :
+                 channel[QStringLiteral("resolvedPredictionEvents")]
+                     .toObject()[QStringLiteral("edges")]
+                     .toArray())
+            {
+                const QJsonObject node = v.toObject()[QStringLiteral("node")]
+                                             .toObject();
+                rows.append(
+                    {node[QStringLiteral("title")].toString(),
+                     node[QStringLiteral("createdBy")].toObject()[
+                         QStringLiteral("displayName")].toString(),
+                     node[QStringLiteral("winningOutcome")].toObject()[
+                         QStringLiteral("title")].toString()});
+            }
+            this->pastList_->setRows(rows);
+            this->pastList_->setStatusText(QStringLiteral("%1 recent predictions")
+                                               .arg(rows.size()));
+        },
+        [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
+            if (g)
+            {
+                g->activeLabel_->setText(e.message);
+            }
+        });
 }
 
 void LimerinoPredictionDialog::submitCreate()
@@ -270,8 +492,7 @@ void LimerinoPredictionDialog::submitCreate()
     QStringList options;
     for (int i = 0; i < this->optionsLayout_->count(); ++i)
     {
-        auto *row = qobject_cast<QHBoxLayout *>(
-            this->optionsLayout_->itemAt(i));
+        auto *row = qobject_cast<QHBoxLayout *>(this->optionsLayout_->itemAt(i));
         if (row == nullptr)
         {
             continue;
@@ -285,8 +506,8 @@ void LimerinoPredictionDialog::submitCreate()
     }
     if (title.isEmpty() || options.size() < 2)
     {
-        this->activeLabel_->setText(QStringLiteral(
-            "need a title and at least 2 options"));
+        this->activeLabel_->setText(
+            QStringLiteral("need a title and at least 2 options"));
         return;
     }
 
@@ -302,7 +523,6 @@ void LimerinoPredictionDialog::submitCreate()
         return;
     }
 
-    // Plugin's color rule: 2 options -> [BLUE, PINK]; more -> all BLUE.
     QJsonArray outcomes;
     for (int i = 0; i < options.size(); ++i)
     {
@@ -313,7 +533,6 @@ void LimerinoPredictionDialog::submitCreate()
                                            : QStringLiteral("BLUE")},
         });
     }
-
     const int windowSeconds = this->windowSpin_->value();
     gql::executePersisted(
         gql::PQ_CREATE_PREDICTION_EVENT,
@@ -341,7 +560,8 @@ void LimerinoPredictionDialog::submitCreate()
                                      .arg(code));
             if (code.isEmpty())
             {
-                g->appendHistory(title, options, windowSeconds);
+                g->appendDraft(title, options, windowSeconds);
+                g->refreshContext();
             }
         },
         [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
@@ -354,135 +574,88 @@ void LimerinoPredictionDialog::submitCreate()
         });
 }
 
-void LimerinoPredictionDialog::refreshContext()
+void LimerinoPredictionDialog::makePrediction()
 {
     auto *tchan = dynamic_cast<TwitchChannel *>(
         this->split_->getSelectedChannel().get());
-    if (tchan == nullptr)
+    if (tchan == nullptr || this->activeEventId_.isEmpty())
+    {
+        return;
+    }
+    const QString outcomeId = this->outcomeCombo_->currentData().toString();
+    const QString outcomeTitle = this->outcomeCombo_->currentText();
+    const int points = this->pointsSpin_->value();
+    if (outcomeId.isEmpty() || points <= 0)
+    {
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this, QStringLiteral("Make prediction"),
+        QStringLiteral("Spend %1 channel points on \"%2\"?")
+            .arg(points)
+            .arg(outcomeTitle));
+    if (answer != QMessageBox::Yes)
     {
         return;
     }
 
     QString err;
-    auto token = LimerinoAuth::resolveModerationToken(
-        tchan->roomId(), tchan->getName(), &err);
+    auto token = LimerinoAuth::resolveReadToken(&err);
     if (!token.hasToken())
     {
         this->activeLabel_->setText(err.isEmpty()
                                         ? LimerinoAuth::errors::tokenRequiredMessage(
-                                              QStringLiteral("manage predictions"))
+                                              QStringLiteral("place a prediction"))
                                         : err);
         return;
     }
 
     gql::executePersisted(
-        gql::PQ_CHANNEL_POINTS_PREDICTION_CONTEXT,
-        QJsonObject{{QStringLiteral("count"), 1},
-                    {QStringLiteral("channelLogin"), tchan->getName()}},
+        gql::PQ_MAKE_PREDICTION,
+        QJsonObject{{QStringLiteral("input"),
+                     QJsonObject{{QStringLiteral("eventID"), this->activeEventId_},
+                                 {QStringLiteral("outcomeID"), outcomeId},
+                                 {QStringLiteral("points"), points},
+                                 {QStringLiteral("transactionID"),
+                                  randomHex(32)}}}},
         token.token,
-        [g = QPointer<LimerinoPredictionDialog>(this), this](
+        [g = QPointer<LimerinoPredictionDialog>(this)](
             const QJsonObject &data) {
             if (!g)
             {
                 return;
             }
-            const QJsonObject channel =
-                data[QStringLiteral("community")].toObject()[
-                    QStringLiteral("channel")].toObject();
-            const QJsonArray active =
-                channel[QStringLiteral("activePredictionEvents")].toArray();
-            const QJsonArray locked =
-                channel[QStringLiteral("lockedPredictionEvents")].toArray();
-            const QJsonObject event =
-                (!active.isEmpty() ? active.first()
-                                   : (!locked.isEmpty() ? locked.first()
-                                                        : QJsonObject{}))
-                    .toObject();
-            if (event.isEmpty())
+            const QString code =
+                data[QStringLiteral("makePrediction")]
+                    .toObject()[QStringLiteral("error")]
+                    .toObject()[QStringLiteral("code")]
+                    .toString();
+            g->activeLabel_->setText(
+                code.isEmpty()
+                    ? QStringLiteral("Successfully made prediction!")
+                    : QStringLiteral("Unable to make prediction! Status: %1")
+                          .arg(code));
+            if (code.isEmpty())
             {
-                this->activeEventId_.clear();
-                this->lockButton_->setEnabled(false);
-                this->activeLabel_->setText(
-                    QStringLiteral("No active prediction."));
-                return;
-            }
-
-            this->activeEventId_ = event[QStringLiteral("id")].toString();
-            const bool isLocked = locked.contains(event);
-            this->lockButton_->setEnabled(!isLocked);
-
-            QString text =
-                (isLocked ? QStringLiteral("[locked] ")
-                          : QStringLiteral("[active] ")) +
-                event[QStringLiteral("title")].toString() +
-                QStringLiteral(" (by ") +
-                event[QStringLiteral("createdBy")].toObject()[
-                    QStringLiteral("displayName")].toString() +
-                QStringLiteral(", window %1s)")
-                    .arg(event[QStringLiteral("predictionWindowSeconds")]
-                             .toInt());
-            this->activeLabel_->setText(text);
-
-            // Replace outcome action buttons
-            while (auto *item = this->activeLayout_->takeAt(0))
-            {
-                while (auto *sub = item->takeAt(0))
-                {
-                    delete sub->widget();
-                    delete sub;
-                }
-                delete item;
-            }
-            const QJsonArray outcomes =
-                event[QStringLiteral("outcomes")].toArray();
-            const QString eventId = this->activeEventId_;
-            for (const QJsonValue &ov : outcomes)
-            {
-                const QJsonObject outcome = ov.toObject();
-                auto *row = new QHBoxLayout;
-                row->addWidget(new QLabel(QStringLiteral(
-                                     "%1 (%2 points)")
-                                     .arg(outcome[QStringLiteral("title")]
-                                              .toString())
-                                     .arg(outcome[QStringLiteral("totalPoints")]
-                                              .toInt())));
-                auto *payButton =
-                    new QPushButton(QStringLiteral("Payout"), this);
-                const QString outcomeId =
-                    outcome[QStringLiteral("id")].toString();
-                const QString outcomeTitle =
-                    outcome[QStringLiteral("title")].toString();
-                QObject::connect(payButton, &QPushButton::clicked, this,
-                                 [this, eventId, outcomeId, outcomeTitle] {
-                                     const auto answer = QMessageBox::question(
-                                         this, QStringLiteral("Pay out"),
-                                         QStringLiteral("Resolve this prediction "
-                                                        "paying outcome \"%1\"?")
-                                             .arg(outcomeTitle));
-                                     if (answer == QMessageBox::Yes)
-                                     {
-                                         this->payoutPrediction(eventId,
-                                                                outcomeId);
-                                     }
-                                 });
-                row->addWidget(payButton);
-                row->addStretch(1);
-                this->activeLayout_->addLayout(row);
+                g->refreshContext();
             }
         },
         [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
             if (g)
             {
-                g->activeLabel_->setText(e.message);
+                g->activeLabel_->setText(
+                    QStringLiteral("Unable to make prediction! Status: %1")
+                        .arg(e.message));
             }
         });
 }
 
 void LimerinoPredictionDialog::lockPrediction(const QString &eventId)
 {
-    QString err;
     auto *tchan = dynamic_cast<TwitchChannel *>(
         this->split_->getSelectedChannel().get());
+    QString err;
     auto token = tchan ? LimerinoAuth::resolveModerationToken(
                              tchan->roomId(), tchan->getName(), &err)
                        : LimerinoAuth::LimerinoAuthToken{};
@@ -514,12 +687,48 @@ void LimerinoPredictionDialog::lockPrediction(const QString &eventId)
         });
 }
 
+void LimerinoPredictionDialog::refundPrediction(const QString &eventId)
+{
+    auto *tchan = dynamic_cast<TwitchChannel *>(
+        this->split_->getSelectedChannel().get());
+    QString err;
+    auto token = tchan ? LimerinoAuth::resolveModerationToken(
+                             tchan->roomId(), tchan->getName(), &err)
+                       : LimerinoAuth::LimerinoAuthToken{};
+    if (!token.hasToken())
+    {
+        this->activeLabel_->setText(err);
+        return;
+    }
+    gql::executePersisted(
+        gql::PQ_DELETE_PREDICTION,
+        QJsonObject{{QStringLiteral("input"),
+                     QJsonObject{{QStringLiteral("id"), eventId}}}},
+        token.token,
+        [g = QPointer<LimerinoPredictionDialog>(this)](
+            const QJsonObject & /*data*/) {
+            if (g)
+            {
+                g->activeLabel_->setText(
+                    QStringLiteral("Successfully deleted prediction!"));
+                g->refreshContext();
+            }
+        },
+        [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
+            if (g)
+            {
+                g->activeLabel_->setText(
+                    QStringLiteral("Unable to delete prediction! %1").arg(e.message));
+            }
+        });
+}
+
 void LimerinoPredictionDialog::payoutPrediction(const QString &eventId,
                                                 const QString &outcomeId)
 {
-    QString err;
     auto *tchan = dynamic_cast<TwitchChannel *>(
         this->split_->getSelectedChannel().get());
+    QString err;
     auto token = tchan ? LimerinoAuth::resolveModerationToken(
                              tchan->roomId(), tchan->getName(), &err)
                        : LimerinoAuth::LimerinoAuthToken{};
@@ -547,8 +756,7 @@ void LimerinoPredictionDialog::payoutPrediction(const QString &eventId,
             if (g)
             {
                 g->activeLabel_->setText(
-                    QStringLiteral("Unable to resolve prediction! %1")
-                        .arg(e.message));
+                    QStringLiteral("Unable to resolve prediction! %1").arg(e.message));
             }
         });
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-// Channel-points prediction manager window (batch 4).
-// - Create form: title, duration (seconds), 2-10 options with + / x buttons
-// - History: last 5 predictions created through this window (click to reuse)
-// - Active prediction: lock it or pay out on an outcome
+// Channel-points prediction window (batches 4+5), viewer/mod profiles:
+// - everyone: live prediction status, "Make prediction" (points, confirmation),
+//   past predictions list
+// - mods: same + create form, draft history (last 5), lock, payout, refund
 // GQL ops transcribed from pluginforreference/requests.lua.
 
 #pragma once
@@ -10,6 +10,7 @@
 #include "widgets/BasePopup.hpp"
 
 class QComboBox;
+class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -22,6 +23,8 @@ class TwitchChannel;
 
 namespace limerino {
 
+class LimerinoResultList;
+
 class LimerinoPredictionDialog final : public BasePopup
 {
     Q_OBJECT
@@ -31,32 +34,47 @@ public:
 
 private:
     void refreshContext();
+    void applyModGating();
     void submitCreate();
     void addOptionRow(const QString &text = QString());
-    void appendHistory(const QString &title, const QStringList &options,
-                       int windowSeconds);
-    void refillFromHistory(int index);
+    void appendDraft(const QString &title, const QStringList &options,
+                     int windowSeconds);
+    void refillFromDraft(int index);
+    void makePrediction();
     void lockPrediction(const QString &eventId);
+    void refundPrediction(const QString &eventId);
     void payoutPrediction(const QString &eventId, const QString &outcomeId);
 
     Split *split_ = nullptr;
 
+    // create (mod)
+    QGroupBox *createBox_ = nullptr;
     QLineEdit *titleEdit_ = nullptr;
     QSpinBox *windowSpin_ = nullptr;
     QVBoxLayout *optionsLayout_ = nullptr;
     QPushButton *addOptionButton_ = nullptr;
     QPushButton *createButton_ = nullptr;
 
-    QLabel *historyTitle_ = nullptr;
-    QComboBox *historyBox_ = nullptr;
-    QPushButton *historyUseButton_ = nullptr;
+    // draft history (mod)
+    QGroupBox *draftsBox_ = nullptr;
+    QComboBox *draftsCombo_ = nullptr;
+    QPushButton *draftsUseButton_ = nullptr;
 
+    // active prediction (everyone)
     QLabel *activeLabel_ = nullptr;
     QVBoxLayout *activeLayout_ = nullptr;
+    QComboBox *outcomeCombo_ = nullptr;
+    QSpinBox *pointsSpin_ = nullptr;
+    QPushButton *makeButton_ = nullptr;
     QPushButton *lockButton_ = nullptr;
+    QPushButton *refundButton_ = nullptr;
     QPushButton *refreshButton_ = nullptr;
 
+    // past predictions (everyone)
+    LimerinoResultList *pastList_ = nullptr;
+
     QString activeEventId_;
+    bool predictionLocked_ = false;
 };
 
 }  // namespace limerino
