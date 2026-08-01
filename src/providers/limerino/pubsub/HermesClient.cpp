@@ -365,15 +365,16 @@ void HermesClient::onNotification(const QJsonObject &object)
         return;
     }
 
-    const QString topic = this->idToTopic_.value(notification->subscriptionId);
-    if (topic.isEmpty())
+    const auto topicIt = this->idToTopic_.find(notification->subscriptionId);
+    if (topicIt == this->idToTopic_.end())
     {
         qCDebug(chatterinoLiveupdates)
             << "Hermes: notification for unknown subscription id";
         return;
     }
 
-    this->manager_.clientTopicMessage(topic, notification->payload);
+    this->manager_.clientTopicMessage(topicIt->second,
+                                      notification->payload);
 }
 
 void HermesClient::checkKeepalive()

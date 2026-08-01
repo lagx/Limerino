@@ -162,8 +162,8 @@ LimerinoPubSubController::LimerinoPubSubController(
             this->onTopicMessage(topic, payload);
         });
 
-    LimerinoAuth::accountsChanged.connect(
-        [this] { this->reconcile(); }, this->holder_);
+    this->holder_.managedConnect(LimerinoAuth::accountsChanged,
+                                 [this] { this->reconcile(); });
 
     // Deferred: account-switch hook (needs Application to exist).
     std::weak_ptr<bool> alive = this->aliveGuard_;
@@ -175,8 +175,9 @@ LimerinoPubSubController::LimerinoPubSubController(
         auto *app = tryGetApp();
         if (app != nullptr)
         {
-            app->getAccounts()->twitch.currentUserChanged.connect(
-                [this] { this->reconcile(); }, this->holder_);
+            this->holder_.managedConnect(
+                app->getAccounts()->twitch.currentUserChanged,
+                [this] { this->reconcile(); });
         }
     });
 }
@@ -704,7 +705,7 @@ void initializePubSub()
 
     g_instance = new LimerinoPubSubController(std::move(sink),
                                               &resolveWithLimerinoAuth,
-                                              Config{});
+                                              LimerinoPubSubController::Config{});
 
     // Connections authenticate with the token live at authenticate time.
     managerPtr->setAuthResolver(

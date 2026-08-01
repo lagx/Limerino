@@ -6,6 +6,7 @@
 #include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 #include "singletons/Settings.hpp"
 #include "singletons/WindowManager.hpp"
+#include "widgets/Notebook.hpp"
 #include "widgets/splits/Split.hpp"
 #include "widgets/splits/SplitContainer.hpp"
 #include "widgets/Window.hpp"
@@ -71,15 +72,15 @@ bool pubSubEventTypeHidden(const QString &type)
 
 void setPubSubEventTypeHidden(const QString &type, bool hidden)
 {
-    QStringList hidden = hiddenPubSubEventTypes();
-    const bool contains = hidden.contains(type, Qt::CaseInsensitive);
+    QStringList hiddenList = hiddenPubSubEventTypes();
+    const bool contains = hiddenList.contains(type, Qt::CaseInsensitive);
     if (hidden && !contains)
     {
-        hidden.append(type);
+        hiddenList.append(type);
     }
     else if (!hidden && contains)
     {
-        hidden.removeIf([&](const QString &item) {
+        hiddenList.removeIf([&](const QString &item) {
             return item.compare(type, Qt::CaseInsensitive) == 0;
         });
     }
@@ -87,7 +88,7 @@ void setPubSubEventTypeHidden(const QString &type, bool hidden)
     {
         return;  // no change
     }
-    getSettings()->limerinoPubSubHiddenEventTypes.setValue(hidden);
+    getSettings()->limerinoPubSubHiddenEventTypes.setValue(hiddenList);
 }
 
 QStringList hiddenPubSubEventTypes()

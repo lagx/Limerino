@@ -126,9 +126,18 @@ private:
 
     HermesManager &manager_;
 
+public:
+    // --- manager-protocol members ---
+    // Read/written directly by BasicPubSubManager (salvage, socket wiring)
+    // and HermesManager (grouping/sweep queries). Public by design: this
+    // class exists only to serve those two.
     /// Accepted subscriptions (queued or wire-sent). Salvaged as a whole by
     /// BasicPubSubManager::onConnectionClose.
     std::unordered_set<Subscription> subscriptions_;
+    WebSocketHandle ws_;
+    std::optional<QString> identityKey_;  // unset until first subscription
+
+private:
     /// Accepted but not yet on the wire (waiting for authentication).
     std::vector<Subscription> queued_;
 
@@ -136,19 +145,12 @@ private:
     std::unordered_map<QString, QString> idToTopic_;
     std::unordered_map<QString, QString> topicToId_;
 
-    WebSocketHandle ws_;
-
-    std::optional<QString> identityKey_;  // unset until first subscription
     AuthState authState_ = AuthState::Idle;
     bool open_ = false;
 
     QTimer keepaliveTimer_;
     std::chrono::milliseconds keepaliveMs_{12500};
     QDateTime lastKeepaliveAt_;
-
-    template <typename ManagerT, typename ClientT>
-    friend class BasicPubSubManager;
-    friend HermesManager;
 };
 
 }  // namespace chatterino::limerino
