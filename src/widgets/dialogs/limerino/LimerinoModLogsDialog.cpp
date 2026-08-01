@@ -218,7 +218,7 @@ void LimerinoModLogsDialog::fetchPage(const QString &cursor)
                                  .toString();
                 keepGoing = !nextCursor.isEmpty() &&
                             ++this->pages_ < MAX_PAGES &&
-                            (this->cutoff_.isInvalid() ||
+                            (!this->cutoff_.isValid() ||
                              QDateTime::fromString(
                                  edges.last()
                                      .toObject()[QStringLiteral("node")]

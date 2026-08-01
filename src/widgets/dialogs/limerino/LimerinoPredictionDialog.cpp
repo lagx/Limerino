@@ -35,6 +35,8 @@
 
 namespace chatterino::limerino {
 
+namespace gql = chatterino::LimerinoAuth::gql;
+
 namespace {
 
 constexpr int MAX_OPTIONS = 10;
@@ -399,8 +401,8 @@ void LimerinoPredictionDialog::submitCreatePoll()
     QStringList options;
     for (int i = 0; i < this->pollOptionsLayout_->count(); ++i)
     {
-        auto *row =
-            qobject_cast<QHBoxLayout *>(this->pollOptionsLayout_->itemAt(i));
+        auto *row = qobject_cast<QHBoxLayout *>(
+            this->pollOptionsLayout_->itemAt(i)->layout());
         if (row == nullptr)
         {
             continue;
@@ -488,10 +490,13 @@ void LimerinoPredictionDialog::refillFromDraft(int index)
     while (this->optionsLayout_->count() > 0)
     {
         auto *item = this->optionsLayout_->takeAt(0);
-        while (auto *sub = item->takeAt(0))
+        if (auto *rowLayout = item->layout())
         {
-            delete sub->widget();
-            delete sub;
+            while (auto *sub = rowLayout->takeAt(0))
+            {
+                delete sub->widget();
+                delete sub;
+            }
         }
         delete item;
     }
@@ -606,10 +611,13 @@ void LimerinoPredictionDialog::refreshContext()
                 // Replace outcome rows
                 while (auto *item = this->activeLayout_->takeAt(0))
                 {
-                    while (auto *sub = item->takeAt(0))
+                    if (auto *rowLayout = item->layout())
                     {
-                        delete sub->widget();
-                        delete sub;
+                        while (auto *sub = rowLayout->takeAt(0))
+                        {
+                            delete sub->widget();
+                            delete sub;
+                        }
                     }
                     delete item;
                 }
@@ -703,7 +711,8 @@ void LimerinoPredictionDialog::submitCreate()
     QStringList options;
     for (int i = 0; i < this->optionsLayout_->count(); ++i)
     {
-        auto *row = qobject_cast<QHBoxLayout *>(this->optionsLayout_->itemAt(i));
+        auto *row = qobject_cast<QHBoxLayout *>(
+            this->optionsLayout_->itemAt(i)->layout());
         if (row == nullptr)
         {
             continue;

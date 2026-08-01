@@ -218,7 +218,7 @@ void grantLeadMod(const QString &userLogin, const ChannelPtr &channel)
         QJsonObject{{QStringLiteral("login"), userLogin},
                     {QStringLiteral("lookupType"), QStringLiteral("ALL")}},
         token.token,
-        [weak = std::weak_ptr(channel), token = token.token](
+        [weak = std::weak_ptr(channel), token](
             const QJsonObject &data) {
             const QString uid = data[QStringLiteral("user")]
                                     .toObject()[QStringLiteral("id")]
@@ -239,9 +239,9 @@ void grantLeadMod(const QString &userLogin, const ChannelPtr &channel)
                              QJsonObject{{QStringLiteral("channelID"),
                                           token.userId},
                                          {QStringLiteral("targetUserID"), uid},
-                                         {QStringLiteral("roleID"),
-                                          QStringLiteral("lead_mod")}}}},
-                token,
+                                          {QStringLiteral("roleID"),
+                                           QStringLiteral("lead_mod")}}}},
+                token.token,
                 [weak](const QJsonObject &assignData) {
                     if (auto ch = weak.lock())
                     {

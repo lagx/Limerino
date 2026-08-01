@@ -30,6 +30,8 @@
 
 namespace chatterino::limerino {
 
+namespace gql = chatterino::LimerinoAuth::gql;
+
 LimerinoAppearanceWidget::LimerinoAppearanceWidget(Split *split)
     : BaseWidget(split)
     , split_(split)
