@@ -344,6 +344,16 @@ QVector<CommandDoc> commandDocs()
          QStringLiteral("Refresh and list every channel your extra-features "
                         "account moderates (Helix moderation/channels). "
                         "Also opens the result list.")},
+        {QStringLiteral("/follow"),
+         QStringLiteral("/follow [user] (default: this channel)"),
+         QStringLiteral("Follow a channel (persisted FollowButton_FollowUser). "
+                        "Also in the split 3-dot menu as \"Follow channel\". "
+                        "Replaces the stock /follow.")},
+        {QStringLiteral("(menus)"),
+         QStringLiteral("chat settings (own channel): View followers / View following"),
+         QStringLiteral("Open the followers window (searchable, since + for, "
+                        "right-click to block) and the following window (live "
+                        "dots, notifications, right-click to open chat/channel).")},
     };
 }
 

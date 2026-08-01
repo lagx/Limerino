@@ -9,9 +9,13 @@
 #include <QWidget>
 
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QTableWidget;
-class QTableWidgetItem;
+
+#include <functional>
+
+class QMenu;
 
 namespace chatterino::limerino {
 
@@ -20,6 +24,11 @@ class LimerinoResultList : public QWidget
     Q_OBJECT
 
 public:
+    // Optional per-row context menu: consumer receives the row's column values
+    // and appends its own actions (a "Copy row" action is always appended).
+    using RowMenuProvider =
+        std::function<void(const QStringList &row, QMenu *menu)>;
+
     explicit LimerinoResultList(QWidget *parent = nullptr);
 
     void setTitleText(const QString &title);
@@ -28,13 +37,19 @@ public:
     void setStatusText(const QString &status);
     void clear();
 
+    // Show a live search box that filters rows (any column, case-insensitive).
+    void enableSearch(bool enabled);
+    void setRowMenuProvider(RowMenuProvider provider);
+
 private:
     void applyPage();
     void copyCell(int row, int column);
+    void refreshFilter();
 
     static constexpr int PAGE_SIZE = 25;
 
     QLabel *titleLabel_ = nullptr;
+    QLineEdit *filterEdit_ = nullptr;
     QTableWidget *table_ = nullptr;
     QLabel *statusLabel_ = nullptr;
     QPushButton *prevButton_ = nullptr;
@@ -43,7 +58,9 @@ private:
 
     QStringList headers_;
     QVector<QStringList> rows_;
+    QVector<QStringList> filteredRows_;
     int page_ = 0;
+    RowMenuProvider rowMenuProvider_{};
 };
 
 }  // namespace chatterino::limerino
