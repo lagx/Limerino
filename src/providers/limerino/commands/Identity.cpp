@@ -375,6 +375,21 @@ QVector<CommandDoc> commandDocs()
         {QStringLiteral("/acknowledgewarning"),
          QStringLiteral("/acknowledgewarning"),
          QStringLiteral("Acknowledge the chat warning shown by the channel.")},
+        {QStringLiteral("/resub"),
+         QStringLiteral("/resub [message]"),
+         QStringLiteral("Share your resub notification (silent on success, "
+                        "like the plugin).")},
+        {QStringLiteral("/cheer"),
+         QStringLiteral("/cheer <bits> [message]"),
+         QStringLiteral("Send a cheer (ChatInput_SendCheer, per-plugin fields).")},
+        {QStringLiteral("/displayname"),
+         QStringLiteral("/displayname <name>"),
+         QStringLiteral("Update your display name (updateUser mutation).")},
+        {QStringLiteral("/logsextended"),
+         QStringLiteral("/logsextended [-id] [user] [channel]"),
+         QStringLiteral("Fetch a user's chat log into a paste on the configured "
+                        "host. -id includes message ids (request keeps the id "
+                        "field); without it the field is removed from the query.")},
         {QStringLiteral("(icon)"),
          QStringLiteral("channel-points icon (mod toolbar)"),
          QStringLiteral("Opens the channel-points window: create predictions "

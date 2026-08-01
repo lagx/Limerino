@@ -5,6 +5,7 @@
 #include "controllers/commands/CommandController.hpp"
 #include "providers/limerino/commands/Follows.hpp"
 #include "providers/limerino/commands/Identity.hpp"
+#include "providers/limerino/commands/ChatUtils.hpp"
 #include "providers/limerino/commands/Moderation.hpp"
 #include "providers/limerino/commands/Pins.hpp"
 #include "providers/limerino/commands/Roles.hpp"
@@ -38,6 +39,12 @@ void initialize(CommandController &commands)
     // Batch 10 - Moderation
     commands.registerExternalCommand("/modlogs", &modlogs);
     commands.registerExternalCommand("/acknowledgewarning", &acknowledgeWarning);
+
+    // Batch 11 - Chat utils
+    commands.registerExternalCommand("/resub", &resubNotification);
+    commands.registerExternalCommand("/cheer", &cheer);
+    commands.registerExternalCommand("/displayname", &displayName);
+    commands.registerExternalCommand("/logsextended", &logsExtended);
 }
 
 }  // namespace chatterino::LimerinoCommands

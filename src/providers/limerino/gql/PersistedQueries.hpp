@@ -293,4 +293,52 @@ query TCN_ViewerCardModLogsMessagesBySender($channelID: ID!, $senderID: ID!, $cu
     }
 )GQL");
 
+// Same query without the message `id` field selection (batch-11 requirement:
+// /logsextended omits ids unless the -id flag is passed). ONLY the `id` line
+// differs from the query above.
+inline const QString VIEWER_CARD_MODLOG_MESSAGES_NOID_QUERY = QStringLiteral(R"GQL(
+query TCN_ViewerCardModLogsMessagesBySender($channelID: ID!, $senderID: ID!, $cursor: Cursor) {
+    viewerCardModLogs(channelID: $channelID, targetID: $senderID) {
+        messages(first: 1000, after: $cursor) {
+                ... on ViewerCardModLogsMessagesConnection {
+                    edges {
+                        ...viewerCardModLogsMessagesEdgeFragment
+                        __typename
+                    }
+                    pageInfo {
+                        hasNextPage
+                        __typename
+                    }
+                    __typename
+                }
+                __typename
+            }
+            __typename
+        }
+    }
+
+    fragment viewerCardModLogsMessagesEdgeFragment on ViewerCardModLogsMessagesEdge {
+        __typename
+        node {
+
+            ...viewerCardModLogsChatMessageFragment
+        }
+        cursor
+    }
+
+    fragment viewerCardModLogsChatMessageFragment on ViewerCardModLogsChatMessage {
+        sender {
+            login
+        }
+        sentAt
+        content {
+            text
+        }
+        isDeleted
+        lastUpdatedBy {
+            displayName
+        }
+    }
+)GQL");
+
 }  // namespace chatterino::LimerinoAuth::gql
