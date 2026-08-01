@@ -70,17 +70,20 @@ close to zero as possible — every entry is future merge pain.
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino` | Low — narrow context, rarely touched upstream |
 | `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged | Low |
 | `src/controllers/commands/CommandController.hpp` | fork commands need a registration extension point | one tiny public passthrough `registerExternalCommand()` wrapping the private `registerCommand()` | Low |
-| `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our 3 lines at the end of the function** |
+| `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` + one include + one call `limerino::initializePubSub()` (Hermes bootstrap) at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our lines at the end of the function** |
 | `src/widgets/dialogs/UserInfoPopup.cpp` | usercard gets a "Name history" option | one include + one `LabelButton` + connect (no `ui_` struct changes) | Low |
-| `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); 2 hook includes | Low |
-| `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries | Low — append-only at list tail |
-| `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/` | Low |
+| `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); "Filter events..." conditional menu entry for `/pubsub-events` + 2 hook includes (live-updates P0) | Low |
+| `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries (live-updates P0 added `providers/limerino/pubsub/*`, `PubSubEventsChannel`, `LimerinoEventFilterDialog`) | Low — append-only at list tail |
+| `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/`; also `limerinoPubSubHiddenEventTypes` (`ChatterinoSetting<QStringList>`) for the `/pubsub-events` filter | Low |
 | `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
 | `flake.nix` | flake description reflects the fork | `description = "Technorino"` → `"Limerino"` | Low |
 | `resources/icon.svg` | new Limerino app icon (master artwork) | content replaced, byte-same filename | Medium — binary; upstream icon change = binary conflict. Resolution: always ours |
 | `resources/icon.png` | new Limerino app icon (Linux hicolor install, qrc) | content replaced; same 256x256 as before | Medium — see icon.svg |
 | `resources/icon.ico` | Windows exe icon (via `cmake/resources/windows.rc.in`) | regenerated from new master; same 5 frames as upstream (16/32/48/64/256) | Medium — see icon.svg |
 | `resources/chatterino.icns` | macOS bundle icon (`src/CMakeLists.txt:941`) | regenerated from new master; modern ic07–ic14 PNG chunks only (upstream's pre-OS-X il32/l8mk/is32/s8mk bitmap chunks dropped — irrelevant for Qt6 apps) | Medium — see icon.svg |
+| `src/providers/twitch/PubSubClient.cpp` | inherited bug fix: UNLISTEN responses were recorded as LISTEN (`NonceInfo{.isListen = true}` in `encodeUnsubscription`), corrupting diag counters | one word: `.isListen = true` → `false` | Low |
+| `src/providers/twitch/TwitchIrcServer.cpp` | `/pubsub-events` must resolve to the Limerino events channel everywhere channel names resolve | one include + one `if` block in `getCustomChannel` | Low — same region as upstream's other special-channel routes |
+| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests | one entry: `tests/src/LimerinoPubSub.cpp` | Low — append-only |
 
 ## Limerino-owned files
 
@@ -104,6 +107,10 @@ Entirely ours; will never conflict with upstream merges:
 | `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout) |
 | `resources/buttons/channelPoints-{dark,light}Mode.svg` | mod-toolbar predictions icon |
 | `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
+| `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`) | Hermes live-updates transport + topic-intent controller (batch P0) |
+| `src/limerino/PubSubEventsChannel.{hpp,cpp}` | `/pubsub-events` special channel + per-event-type filter storage (batch P0) |
+| `src/widgets/dialogs/limerino/LimerinoEventFilterDialog.{hpp,cpp}` | events-channel filter checklist (batch P0) |
+| `tests/src/LimerinoPubSub.cpp` | controller state-machine tests over a recording sink double (batch P0) |
 
 ### Extra-features auth (secondary login)
 

@@ -902,6 +902,10 @@ public:
     // Limerino: last 5 prediction drafts created through the prediction window (JSON).
     QStringSetting limerinoPredictionHistory{"/limerino/predictions/history", "[]"};
 
+    // Limerino: Hermes event types hidden in the /pubsub-events channel.
+    ChatterinoSetting<QStringList> limerinoPubSubHiddenEventTypes{
+        "/limerino/pubsub/hiddenEventTypes", {}};
+
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =
         {"/highlighting/highlights"};

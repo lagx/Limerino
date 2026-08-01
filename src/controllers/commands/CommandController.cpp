@@ -46,6 +46,7 @@
 #include "messages/MessageThread.hpp"
 #include "providers/emoji/Emojis.hpp"
 #include "providers/limerino/commands/LimerinoCommands.hpp"
+#include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 #include "providers/IvrApi.hpp"
 #include "providers/kick/KickChannel.hpp"
 #include "providers/twitch/api/Helix.hpp"
@@ -588,6 +589,9 @@ CommandController::CommandController(const Paths &paths)
 
     // Limerino fork hook: ported extra-features commands (see FORK.md)
     LimerinoCommands::initialize(*this);
+
+    // Limerino fork hook: Hermes (live-updates PubSub) controller bootstrap
+    limerino::initializePubSub();
 }
 
 void CommandController::registerExternalCommand(

@@ -113,7 +113,7 @@ QByteArray PubSubClient::encodeUnsubscription(const Subscription &subscription)
 {
     PubSubUnlistenMessage unlisten({subscription.topic});
     this->nonces_[unlisten.nonce] = NonceInfo{
-        .isListen = true,
+        .isListen = false,
     };
     return unlisten.toJson();
 }

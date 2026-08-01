@@ -18,6 +18,8 @@
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/limerino/commands/Follows.hpp"
+#include "limerino/PubSubEventsChannel.hpp"
+#include "widgets/dialogs/limerino/LimerinoEventFilterDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoPredictionDialog.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
@@ -553,6 +555,16 @@ std::unique_ptr<QMenu> SplitHeader::createMainMenu()
     auto selected = this->split_->getSelectedChannel();
     auto *twitchChannel = dynamic_cast<TwitchChannel *>(selected.get());
     auto *kickChannel = dynamic_cast<KickChannel *>(selected.get());
+
+    // Limerino fork hook: per-event-type filter on the Hermes events channel
+    if (selected && selected->getName() == limerino::pubSubEventsChannelName())
+    {
+        menu->addAction("Filter events...", this->split_, [this] {
+            auto *dialog = new limerino::LimerinoEventFilterDialog(this);
+            dialog->show();
+        });
+        menu->addSeparator();
+    }
 
     if (twitchChannel || kickChannel)
     {

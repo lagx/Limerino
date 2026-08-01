@@ -57,6 +57,10 @@ Gate risky/optional features behind a CMake option following the existing
 
 ## Build and test (Linux VPS)
 
+**Current build flow (2026-08): verification runs through GitHub Actions after
+commit + push to `limerino` — the VPS is not required.** The VPS scripts below
+remain valid when a VPS is available.
+
 Development happens on Windows, but builds run on a headless Linux VPS. Prerequisites:
 Qt6 dev packages, boost, OpenSSL, hunspell, ninja-build, ccache (see `BUILDING_ON_LINUX.md`
 for the package list), and initialized submodules:

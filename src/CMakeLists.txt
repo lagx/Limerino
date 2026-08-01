@@ -979,6 +979,20 @@ set(SOURCE_FILES
         widgets/dialogs/limerino/LimerinoResultDialog.hpp
         widgets/dialogs/limerino/LimerinoResultList.cpp
         widgets/dialogs/limerino/LimerinoResultList.hpp
+        limerino/PubSubEventsChannel.cpp
+        limerino/PubSubEventsChannel.hpp
+        providers/limerino/pubsub/HermesClient.cpp
+        providers/limerino/pubsub/HermesClient.hpp
+        providers/limerino/pubsub/HermesManager.cpp
+        providers/limerino/pubsub/HermesManager.hpp
+        providers/limerino/pubsub/HermesMessages.cpp
+        providers/limerino/pubsub/HermesMessages.hpp
+        providers/limerino/pubsub/LimerinoPubSubController.cpp
+        providers/limerino/pubsub/LimerinoPubSubController.hpp
+        providers/limerino/pubsub/LimerinoPubSubTopics.cpp
+        providers/limerino/pubsub/LimerinoPubSubTopics.hpp
+        widgets/dialogs/limerino/LimerinoEventFilterDialog.cpp
+        widgets/dialogs/limerino/LimerinoEventFilterDialog.hpp
         )
 
 if (APPLE)

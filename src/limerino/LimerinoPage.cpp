@@ -1,7 +1,9 @@
 #include "limerino/LimerinoPage.hpp"
 
+#include "limerino/PubSubEventsChannel.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/commands/Identity.hpp"
+#include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 #include "singletons/Settings.hpp"
 #include "widgets/dialogs/LimerinoAuthDialog.hpp"
 #include "widgets/settingspages/GeneralPageView.hpp"
@@ -72,6 +74,20 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
                          dialog->show();
                      });
 
+    layout.addTitle("Live updates (Hermes)");
+    layout.addDescription(QStringLiteral(
+        "Live PubSub events over Twitch's Hermes transport. Tokens come only "
+        "from the extra-features sign-in above; they are checked once at "
+        "startup and whenever this page is opened."));
+    this->pubsubSummaryLabel_ = layout.addDescription(QString());
+    this->pubsubDetailLabel_ = layout.addDescription(QString());
+    layout.addButton(QStringLiteral("Retry failed listens"), [] {
+        limerino::getPubSubController()->retryFailed();
+    });
+    layout.addButton(QStringLiteral("Open PubSub events channel"), [] {
+        limerino::openPubSubEventsChannelTab();
+    });
+
     layout.addDescription(QStringLiteral(
         "Paste host used by list commands (/listfollows, /modlist, ...): "
         "your generated list output is uploaded publicly to this "
@@ -84,7 +100,12 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
 
     LimerinoAuth::accountsChanged.connect(
         [this] { this->rebuildAuthSummary(); }, this->managedConnections_);
+    LimerinoAuth::accountsChanged.connect(
+        [this] { this->rebuildPubSubDiagnostics(); }, this->managedConnections_);
+    limerino::getPubSubController()->diagChanged.connect(
+        [this] { this->rebuildPubSubDiagnostics(); }, this->managedConnections_);
     this->rebuildAuthSummary();
+    this->rebuildPubSubDiagnostics();
 
     layout.addStretch();
 }
@@ -139,6 +160,57 @@ void LimerinoPage::rebuildAuthSummary()
         }
     }
     this->authSummaryLabel_->setText(text);
+}
+
+void LimerinoPage::rebuildPubSubDiagnostics()
+{
+    if (this->pubsubSummaryLabel_ == nullptr)
+    {
+        return;
+    }
+    auto *controller = limerino::getPubSubController();
+    const auto snapshot = controller->diagSnapshot();
+    const auto &t = snapshot.transport;
+
+    this->pubsubSummaryLabel_->setText(QStringLiteral(
+        "Connections: %1 open (%2 opened, %3 failed) - notifications: %4\n"
+        "Topics: %5 active, %6 pending, %7 retrying, %8 failed, %9 blocked "
+        "(need extra-features sign-in)\n"
+        "Listens: %10 confirmed, %11 failed - auth failures: %12 - "
+        "reconnects: %13 - missed keepalives: %14")
+            .arg(t.connections)
+            .arg(t.connectionsOpened)
+            .arg(t.connectionsFailed)
+            .arg(t.notificationsReceived)
+            .arg(snapshot.topicsActive)
+            .arg(snapshot.topicsPending)
+            .arg(snapshot.topicsRetrying)
+            .arg(snapshot.topicsFailed)
+            .arg(snapshot.topicsBlocked)
+            .arg(t.subscribeResponses)
+            .arg(t.failedSubscribeResponses)
+            .arg(t.authFailures)
+            .arg(t.reconnectsReceived)
+            .arg(t.keepalivesMissed));
+
+    QString detail;
+    if (!snapshot.lastError.isEmpty())
+    {
+        detail = QStringLiteral("Last error: %1 (%2)")
+                     .arg(snapshot.lastError, snapshot.lastErrorTopic);
+    }
+    if (snapshot.topicsFailed > 0)
+    {
+        if (!detail.isEmpty())
+        {
+            detail += QLatin1Char('\n');
+        }
+        detail += QStringLiteral(
+            "%1 topic(s) gave up after repeated failures - fix the sign-in "
+            "above, then press \"Retry failed listens\".")
+                      .arg(snapshot.topicsFailed);
+    }
+    this->pubsubDetailLabel_->setText(detail);
 }
 
 }  // namespace chatterino

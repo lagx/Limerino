@@ -20,9 +20,12 @@ public:
 private:
     void initLayout(GeneralPageView &layout);
     void rebuildAuthSummary();
+    void rebuildPubSubDiagnostics();
 
     GeneralPageView *view_{};
     DescriptionLabel *authSummaryLabel_{};
+    DescriptionLabel *pubsubSummaryLabel_{};
+    DescriptionLabel *pubsubDetailLabel_{};
 };
 
 }  // namespace chatterino
