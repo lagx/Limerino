@@ -22,6 +22,7 @@
 #include "providers/kick/KickApi.hpp"
 #include "providers/kick/KickChatServer.hpp"
 #include "providers/limerino/commands/Identity.hpp"
+#include "providers/limerino/commands/Roles.hpp"
 #include "providers/pronouns/Pronouns.hpp"
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
@@ -347,6 +348,20 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                             crossPlatformCopy(avatarUrl);
                         });
 
+                        // Limerino fork hooks: 7tv role information
+                        menu->addAction("View channel editors (7TV)", this,
+                                        [this] {
+                                            LimerinoCommands::
+                                                showSeventvChannelEditors(
+                                                    this->underlyingChannel_);
+                                        });
+                        menu->addAction("View editor-in-channels (7TV)", this,
+                                        [this] {
+                                            LimerinoCommands::
+                                                showSeventvUserEditorIn(
+                                                    this->userName_);
+                                        });
+
                         //Chat Vault profile
                         menu->addAction(
                             "Open Chat Vault profile in browser", [username] {
@@ -518,6 +533,38 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                          [this] {
                              LimerinoCommands::showNameHistoryDialog(
                                  this->userName_, this);
+                         });
+
+        // Limerino fork hooks: artist / unartist / lead mod (own channel only)
+        auto artistButton = user.emplace<LabelButton>("Artist", this);
+        auto unartistButton = user.emplace<LabelButton>("Unartist", this);
+        auto leadModButton = user.emplace<LabelButton>("Lead mod", this);
+        {
+            const auto selfUser = getApp()->getAccounts()->twitch.getCurrent();
+            auto *twitchChan = dynamic_cast<TwitchChannel *>(
+                this->split_->getChannel().get());
+            const bool ownChannel =
+                twitchChan != nullptr && selfUser && !selfUser->isAnon() &&
+                selfUser->getUserName().compare(twitchChan->getName(),
+                                                Qt::CaseInsensitive) == 0;
+            artistButton->setVisible(ownChannel);
+            unartistButton->setVisible(ownChannel);
+            leadModButton->setVisible(ownChannel);
+        }
+        QObject::connect(artistButton.getElement(), &Button::leftClicked,
+                         [this] {
+                             LimerinoCommands::grantArtist(
+                                 this->userName_, this->underlyingChannel_);
+                         });
+        QObject::connect(unartistButton.getElement(), &Button::leftClicked,
+                         [this] {
+                             LimerinoCommands::revokeArtist(
+                                 this->userName_, this->underlyingChannel_);
+                         });
+        QObject::connect(leadModButton.getElement(), &Button::leftClicked,
+                         [this] {
+                             LimerinoCommands::grantLeadMod(
+                                 this->userName_, this->underlyingChannel_);
                          });
 
         userlogs->setVisible(false);
