@@ -96,7 +96,7 @@ void refreshAccounts(
 void scheduleStartupRefresh();
 
 // Emitted whenever the account store changes (add/remove/update/validate).
-extern pajlada::Signals::Signal<void()> accountsChanged;
+extern pajlada::Signals::NoArgSignal accountsChanged;
 
 // Device Authorization Grant flow state machine (OAuth 2.0 RFC 8628 shape).
 // Owns an entire login attempt; the UI connects to statusChanged and may call

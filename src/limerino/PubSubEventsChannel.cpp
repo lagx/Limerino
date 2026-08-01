@@ -39,7 +39,8 @@ ChannelPtr pubSubEventsChannel()
             "All Hermes (PubSub) live events appear here. Use the three-dots "
             "menu of this tab and choose \"Filter events...\" to pick which "
             "event types are shown."));
-        getPubSubController()->eventProduced.connect(
+        channelConnections().managedConnect(
+            getPubSubController()->eventProduced,
             [created](const PubSubEvent &event) {
                 if (!event.eventType.isEmpty() &&
                     pubSubEventTypeHidden(event.eventType))
@@ -47,8 +48,7 @@ ChannelPtr pubSubEventsChannel()
                     return;
                 }
                 created->addSystemMessage(event.displayText);
-            },
-            channelConnections());
+            });
         return created;
     }();
     return channel;

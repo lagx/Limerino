@@ -5,6 +5,7 @@
 #include "Application.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"
+#include "controllers/accounts/AccountController.hpp"
 #include "providers/limerino/LimerinoErrors.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchAccountManager.hpp"

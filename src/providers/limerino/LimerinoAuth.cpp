@@ -9,6 +9,7 @@
 #include "common/network/NetworkCommon.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"
+#include "controllers/accounts/AccountController.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchAccountManager.hpp"
 #include "singletons/Settings.hpp"
@@ -202,7 +203,7 @@ void mergeResolved(LimerinoAuthAccount &dst, const LimerinoAuthAccount &resolved
 
 }  // namespace
 
-pajlada::Signals::Signal<void()> accountsChanged;
+pajlada::Signals::NoArgSignal accountsChanged;
 
 QString normalizeToken(QString raw)
 {
@@ -759,7 +760,7 @@ void DeviceLogin::setStatus(State state, const QString &message)
     {
         this->status_.secondsRemaining = 0;
     }
-    emit this->statusChanged(this->status_);
+    this->statusChanged(this->status_);
 }
 
 void DeviceLogin::start()
@@ -863,7 +864,7 @@ void DeviceLogin::poll(quint64 generation)
 
     this->status_.secondsRemaining =
         int((this->expiresAtMs_ - QDateTime::currentMSecsSinceEpoch()) / 1000);
-    emit this->statusChanged(this->status_);
+    this->statusChanged(this->status_);
 
     NetworkRequest(QUrl(AUTH_TOKEN_URL), NetworkRequestType::Post)
         .header("Content-Type", "application/x-www-form-urlencoded")

@@ -215,9 +215,9 @@ LimerinoAuthDialog::LimerinoAuthDialog(QWidget *parent)
             });
     });
 
-    LimerinoAuth::accountsChanged.connect(
-        [this] { this->rebuildAccountsTable(); },
-        this->managedConnections_);
+    this->managedConnections_.managedConnect(
+        LimerinoAuth::accountsChanged,
+        [this] { this->rebuildAccountsTable(); });
 
     this->setDeviceStatusText(this->deviceLogin_->status());
     this->rebuildAccountsTable();
