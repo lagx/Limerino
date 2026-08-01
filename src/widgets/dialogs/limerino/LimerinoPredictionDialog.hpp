@@ -9,6 +9,8 @@
 
 #include "widgets/BasePopup.hpp"
 
+#include <QJsonObject>
+
 class QComboBox;
 class QGroupBox;
 class QLabel;
@@ -46,6 +48,10 @@ private:
     void lockPrediction(const QString &eventId);
     void refundPrediction(const QString &eventId);
     void payoutPrediction(const QString &eventId, const QString &outcomeId);
+    void refreshRewards();
+    void redeemReward(const QString &channelId, const QJsonObject &reward,
+                      const QString &textInput);
+    void promptRedeem(const QString &channelId, const QJsonObject &reward);
 
     Split *split_ = nullptr;
 
@@ -82,6 +88,11 @@ private:
 
     // past predictions (everyone)
     LimerinoResultList *pastList_ = nullptr;
+
+    // channel point rewards (everyone)
+    QLabel *balanceLabel_ = nullptr;
+    LimerinoResultList *rewardsList_ = nullptr;
+    QPushButton *rewardsRefreshButton_ = nullptr;
 
     QString activeEventId_;
     bool predictionLocked_ = false;

@@ -17,6 +17,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -192,6 +193,24 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     pastLayout->addWidget(this->pastList_);
     root->addWidget(pastBox, 1);
 
+    // ------------------- Channel point rewards (all) -------------------
+    auto *rewardsBox = new QGroupBox(QStringLiteral("Channel point rewards"),
+                                     this);
+    auto *rewardsLayout = new QVBoxLayout(rewardsBox);
+    this->balanceLabel_ = new QLabel(rewardsBox);
+    rewardsLayout->addWidget(this->balanceLabel_);
+    this->rewardsList_ = new LimerinoResultList(rewardsBox);
+    this->rewardsList_->setColumns({QStringLiteral("reward"),
+                                    QStringLiteral("cost"),
+                                    QStringLiteral("prompt")});
+    rewardsLayout->addWidget(this->rewardsList_);
+    this->rewardsRefreshButton_ =
+        new QPushButton(QStringLiteral("Refresh rewards"), rewardsBox);
+    rewardsLayout->addWidget(this->rewardsRefreshButton_);
+    root->addWidget(rewardsBox, 1);
+
+    // ------------------------------ data ------------------------------
+
     // ------------------------------ data ------------------------------
     this->draftsCombo_->addItem(QStringLiteral("(select a previous prediction)"));
     for (const QJsonValue &v : readDrafts())
@@ -246,11 +265,14 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     });
     QObject::connect(this->refreshButton_, &QPushButton::clicked, this,
                      [this] { this->refreshContext(); });
+    QObject::connect(this->rewardsRefreshButton_, &QPushButton::clicked, this,
+                     [this] { this->refreshRewards(); });
     QObject::connect(this->makeButton_, &QPushButton::clicked, this,
                      [this] { this->makePrediction(); });
 
     this->applyModGating();
     this->refreshContext();
+    this->refreshRewards();
 }
 
 void LimerinoPredictionDialog::applyModGating()
@@ -918,6 +940,204 @@ void LimerinoPredictionDialog::payoutPrediction(const QString &eventId,
             {
                 g->activeLabel_->setText(
                     QStringLiteral("Unable to resolve prediction! %1").arg(e.message));
+            }
+        });
+}
+
+void LimerinoPredictionDialog::refreshRewards()
+{
+    auto *tchan = dynamic_cast<TwitchChannel *>(
+        this->split_->getSelectedChannel().get());
+    if (tchan == nullptr)
+    {
+        return;
+    }
+    QString err;
+    auto token = LimerinoAuth::resolveReadToken(&err);
+    if (!token.hasToken())
+    {
+        this->balanceLabel_->setText(
+            err.isEmpty()
+                ? LimerinoAuth::errors::tokenRequiredMessage(
+                      QStringLiteral("see channel point rewards"))
+                : err);
+        return;
+    }
+
+    gql::executePersisted(
+        gql::PQ_CHANNEL_POINTS_CONTEXT,
+        QJsonObject{{QStringLiteral("channelLogin"), tchan->getName()},
+                    {QStringLiteral("includeGoalTypes"),
+                     QJsonArray{QStringLiteral("CREATOR")}}},
+        token.token,
+        [g = QPointer<LimerinoPredictionDialog>(this), this,
+         tchan](const QJsonObject &data) {
+            if (!g)
+            {
+                return;
+            }
+            const QJsonObject channel =
+                data[QStringLiteral("community")].toObject()[
+                    QStringLiteral("channel")].toObject();
+            const int balance =
+                channel[QStringLiteral("self")].toObject()[
+                    QStringLiteral("communityPoints")].toObject()[
+                    QStringLiteral("balance")].toInt();
+            this->balanceLabel_->setText(
+                QStringLiteral("Rewards menu (%1 points available)").arg(balance));
+
+            const QJsonArray rewards =
+                channel[QStringLiteral("communityPointsSettings")]
+                    .toObject()[QStringLiteral("customRewards")]
+                    .toArray();
+            QVector<QStringList> rows;
+            QVector<QJsonObject> store;
+            for (const QJsonValue &v : rewards)
+            {
+                const QJsonObject r = v.toObject();
+                rows.append({
+                    r[QStringLiteral("title")].toString() +
+                        (r[QStringLiteral("isEnabled")].toBool()
+                             ? QString()
+                             : QStringLiteral(" -DISABLED")),
+                    QString::number(r[QStringLiteral("cost")].toInt()),
+                    r[QStringLiteral("prompt")].toString(),
+                });
+                store.append(r);
+            }
+            this->rewardsList_->setRows(rows);
+            this->rewardsList_->setStatusText(
+                QStringLiteral("%1 rewards").arg(rows.size()));
+
+            const QString channelId = channel[QStringLiteral("id")].toString();
+            this->rewardsList_->setRowMenuProvider(
+                [g, channelId, store = std::move(store)](
+                    const QStringList &row, QMenu *menu) {
+                    // match the visible row back to its reward object by title
+                    QString title = row.value(0);
+                    title.remove(QStringLiteral(" -DISABLED"));
+                    const QJsonObject *reward = nullptr;
+                    for (const QJsonObject &r : store)
+                    {
+                        if (r[QStringLiteral("title")].toString() == title)
+                        {
+                            reward = &r;
+                            break;
+                        }
+                    }
+                    if (reward == nullptr ||
+                        !(*reward)[QStringLiteral("isEnabled")].toBool())
+                    {
+                        return;
+                    }
+                    const QJsonObject rewardCopy = *reward;
+                    menu->addAction(
+                        QStringLiteral("Redeem \"%1\" (%2 points)")
+                            .arg(title)
+                            .arg(rewardCopy[QStringLiteral("cost")].toInt()),
+                        [g, channelId, rewardCopy] {
+                            if (g)
+                            {
+                                g->promptRedeem(channelId, rewardCopy);
+                            }
+                        });
+                });
+        },
+        [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
+            if (g)
+            {
+                g->balanceLabel_->setText(e.message);
+            }
+        });
+}
+
+void LimerinoPredictionDialog::promptRedeem(const QString &channelId,
+                                            const QJsonObject &reward)
+{
+    const QString title = reward[QStringLiteral("title")].toString();
+    const int cost = reward[QStringLiteral("cost")].toInt();
+    const QString prompt = reward[QStringLiteral("prompt")].toString();
+
+    QString textInput;
+    if (!prompt.isEmpty())
+    {
+        bool ok = false;
+        textInput = QInputDialog::getMultiLineText(
+            this, QStringLiteral("Redeem \"%1\"").arg(title), prompt, {}, &ok);
+        if (!ok)
+        {
+            return;
+        }
+    }
+
+    const auto answer = QMessageBox::question(
+        this, QStringLiteral("Redeem reward"),
+        QStringLiteral("Spend %1 channel points on \"%2\"?")
+            .arg(cost)
+            .arg(title));
+    if (answer != QMessageBox::Yes)
+    {
+        return;
+    }
+    this->redeemReward(channelId, reward, textInput);
+}
+
+void LimerinoPredictionDialog::redeemReward(const QString &channelId,
+                                            const QJsonObject &reward,
+                                            const QString &textInput)
+{
+    QString err;
+    auto token = LimerinoAuth::resolveReadToken(&err);
+    if (!token.hasToken())
+    {
+        this->balanceLabel_->setText(
+            err.isEmpty() ? LimerinoAuth::errors::tokenRequiredMessage(
+                                QStringLiteral("redeem rewards"))
+                          : err);
+        return;
+    }
+
+    // Plugin's RedeemCustomReward input, verbatim.
+    gql::executePersisted(
+        gql::PQ_REDEEM_CUSTOM_REWARD,
+        QJsonObject{{QStringLiteral("input"),
+                     QJsonObject{{QStringLiteral("channelID"), channelId},
+                                 {QStringLiteral("cost"),
+                                  reward[QStringLiteral("cost")].toInt()},
+                                 {QStringLiteral("prompt"),
+                                  reward[QStringLiteral("prompt")].toString()},
+                                 {QStringLiteral("textInput"), textInput},
+                                 {QStringLiteral("rewardID"),
+                                  reward[QStringLiteral("id")].toString()},
+                                 {QStringLiteral("title"),
+                                  reward[QStringLiteral("title")].toString()},
+                                 {QStringLiteral("transactionID"),
+                                  randomHex(32)}}}},
+        token.token,
+        [g = QPointer<LimerinoPredictionDialog>(this)](
+            const QJsonObject &data) {
+            if (!g)
+            {
+                return;
+            }
+            const QString code =
+                data[QStringLiteral("redeemCommunityPointsCustomReward")]
+                    .toObject()[QStringLiteral("error")]
+                    .toObject()[QStringLiteral("code")]
+                    .toString();
+            g->balanceLabel_->setText(
+                code.isEmpty()
+                    ? QStringLiteral("Successfully redeemed reward!")
+                    : QStringLiteral("Unable to redeem reward! Error: %1")
+                          .arg(code));
+            g->refreshRewards();
+        },
+        [g = QPointer<LimerinoPredictionDialog>(this)](const gql::GqlError &e) {
+            if (g)
+            {
+                g->balanceLabel_->setText(
+                    QStringLiteral("Unable to redeem reward! Error: %1")
+                        .arg(e.message));
             }
         });
 }
