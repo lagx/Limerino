@@ -899,6 +899,9 @@ public:
     // Limerino: paste host used by ported commands (/listfollows, /modlist, ...).
     QStringSetting limerinoPasteHost{"/limerino/paste/host", "https://h.potat.app"};
 
+    // Limerino: last 5 prediction drafts created through the prediction window (JSON).
+    QStringSetting limerinoPredictionHistory{"/limerino/predictions/history", "[]"};
+
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =
         {"/highlighting/highlights"};
