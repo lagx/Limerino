@@ -367,6 +367,14 @@ QVector<CommandDoc> commandDocs()
          QStringLiteral("usercard avatar right-click"),
          QStringLiteral("View channel editors / editor-in-channels (7TV v3/v4 "
                         "queries); rows link to https://7tv.app/users/<id>.")},
+        {QStringLiteral("/modlogs"),
+         QStringLiteral("/modlogs [user] [days|all] (default: channel, 30 days)"),
+         QStringLiteral("Moderator action window: per-moderator breakdown "
+                        "(clickable names → Twitch channels, numeric sort) and "
+                        "full action list, newest first.")},
+        {QStringLiteral("/acknowledgewarning"),
+         QStringLiteral("/acknowledgewarning"),
+         QStringLiteral("Acknowledge the chat warning shown by the channel.")},
         {QStringLiteral("(icon)"),
          QStringLiteral("channel-points icon (mod toolbar)"),
          QStringLiteral("Opens the channel-points window: create predictions "

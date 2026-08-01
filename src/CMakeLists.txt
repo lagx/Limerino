@@ -959,8 +959,12 @@ set(SOURCE_FILES
         providers/limerino/commands/LimerinoCommands.hpp
         widgets/dialogs/LimerinoAuthDialog.cpp
         widgets/dialogs/LimerinoAuthDialog.hpp
+        providers/limerino/commands/Moderation.cpp
+        providers/limerino/commands/Moderation.hpp
         providers/limerino/commands/Pins.cpp
         providers/limerino/commands/Pins.hpp
+        widgets/dialogs/limerino/LimerinoModLogsDialog.cpp
+        widgets/dialogs/limerino/LimerinoModLogsDialog.hpp
         widgets/dialogs/limerino/LimerinoPinView.cpp
         widgets/dialogs/limerino/LimerinoPinView.hpp
         providers/limerino/commands/Roles.cpp
