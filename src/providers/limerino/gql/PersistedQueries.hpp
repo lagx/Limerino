@@ -164,11 +164,15 @@ query GetUserEditorOf($id: ObjectID!) {
 )GQL");
 
 // requests.lua: editors -> POST https://7tv.io/v4/gql
+// NOTE: the plugin query fetches only mainConnection.platformDisplayName.
+// `id` was added (one extra field on the same selection) solely to enable the
+// user-requested https://7tv.app/users/<id> links; nothing else changed.
 inline const QString SEVENTV_ONE_USER_QUERY = QStringLiteral(R"GQL(
 query OneUser($id: Id!) {
     users {
         user(id: $id) {
             editors {
+                id
                 editor {
                     mainConnection {
                         platformDisplayName

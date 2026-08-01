@@ -41,6 +41,10 @@ public:
     void enableSearch(bool enabled);
     void setRowMenuProvider(RowMenuProvider provider);
 
+    // Optional: name click resolves to a URL to open instead of copying.
+    void setRowOpenUrlProvider(
+        std::function<QString(const QStringList &row)> provider);
+
 private:
     void applyPage();
     void copyCell(int row, int column);
@@ -61,6 +65,7 @@ private:
     QVector<QStringList> filteredRows_;
     int page_ = 0;
     RowMenuProvider rowMenuProvider_{};
+    std::function<QString(const QStringList &)> rowOpenUrlProvider_{};
 };
 
 }  // namespace chatterino::limerino

@@ -10,6 +10,8 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -71,7 +73,25 @@ LimerinoResultList::LimerinoResultList(QWidget *parent)
                      [this] { this->refreshFilter(); });
 
     QObject::connect(this->table_, &QTableWidget::cellActivated, this,
-                     [this](int row, int column) { this->copyCell(row, column); });
+                     [this](int row, int column) {
+                         if (this->rowOpenUrlProvider_)
+                         {
+                             QStringList cells;
+                             for (int c = 0; c < this->headers_.size(); ++c)
+                             {
+                                 auto *item = this->table_->item(row, c);
+                                 cells.append(item != nullptr ? item->text()
+                                                              : QString());
+                             }
+                             const QString url = this->rowOpenUrlProvider_(cells);
+                             if (!url.isEmpty())
+                             {
+                                 QDesktopServices::openUrl(QUrl(url));
+                                 return;
+                             }
+                         }
+                         this->copyCell(row, column);
+                     });
 
     QObject::connect(this->table_,
                      &QTableWidget::customContextMenuRequested, this,
@@ -114,6 +134,12 @@ void LimerinoResultList::enableSearch(bool enabled)
 void LimerinoResultList::setRowMenuProvider(RowMenuProvider provider)
 {
     this->rowMenuProvider_ = std::move(provider);
+}
+
+void LimerinoResultList::setRowOpenUrlProvider(
+    std::function<QString(const QStringList &)> provider)
+{
+    this->rowOpenUrlProvider_ = std::move(provider);
 }
 
 void LimerinoResultList::refreshFilter()

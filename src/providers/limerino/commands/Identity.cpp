@@ -354,6 +354,19 @@ QVector<CommandDoc> commandDocs()
          QStringLiteral("Open the followers window (searchable, since + for, "
                         "right-click to block) and the following window (live "
                         "dots, notifications, right-click to open chat/channel).")},
+        {QStringLiteral("/artist, /unartist"),
+         QStringLiteral("/<un>artist <username>"),
+         QStringLiteral("Grant/revoke the artist role on your own channel "
+                        "(grantCommunityRole/revokeCommunityRole). Buttons also "
+                        "appear on usercards in your own channel.")},
+        {QStringLiteral("/leadmod"),
+         QStringLiteral("/leadmod <modname>"),
+         QStringLiteral("Assign the lead-moderator role (AssignChannelRole, "
+                        "own channel). Also a usercard button in your channel.")},
+        {QStringLiteral("(avatar menu)"),
+         QStringLiteral("usercard avatar right-click"),
+         QStringLiteral("View channel editors / editor-in-channels (7TV v3/v4 "
+                        "queries); rows link to https://7tv.app/users/<id>.")},
         {QStringLiteral("(icon)"),
          QStringLiteral("channel-points icon (mod toolbar)"),
          QStringLiteral("Opens the channel-points window: create predictions "

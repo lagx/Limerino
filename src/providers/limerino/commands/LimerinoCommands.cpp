@@ -6,6 +6,7 @@
 #include "providers/limerino/commands/Follows.hpp"
 #include "providers/limerino/commands/Identity.hpp"
 #include "providers/limerino/commands/Pins.hpp"
+#include "providers/limerino/commands/Roles.hpp"
 
 namespace chatterino::LimerinoCommands {
 
@@ -26,6 +27,12 @@ void initialize(CommandController &commands)
     commands.registerExternalCommand("/viewpin", &viewPin);
     commands.registerExternalCommand("/getpin", &viewPin);
     commands.registerExternalCommand("/unpin", &unpinMessage);
+
+    // Batch 9 - Roles (artist/leadmod usercard buttons are own-channel-only,
+    // decided in UserInfoPopup.cpp)
+    commands.registerExternalCommand("/artist", &grantArtistCmd);
+    commands.registerExternalCommand("/unartist", &revokeArtistCmd);
+    commands.registerExternalCommand("/leadmod", &grantLeadModCmd);
 }
 
 }  // namespace chatterino::LimerinoCommands
