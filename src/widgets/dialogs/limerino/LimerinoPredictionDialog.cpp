@@ -9,6 +9,7 @@
 #include "providers/limerino/LimerinoErrors.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "singletons/Settings.hpp"
+#include "widgets/dialogs/limerino/LimerinoAppearanceWidget.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultList.hpp"
 #include "widgets/splits/Split.hpp"
 
@@ -23,11 +24,13 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMessageBox>
 #include <QPointer>
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QSpinBox>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 
 namespace chatterino::limerino {
@@ -75,7 +78,21 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     this->resize(460, 640);
     this->setAttribute(Qt::WA_DeleteOnClose);
 
-    auto *root = new QVBoxLayout(this);
+    auto *pageRoot = new QHBoxLayout(this);
+    auto *sidebar = new QListWidget(this);
+    sidebar->addItem(QStringLiteral("Predictions"));
+    sidebar->addItem(QStringLiteral("Rewards"));
+    sidebar->addItem(QStringLiteral("Appearance"));
+    sidebar->setFixedWidth(132);
+    pageRoot->addWidget(sidebar);
+    auto *stacked = new QStackedWidget(this);
+    pageRoot->addWidget(stacked, 1);
+    QObject::connect(sidebar, &QListWidget::currentRowChanged, stacked,
+                     &QStackedWidget::setCurrentIndex);
+    sidebar->setCurrentRow(0);
+
+    auto *predictionsPage = new QWidget;
+    auto *root = new QVBoxLayout(predictionsPage);
 
     // ------------------------- Create (mod) -------------------------
     this->createBox_ = new QGroupBox(QStringLiteral("Create prediction"), this);
@@ -207,7 +224,18 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     this->rewardsRefreshButton_ =
         new QPushButton(QStringLiteral("Refresh rewards"), rewardsBox);
     rewardsLayout->addWidget(this->rewardsRefreshButton_);
-    root->addWidget(rewardsBox, 1);
+
+    // ---------------- shared (both pages) + appearance page ----------------
+    auto *rewardsPage = new QWidget;
+    auto *rewardsPageLayout = new QVBoxLayout(rewardsPage);
+    rewardsBox->setParent(rewardsPage);
+    rewardsPageLayout->addWidget(rewardsBox);
+    rewardsPageLayout->addStretch(1);
+
+    auto *appearancePage = new LimerinoAppearanceWidget(this->split_);
+    stacked->addWidget(predictionsPage);
+    stacked->addWidget(rewardsPage);
+    stacked->addWidget(appearancePage);
 
     // ------------------------------ data ------------------------------
 

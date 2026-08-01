@@ -963,6 +963,8 @@ set(SOURCE_FILES
         providers/limerino/commands/Pins.hpp
         widgets/dialogs/limerino/LimerinoPinView.cpp
         widgets/dialogs/limerino/LimerinoPinView.hpp
+        widgets/dialogs/limerino/LimerinoAppearanceWidget.cpp
+        widgets/dialogs/limerino/LimerinoAppearanceWidget.hpp
         widgets/dialogs/limerino/LimerinoPredictionDialog.cpp
         widgets/dialogs/limerino/LimerinoPredictionDialog.hpp
         widgets/dialogs/limerino/LimerinoResultDialog.cpp
