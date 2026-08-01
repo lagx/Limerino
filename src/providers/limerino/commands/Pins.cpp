@@ -24,6 +24,8 @@
 
 namespace chatterino::LimerinoCommands {
 
+namespace gql = chatterino::LimerinoAuth::gql;
+
 namespace {
 
 void say(const ChannelPtr &channel, const QString &text)

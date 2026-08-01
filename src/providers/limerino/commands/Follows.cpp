@@ -14,6 +14,7 @@
 #include "providers/twitch/TwitchAccountManager.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
+#include "singletons/WindowManager.hpp"
 #include "widgets/Notebook.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultList.hpp"

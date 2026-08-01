@@ -13,12 +13,14 @@
 #include "providers/twitch/TwitchChannel.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultList.hpp"
-
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 
 namespace chatterino::LimerinoCommands {
+
+namespace gql = chatterino::LimerinoAuth::gql;
 
 namespace {
 
