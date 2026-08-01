@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "common/Channel.hpp"
+
 #include <QString>
 
 namespace chatterino {
@@ -17,7 +19,7 @@ namespace LimerinoCommands {
 QString follow(const CommandContext &ctx);
 
 // Shared follow implementation for the split menu ("Follow channel")
-void followChannelFromMenu(class ChannelPtr channel);
+void followChannelFromMenu(ChannelPtr channel);
 
 // Chat-settings-menu entries (own channel only)
 void openFollowerListFor(Split *split);

@@ -98,12 +98,15 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
                        "(defaults to https://h.potat.app)"))
         ->addTo(layout);
 
-    LimerinoAuth::accountsChanged.connect(
-        [this] { this->rebuildAuthSummary(); }, this->managedConnections_);
-    LimerinoAuth::accountsChanged.connect(
-        [this] { this->rebuildPubSubDiagnostics(); }, this->managedConnections_);
-    limerino::getPubSubController()->diagChanged.connect(
-        [this] { this->rebuildPubSubDiagnostics(); }, this->managedConnections_);
+    this->managedConnections_.managedConnect(
+        LimerinoAuth::accountsChanged,
+        [this] { this->rebuildAuthSummary(); });
+    this->managedConnections_.managedConnect(
+        LimerinoAuth::accountsChanged,
+        [this] { this->rebuildPubSubDiagnostics(); });
+    this->managedConnections_.managedConnect(
+        limerino::getPubSubController()->diagChanged,
+        [this] { this->rebuildPubSubDiagnostics(); });
     this->rebuildAuthSummary();
     this->rebuildPubSubDiagnostics();
 
