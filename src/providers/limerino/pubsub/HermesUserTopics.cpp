@@ -244,21 +244,6 @@ void acknowledgeWarningManually(const QString &channelId)
         token.token, [](const QJsonObject & /*data*/) {},
         [](const auto & /*error*/) {});
 }
-{
-    // Bypass the auto-acknowledge setting: this is an explicit user action.
-    QString err;
-    auto token = LimerinoAuth::resolveCurrentUserToken(&err);
-    if (!token.hasToken())
-    {
-        return;
-    }
-    LimerinoAuth::gql::executePersisted(
-        LimerinoAuth::gql::PQ_ACKNOWLEDGE_CHAT_WARNING,
-        QJsonObject{{QStringLiteral("input"),
-                     QJsonObject{{QStringLiteral("channelID"), channelId}}}},
-        token.token, [](const QJsonObject & /*data*/) {},
-        [](const auto & /*error*/) {});
-}
 
 void installHermesUserTopicHandlers(LimerinoPubSubController &controller)
 {
