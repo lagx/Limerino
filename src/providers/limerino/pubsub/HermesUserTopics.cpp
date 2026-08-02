@@ -3,6 +3,11 @@
 #include "providers/limerino/pubsub/HermesUserTopics.hpp"
 
 #include "Application.hpp"
+#include "common/Channel.hpp"
+#include "messages/MessageBuilder.hpp"
+#include "messages/MessageElement.hpp"
+#include "messages/Link.hpp"
+#include "messages/MessageColor.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/commands/Identity.hpp"
 #include "providers/limerino/gql/LimerinoGql.hpp"
@@ -148,10 +153,31 @@ bool handleUserModerationAction(const QJsonObject &data,
     {
         // Surface in the channel (decision P2-Q2), then auto-acknowledge if
         // the user enabled it (decision P2-Q1; reference events.js L60).
-        auto channel = getApp()->getTwitch()->getChannelOrEmptyByID(channelId);
-        if (!channel->isEmpty())
+        auto channelPtr = getApp()->getTwitch()->getChannelOrEmptyByID(channelId);
+        if (!channelPtr->isEmpty())
         {
-            channel->addSystemMessage(text);
+            auto *tchan = dynamic_cast<TwitchChannel *>(channelPtr.get());
+            if (tchan != nullptr)
+            {
+                MessageBuilder b;
+                // TwitchChannel::addSystemMessage is the simple text piston;
+                // here we need a trailing Acknowledge link button.
+                b.emplace<TextElement>(text, MessageElementFlag::Text,
+                                       MessageColor::System);
+                b.emplace<TextElement>(QStringLiteral(" "),
+                                       MessageElementFlag::Text,
+                                       MessageColor::System);
+                b.emplace<TextElement>(QStringLiteral("[acknowledge]"),
+                                       MessageElementFlag::Text,
+                                       MessageColor(QColor(0, 200, 0)),
+                                       FontStyle::ChatMediumBold)
+                    ->setLink({Link::ChatWarnAcknowledge, channelId});
+                tchan->addMessage(b.release(), MessageContext::Original);
+            }
+            else
+            {
+                channelPtr->addSystemMessage(text);
+            }
         }
         if (!warnRecentlyIn(channelId))
         {
@@ -201,6 +227,37 @@ void ensureHermesUserTopics()
                    PubSubTopicAuth::User);
     // P3: decided to include the follows topic (reference USER_SUBS, L110).
     c->ensureTopic(QStringLiteral("follows.%1").arg(uid), PubSubTopicAuth::User);
+}
+
+void acknowledgeWarningManually(const QString &channelId)
+{
+    QString err;
+    auto token = LimerinoAuth::resolveCurrentUserToken(&err);
+    if (!token.hasToken())
+    {
+        return;
+    }
+    LimerinoAuth::gql::executePersisted(
+        LimerinoAuth::gql::PQ_ACKNOWLEDGE_CHAT_WARNING,
+        QJsonObject{{QStringLiteral("input"),
+                     QJsonObject{{QStringLiteral("channelID"), channelId}}}},
+        token.token, [](const QJsonObject & /*data*/) {},
+        [](const auto & /*error*/) {});
+}
+{
+    // Bypass the auto-acknowledge setting: this is an explicit user action.
+    QString err;
+    auto token = LimerinoAuth::resolveCurrentUserToken(&err);
+    if (!token.hasToken())
+    {
+        return;
+    }
+    LimerinoAuth::gql::executePersisted(
+        LimerinoAuth::gql::PQ_ACKNOWLEDGE_CHAT_WARNING,
+        QJsonObject{{QStringLiteral("input"),
+                     QJsonObject{{QStringLiteral("channelID"), channelId}}}},
+        token.token, [](const QJsonObject & /*data*/) {},
+        [](const auto & /*error*/) {});
 }
 
 void installHermesUserTopicHandlers(LimerinoPubSubController &controller)

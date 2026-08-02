@@ -27,6 +27,7 @@
 #include "providers/kick/KickChatServer.hpp"
 #include "providers/links/LinkInfo.hpp"
 #include "providers/links/LinkResolver.hpp"
+#include "providers/limerino/pubsub/HermesUserTopics.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
@@ -3360,6 +3361,12 @@ void ChannelView::handleLinkClick(QMouseEvent *event, const Link &link,
             value = getApp()->getCommands()->execCommand(value, channel, false);
 
             channel->sendMessage(value);
+        }
+        break;
+
+        case Link::ChatWarnAcknowledge: {
+            // Limerino fork hook: act on our chatrooms-user-v1 warning link
+            limerino::acknowledgeWarningManually(link.value);
         }
         break;
 

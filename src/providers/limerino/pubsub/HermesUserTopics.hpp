@@ -33,4 +33,9 @@ void ensureHermesUserTopics();
 /// *after* the controller exists.
 void installHermesUserTopicHandlers(LimerinoPubSubController &controller);
 
+/// One-shot manual acknowledge entry (warn dialog link / user action).
+/// The setting-gated pubsub variant calls the same code path; no auto-ack
+/// happens without the setting.
+void acknowledgeWarningManually(const QString &channelId);
+
 }  // namespace chatterino::limerino

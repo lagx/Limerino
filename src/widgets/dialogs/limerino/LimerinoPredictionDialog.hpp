@@ -9,6 +9,8 @@
 
 #include "widgets/BasePopup.hpp"
 
+#include <pajlada/signals/signalholder.hpp>
+
 #include <QJsonObject>
 
 class QComboBox;
@@ -96,6 +98,8 @@ private:
 
     QString activeEventId_;
     bool predictionLocked_ = false;
+
+    pajlada::Signals::SignalHolder signalHolder_;
 };
 
 }  // namespace limerino

@@ -83,7 +83,9 @@ close to zero as possible — every entry is future merge pain.
 | `resources/chatterino.icns` | macOS bundle icon (`src/CMakeLists.txt:941`) | regenerated from new master; modern ic07–ic14 PNG chunks only (upstream's pre-OS-X il32/l8mk/is32/s8mk bitmap chunks dropped — irrelevant for Qt6 apps) | Medium — see icon.svg |
 | `src/providers/twitch/PubSubClient.cpp` | inherited bug fix: UNLISTEN responses were recorded as LISTEN (`NonceInfo{.isListen = true}` in `encodeUnsubscription`), corrupting diag counters | one word: `.isListen = true` → `false` | Low |
 | `src/providers/twitch/TwitchIrcServer.cpp` | `/pubsub-events` must resolve to the Limerino events channel everywhere channel names resolve | one include + one `if` block in `getCustomChannel` | Low — same region as upstream's other special-channel routes |
-| `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must be (re-)subscribed with the channel's roomId, alongside upstream's classic listens | one include + one call `limerino::ensureHermesChannelTopics(*this)` in `refreshPubSub` | Low — append at that function's existing hook point |
+| `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must start/stop with each refresh cycle, and user topics re-resolve on every `userStateChanged` | one include + one call `limerino::ensureHermesChannelTopics(*this)` + one call `limerino::ensureHermesUserTopics()` in `refreshPubSub` | Low — append at that function's existing hook point |
+| `src/messages/Link.hpp` | expose the chat-warning acknowledgement link inside chat messages | one enum value `ChatWarnAcknowledge` | Low |
+| `src/widgets/helper/ChannelView.cpp` | dispatch the new link type | one include + one switch case `Link::ChatWarnAcknowledge` | Low |
 | `tests/CMakeLists.txt` | build the Limerino PubSub controller tests | one entry: `tests/src/LimerinoPubSub.cpp` | Low — append-only |
 
 ## Limerino-owned files
@@ -105,7 +107,7 @@ Entirely ours; will never conflict with upstream merges:
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
 | `src/widgets/dialogs/limerino/LimerinoResultDialog.{hpp,cpp}` | thin dialog shell for result lists |
 | `src/widgets/dialogs/limerino/LimerinoPinView.{hpp,cpp}` | on-demand pinned-message banner (mounted via runtime layout insert, zero Split.cpp edits) |
-| `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout) |
+| `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout); extended by P4 with a Hermes live-data pane and the auto-acknowledge-warnings setting |
 | `resources/buttons/channelPoints-{dark,light}Mode.svg` | mod-toolbar predictions icon |
 | `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
 | `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`) | Hermes live-updates transport + topic-intent controller (batch P0) |
