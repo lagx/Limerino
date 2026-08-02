@@ -8,6 +8,7 @@
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/pubsub/HermesChannelTopics.hpp"
 #include "providers/limerino/pubsub/HermesManager.hpp"
+#include "providers/limerino/pubsub/HermesUserTopics.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubTopics.hpp"
 
 #include <QTimer>
@@ -710,6 +711,7 @@ void initializePubSub()
 
     // Topic-specific parsers/handlers (batch P1+), registered once.
     installHermesChannelTopicHandlers(*g_instance);
+    installHermesUserTopicHandlers(*g_instance);
 
     // Connections authenticate with the token live at authenticate time.
     managerPtr->setAuthResolver(

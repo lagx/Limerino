@@ -81,6 +81,10 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
         "startup and whenever this page is opened."));
     this->pubsubSummaryLabel_ = layout.addDescription(QString());
     this->pubsubDetailLabel_ = layout.addDescription(QString());
+    SettingWidget::checkbox(
+        QStringLiteral("Automatically acknowledge chat warnings"),
+        getSettings()->limerinoAutoAcknowledgeChatWarnings)
+        ->addTo(layout);
     layout.addButton(QStringLiteral("Retry failed listens"), [] {
         limerino::getPubSubController()->retryFailed();
     });

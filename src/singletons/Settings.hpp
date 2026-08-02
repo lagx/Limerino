@@ -906,6 +906,12 @@ public:
     ChatterinoSetting<QStringList> limerinoPubSubHiddenEventTypes{
         "/limerino/pubsub/hiddenEventTypes", {}};
 
+    // Limerino: auto-acknowledge chat warnings received over chatrooms-user-v1.
+    // Off by default (decided in batch P2); mirrors reference
+    // autoAcknowledgeChatWarnings in pubsubreference/events.js L60.
+    BoolSetting limerinoAutoAcknowledgeChatWarnings{
+        "/limerino/pubsub/autoAcknowledgeChatWarnings", false};
+
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =
         {"/highlighting/highlights"};

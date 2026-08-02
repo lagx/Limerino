@@ -989,6 +989,8 @@ set(SOURCE_FILES
         providers/limerino/pubsub/HermesManager.hpp
         providers/limerino/pubsub/HermesMessages.cpp
         providers/limerino/pubsub/HermesMessages.hpp
+        providers/limerino/pubsub/HermesUserTopics.cpp
+        providers/limerino/pubsub/HermesUserTopics.hpp
         providers/limerino/pubsub/LimerinoPubSubController.cpp
         providers/limerino/pubsub/LimerinoPubSubController.hpp
         providers/limerino/pubsub/LimerinoPubSubTopics.cpp

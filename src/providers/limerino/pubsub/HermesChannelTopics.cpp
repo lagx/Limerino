@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
+#include <QVariant>
 
 namespace chatterino::limerino {
 

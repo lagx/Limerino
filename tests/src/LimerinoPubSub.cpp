@@ -6,6 +6,7 @@
 
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/pubsub/HermesChannelTopics.hpp"
+#include "providers/limerino/pubsub/HermesUserTopics.hpp"
 #include "Test.hpp"
 
 #include <QJsonObject>
@@ -414,7 +415,7 @@ TEST(LimerinoPubSubP1, HandlersInstallAndRaidFormats)
         },
         TEST_CONFIG);
 
-    limerino::installHermesChannelTopicHandlers();
+    limerino::installHermesChannelTopicHandlers(controller);
 
     std::vector<PubSubEvent> events;
     controller.eventProduced.connect(
@@ -455,7 +456,7 @@ TEST(LimerinoPubSubP1, UnknownTypesFallBackToTypeString)
         },
         TEST_CONFIG);
 
-    limerino::installHermesChannelTopicHandlers();
+    limerino::installHermesChannelTopicHandlers(controller);
 
     std::vector<PubSubEvent> events;
     controller.eventProduced.connect(
@@ -466,4 +467,107 @@ TEST(LimerinoPubSubP1, UnknownTypesFallBackToTypeString)
 
     ASSERT_EQ(events.size(), 1);
     ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("weird-poll-thing")));
+}
+
+// ---- P2: user-topic handlers ----
+
+TEST(LimerinoPubSubP2, UserModerationActionFormatsAndFilters)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {"tok", "u1", {}};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesUserTopicHandlers(controller);
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    // events.js L21 shape: type / data.{action,channel_id,target_id,reason}.
+    sinkPtr->sigTopicMessage.invoke(
+        "chatrooms-user-v1.u1",
+        QJsonObject{
+            {"type", "user_moderation_action"},
+            {"data",
+             QJsonObject{{"action", "warn"},
+                         {"channel_id", "12345"},
+                         {"target_id", "u1"},
+                         {"reason", "add spam to whitelist"}}}});
+
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].eventType == QStringLiteral("user_moderation_action"));
+    ASSERT_TRUE(
+        events[0].displayText.contains(QStringLiteral("add spam to whitelist")));
+    // Known to the filter dialog from the moment of registration:
+    ASSERT_TRUE(controller.knownEventTypes().contains(
+        QStringLiteral("user_moderation_action")));
+
+    // An action NOT in the specification allowlist is not treated specially.
+    sinkPtr->sigTopicMessage.invoke(
+        "chatrooms-user-v1.u1",
+        QJsonObject{
+            {"type", "user_moderation_action"},
+            {"data",
+             QJsonObject{{"action", "some_other_action"},
+                         {"channel_id", "12345"},
+                         {"target_id", "u1"}}}});
+    ASSERT_EQ(events.size(), 2);
+    // falls through to generic display (topic + type):
+    ASSERT_TRUE(events[1].displayText.contains(
+        QStringLiteral("user_moderation_action")));
+    ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("chatrooms-user")));
+
+    // targeting a different user is dropped (events.js L27 filter)
+    sinkPtr->sigTopicMessage.invoke(
+        "chatrooms-user-v1.u1",
+        QJsonObject{
+            {"type", "user_moderation_action"},
+            {"data",
+             QJsonObject{{"action", "warn"},
+                         {"channel_id", "12345"},
+                         {"target_id", "not-us"}}}});
+    ASSERT_EQ(events.size(), 2);
+}
+
+TEST(LimerinoPubSubP2, PointsSpentShowsNewBalance)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {"tok", "u1", {}};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesUserTopicHandlers(controller);
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    sinkPtr->sigTopicMessage.invoke(
+        "community-points-user-v1.u1",
+        QJsonObject{
+            {"type", "points-spent"},
+            {"data",
+             QJsonObject{
+                 {"timestamp", "2026-08-01T22:00:00Z"},
+                 {"balance",
+                  QJsonObject{{"user_id", "u1"},
+                              {"channel_id", "12345"},
+                              {"balance", 432}}}}}});
+
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(
+        events[0].displayText.contains(QStringLiteral("432")));
+
+    // Unknown type on the same topic falls through unhandled.
+    sinkPtr->sigTopicMessage.invoke(
+        "community-points-user-v1.u1",
+        QJsonObject{{"type", "points-earned"}});
+    ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("points-earned")));
 }

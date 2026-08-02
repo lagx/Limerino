@@ -74,7 +74,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/widgets/dialogs/UserInfoPopup.cpp` | usercard gets a "Name history" option | one include + one `LabelButton` + connect (no `ui_` struct changes) | Low |
 | `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); "Filter events..." conditional menu entry for `/pubsub-events` + 2 hook includes (live-updates P0) | Low |
 | `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries (live-updates P0 added `providers/limerino/pubsub/*`, `PubSubEventsChannel`, `LimerinoEventFilterDialog`) | Low — append-only at list tail |
-| `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/`; also `limerinoPubSubHiddenEventTypes` (`ChatterinoSetting<QStringList>`) for the `/pubsub-events` filter | Low |
+| `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/`; also `limerinoPubSubHiddenEventTypes` (`ChatterinoSetting<QStringList>`) for the `/pubsub-events` filter and `limerinoAutoAcknowledgeChatWarnings` (batch P2) | Low |
 | `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
 | `flake.nix` | flake description reflects the fork | `description = "Technorino"` → `"Limerino"` | Low |
 | `resources/icon.svg` | new Limerino app icon (master artwork) | content replaced, byte-same filename | Medium — binary; upstream icon change = binary conflict. Resolution: always ours |
@@ -110,6 +110,7 @@ Entirely ours; will never conflict with upstream merges:
 | `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
 | `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`) | Hermes live-updates transport + topic-intent controller (batch P0) |
 | `src/providers/limerino/pubsub/HermesChannelTopics.{hpp,cpp}` | raid/polls/predictions channel topics (batch P1) |
+| `src/providers/limerino/pubsub/HermesUserTopics.{hpp,cpp}` | authenticated user topics incl. chatrooms-user-v1 warn/ack flow (batch P2) |
 | `src/limerino/PubSubEventsChannel.{hpp,cpp}` | `/pubsub-events` special channel + per-event-type filter storage (batch P0) |
 | `src/widgets/dialogs/limerino/LimerinoEventFilterDialog.{hpp,cpp}` | events-channel filter checklist (batch P0) |
 | `tests/src/LimerinoPubSub.cpp` | controller state-machine tests over a recording sink double (batch P0) |
