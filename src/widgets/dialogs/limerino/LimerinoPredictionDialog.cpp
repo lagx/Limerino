@@ -310,7 +310,8 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     // lands on this channel/user instead of waiting for manual refresh.
     if (auto *controller = limerino::getPubSubController(); controller != nullptr)
     {
-        controller->eventProduced.connect(
+        this->signalHolder_.managedConnect(
+            controller->eventProduced,
             [this](const limerino::PubSubEvent &event) {
                 auto *tchan = dynamic_cast<TwitchChannel *>(
                     this->split_->getSelectedChannel().get());
@@ -326,8 +327,6 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
                 if (event.topic.startsWith(
                         QStringLiteral("predictions-channel-v1.")))
                 {
-                    // something happened to the channel's predictions; just
-                    // re-fetch state (data is still GQL-shaped)
                     this->refreshContext();
                 }
                 else if (event.topic.startsWith(
@@ -336,8 +335,7 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
                 {
                     this->refreshRewards();
                 }
-            },
-            this->signalHolder_);
+            });
     }
 }
 
