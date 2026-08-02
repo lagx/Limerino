@@ -571,3 +571,49 @@ TEST(LimerinoPubSubP2, PointsSpentShowsNewBalance)
         QJsonObject{{"type", "points-earned"}});
     ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("points-earned")));
 }
+
+// ---- P3 addition: follows user topic ----
+
+TEST(LimerinoPubSubP3, FollowsFollowAndUnfollow)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {"tok", "u1", {}};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesUserTopicHandlers(controller);
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    // client.js L53: followed shape.
+    sinkPtr->sigTopicMessage.invoke(
+        "follows.u1",
+        QJsonObject{
+            {"type", "user-followed"},
+            {"timestamp", "2026-08-01T22:00:00Z"},
+            {"target_display_name", "forsen"},
+            {"target_username", "forsen"},
+            {"target_user_id", "22484632"}});
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("forsen")));
+
+    // client.js L65: unfollowed (display name absent, id present).
+    sinkPtr->sigTopicMessage.invoke(
+        "follows.u1",
+        QJsonObject{{"type", "user-unfollowed"},
+                    {"timestamp", "2026-08-01T22:00:00Z"},
+                    {"target_user_id", "22484639"}});
+    ASSERT_EQ(events.size(), 2);
+    ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("22484639")));
+
+    // presence example in the same user-sub family for completeness
+    sinkPtr->sigTopicMessage.invoke(
+        "follows.u1", QJsonObject{{"type", "presence"}});
+    // presence has no handler here; falls back to type-display.
+    ASSERT_TRUE(events[2].displayText.contains(QStringLiteral("presence")));
+}

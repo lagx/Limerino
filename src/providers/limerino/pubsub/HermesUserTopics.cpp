@@ -199,6 +199,8 @@ void ensureHermesUserTopics()
                    PubSubTopicAuth::User);
     c->ensureTopic(QStringLiteral("predictions-user-v1.%1").arg(uid),
                    PubSubTopicAuth::User);
+    // P3: decided to include the follows topic (reference USER_SUBS, L110).
+    c->ensureTopic(QStringLiteral("follows.%1").arg(uid), PubSubTopicAuth::User);
 }
 
 void installHermesUserTopicHandlers(LimerinoPubSubController &controller)
@@ -237,6 +239,42 @@ void installHermesUserTopicHandlers(LimerinoPubSubController &controller)
         QStringLiteral("predictions-user-v1."),
         [](const QString & /*topic*/, const QJsonObject & /*payload*/,
            PubSubEvent & /*event*/) {
+            return false;
+        });
+
+    // P3-addendum (user-selected): follows (client.js USER_SUBS L110 active).
+    // events.js doesn't have a handler; reference shape appears in the
+    // client.js docblock: type "user-followed" / "user-unfollowed",
+    // payload {timestamp, target_display_name, target_username, target_user_id}.
+    controller.registerKnownEventType(QStringLiteral("user-followed"));
+    controller.registerKnownEventType(QStringLiteral("user-unfollowed"));
+    controller.registerTopicHandler(
+        QStringLiteral("follows."),
+        [](const QString & /*topic*/, const QJsonObject &payload,
+           PubSubEvent &event) {
+            const QString type = payload[QStringLiteral("type")].toString();
+            if (type == QLatin1String("user-followed"))
+            {
+                const QString name =
+                    payload[QStringLiteral("target_display_name")].toString();
+                event.displayText =
+                    QStringLiteral("%1 followed").arg(
+                        name.isEmpty()
+                            ? payload[QStringLiteral("target_username")]
+                                  .toString()
+                            : name);
+                return true;
+            }
+            if (type == QLatin1String("user-unfollowed"))
+            {
+                // unfollowed shape omits the display name (client.js L49-69):
+                // use the raw user id.
+                event.displayText = QStringLiteral("user unfollowed (%1)")
+                                        .arg(payload[QStringLiteral(
+                                                          "target_user_id")]
+                                                 .toString());
+                return true;
+            }
             return false;
         });
 }
