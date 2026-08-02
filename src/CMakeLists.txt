@@ -981,6 +981,8 @@ set(SOURCE_FILES
         widgets/dialogs/limerino/LimerinoResultList.hpp
         limerino/PubSubEventsChannel.cpp
         limerino/PubSubEventsChannel.hpp
+        providers/limerino/pubsub/HermesChannelTopics.cpp
+        providers/limerino/pubsub/HermesChannelTopics.hpp
         providers/limerino/pubsub/HermesClient.cpp
         providers/limerino/pubsub/HermesClient.hpp
         providers/limerino/pubsub/HermesManager.cpp

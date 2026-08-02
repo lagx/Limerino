@@ -6,6 +6,7 @@
 #include "controllers/accounts/AccountController.hpp"
 #include "debug/AssertInGuiThread.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
+#include "providers/limerino/pubsub/HermesChannelTopics.hpp"
 #include "providers/limerino/pubsub/HermesManager.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubTopics.hpp"
 
@@ -706,6 +707,9 @@ void initializePubSub()
     g_instance = new LimerinoPubSubController(std::move(sink),
                                               &resolveWithLimerinoAuth,
                                               LimerinoPubSubController::Config{});
+
+    // Topic-specific parsers/handlers (batch P1+), registered once.
+    installHermesChannelTopicHandlers(*g_instance);
 
     // Connections authenticate with the token live at authenticate time.
     managerPtr->setAuthResolver(

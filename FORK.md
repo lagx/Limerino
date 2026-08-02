@@ -83,6 +83,7 @@ close to zero as possible — every entry is future merge pain.
 | `resources/chatterino.icns` | macOS bundle icon (`src/CMakeLists.txt:941`) | regenerated from new master; modern ic07–ic14 PNG chunks only (upstream's pre-OS-X il32/l8mk/is32/s8mk bitmap chunks dropped — irrelevant for Qt6 apps) | Medium — see icon.svg |
 | `src/providers/twitch/PubSubClient.cpp` | inherited bug fix: UNLISTEN responses were recorded as LISTEN (`NonceInfo{.isListen = true}` in `encodeUnsubscription`), corrupting diag counters | one word: `.isListen = true` → `false` | Low |
 | `src/providers/twitch/TwitchIrcServer.cpp` | `/pubsub-events` must resolve to the Limerino events channel everywhere channel names resolve | one include + one `if` block in `getCustomChannel` | Low — same region as upstream's other special-channel routes |
+| `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must be (re-)subscribed with the channel's roomId, alongside upstream's classic listens | one include + one call `limerino::ensureHermesChannelTopics(*this)` in `refreshPubSub` | Low — append at that function's existing hook point |
 | `tests/CMakeLists.txt` | build the Limerino PubSub controller tests | one entry: `tests/src/LimerinoPubSub.cpp` | Low — append-only |
 
 ## Limerino-owned files
@@ -108,6 +109,7 @@ Entirely ours; will never conflict with upstream merges:
 | `resources/buttons/channelPoints-{dark,light}Mode.svg` | mod-toolbar predictions icon |
 | `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
 | `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`) | Hermes live-updates transport + topic-intent controller (batch P0) |
+| `src/providers/limerino/pubsub/HermesChannelTopics.{hpp,cpp}` | raid/polls/predictions channel topics (batch P1) |
 | `src/limerino/PubSubEventsChannel.{hpp,cpp}` | `/pubsub-events` special channel + per-event-type filter storage (batch P0) |
 | `src/widgets/dialogs/limerino/LimerinoEventFilterDialog.{hpp,cpp}` | events-channel filter checklist (batch P0) |
 | `tests/src/LimerinoPubSub.cpp` | controller state-machine tests over a recording sink double (batch P0) |

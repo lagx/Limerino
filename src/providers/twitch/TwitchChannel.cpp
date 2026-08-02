@@ -28,6 +28,7 @@
 #include "providers/ffz/FfzBadges.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
 #include "providers/recentmessages/Api.hpp"
+#include "providers/limerino/pubsub/HermesChannelTopics.hpp"
 #include "providers/seventv/eventapi/Dispatch.hpp"
 #include "providers/seventv/SeventvAPI.hpp"
 #include "providers/seventv/SeventvEmotes.hpp"
@@ -1577,6 +1578,9 @@ void TwitchChannel::refreshPubSub()
 
     getApp()->getTwitchPubSub()->listenToChannelPointRewards(roomId);
     getApp()->getTwitchPubSub()->listenToPinnedChatUpdates(roomId);
+
+    // Limerino fork hook: Hermes (live-updates PubSub) channel topics
+    limerino::ensureHermesChannelTopics(*this);
 
     if (currentAccount->isAnon())
     {

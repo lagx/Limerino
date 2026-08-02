@@ -5,6 +5,7 @@
 #include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 
 #include "providers/limerino/LimerinoAuth.hpp"
+#include "providers/limerino/pubsub/HermesChannelTopics.hpp"
 #include "Test.hpp"
 
 #include <QJsonObject>
@@ -399,4 +400,70 @@ TEST(LimerinoPubSubController, RegisteredHandlerFormatsEvent)
     ASSERT_EQ(events.size(), 1);
     ASSERT_TRUE(events[0].displayText ==
                 QStringLiteral("raid event raid_update_v2"));
+}
+
+// ---- P1: channel-topic handlers ----
+
+TEST(LimerinoPubSubP1, HandlersInstallAndRaidFormats)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesChannelTopicHandlers();
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    const QJsonObject raid{
+        {"id", "raid-1"},
+        {"source_id", "9001"},
+        {"target_login", "target"},
+        {"target_display_name", "Target"},
+    };
+
+    // Reference shape: raid at top level (events.js L79).
+    sinkPtr->sigTopicMessage.invoke(
+        "raid.2500",
+        QJsonObject{{"type", "raid_update_v2"}, {"raid", raid}});
+
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("Target")));
+    ASSERT_TRUE(events[0].channelId == QStringLiteral("2500"));
+
+    // Fallback shape: raid nested under data.
+    sinkPtr->sigTopicMessage.invoke(
+        "raid.2500",
+        QJsonObject{{"type", "raid_update_v2"},
+                    {"data", QJsonObject{{"raid", raid}}}});
+    ASSERT_EQ(events.size(), 2);
+    ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("Target")));
+}
+
+TEST(LimerinoPubSubP1, UnknownTypesFallBackToTypeString)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesChannelTopicHandlers();
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    sinkPtr->sigTopicMessage.invoke(
+        "polls.99", QJsonObject{{"type", "weird-poll-thing"}});
+
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("weird-poll-thing")));
 }
