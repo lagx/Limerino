@@ -951,6 +951,8 @@ set(SOURCE_FILES
         providers/limerino/gql/LimerinoGql.hpp
         providers/limerino/gql/PersistedQueries.cpp
         providers/limerino/gql/PersistedQueries.hpp
+        providers/limerino/gql/LimerinoUserCardExtras.cpp
+        providers/limerino/gql/LimerinoUserCardExtras.hpp
         providers/limerino/commands/ChatUtils.cpp
         providers/limerino/commands/ChatUtils.hpp
         providers/limerino/commands/Follows.cpp
