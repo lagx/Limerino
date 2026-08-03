@@ -8,6 +8,7 @@
 
 #include <QHBoxLayout>
 #include <QPointer>
+#include <QVBoxLayout>
 
 namespace chatterino::limerino {
 
@@ -24,10 +25,12 @@ LimerinoUserCardWidget::LimerinoUserCardWidget(QWidget *parent)
     : BaseWidget(parent)
 {
     auto box = LayoutCreator<LimerinoUserCardWidget>(this)
-                   .setLayoutType<QHBoxLayout>()
+                   .setLayoutType<QVBoxLayout>()
                    .withoutMargin();
     box->setSpacing(0);
 
+    // Tag on the first row; team directly underneath; both this column's
+    // right edge stays flush with the name/vbox column via the parent box.
     box.emplace<Label>(QString(), FontStyle::UiMedium)
         .assign(&this->languageTagLabel_);
     QPalette tagPalette;
@@ -35,9 +38,15 @@ LimerinoUserCardWidget::LimerinoUserCardWidget(QWidget *parent)
                         QColor(QString::fromLatin1(DIM_TEXT_COLOR)));
     this->languageTagLabel_->setPalette(tagPalette);
 
-    // G3: teamLabel_, G4: subDetailLabel_ are vbox-row members - created and
-    // populated in those batches. Deliberately not created here so G2's
-    // UserInfoPopup-side hook stays one layout-insert site.
+    // G3: primary team - same right-aligned column, one row under the tag.
+    box.emplace<Label>(QString(), FontStyle::UiMedium)
+        .assign(&this->teamLabel_);
+    QPalette teamPalette;
+    teamPalette.setColor(QPalette::WindowText,
+                         QColor(QString::fromLatin1(DIM_TEXT_COLOR)));
+    this->teamLabel_->setPalette(teamPalette);
+
+    // G4: subDetailLabel_ joins in that batch.
 
     this->rebuild();
 }
@@ -104,8 +113,14 @@ void LimerinoUserCardWidget::rebuild()
     const bool show = !this->extras_.preferredLanguageTag.isEmpty();
     this->languageTagLabel_->setVisible(show);
 
-    // G3/G4: teams + subscription detail join here once those labels exist.
-    this->setVisible(show);
+    // Ruling 1: show the team's `name` only; nothing rendered (and no layout
+    // space claimed) when the user is on no team or the field was null.
+    this->teamLabel_->setText(this->extras_.primaryTeamName);
+    const bool showTeam = !this->extras_.primaryTeamName.isEmpty();
+    this->teamLabel_->setVisible(showTeam);
+
+    // G4: subscription detail joins here once its label exists.
+    this->setVisible(show || showTeam);
     this->layout()->invalidate();
 }
 
