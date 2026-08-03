@@ -32,6 +32,11 @@ public:
     void setTarget(const QString &userId, const QString &channelId,
                    const QString &loginForSubRow);
 
+    // G4: detail string the popup appends onto its existing sub-age row.
+    // Empty whenever nothing extra is known (null detail, unknown platform, or
+    // all sub-fields absent) - caller shows nothing in that case.
+    QString subscriptionSuffix() const;
+
 private:
     void refetch();
     void rebuild();

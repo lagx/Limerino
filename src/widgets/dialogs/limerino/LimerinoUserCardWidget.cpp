@@ -46,7 +46,7 @@ LimerinoUserCardWidget::LimerinoUserCardWidget(QWidget *parent)
                          QColor(QString::fromLatin1(DIM_TEXT_COLOR)));
     this->teamLabel_->setPalette(teamPalette);
 
-    // G4: subDetailLabel_ joins in that batch.
+    // G4: no own label - the detail rides on the popup's existing subageLabel
 
     this->rebuild();
 }
@@ -119,9 +119,61 @@ void LimerinoUserCardWidget::rebuild()
     const bool showTeam = !this->extras_.primaryTeamName.isEmpty();
     this->teamLabel_->setVisible(showTeam);
 
-    // G4: subscription detail joins here once its label exists.
+    // G4: subscription detail is appended by the caller to its own subage row.
     this->setVisible(show || showTeam);
     this->layout()->invalidate();
+}
+
+QString LimerinoUserCardWidget::subscriptionSuffix() const
+{
+    const auto &sub = this->extras_.subscription;
+    if (!sub.has_value())
+    {
+        return {};
+    }
+
+    QStringList parts;
+
+    // Ruling: map only plat­form values with real evidence (raw was ruled, but
+    // un-derivable wire strings are hidden field-by-field rather than shown).
+    const QString &platform = sub->platform;
+    if (platform == QLatin1String("web"))
+    {
+        parts << QStringLiteral("web");
+    }
+    else if (platform == QLatin1String("android"))
+    {
+        parts << QStringLiteral("Android");
+    }
+    else if (platform == QLatin1String("ios"))
+    {
+        parts << QStringLiteral("iOS");
+    }
+    else if (platform == QLatin1String("prime") || sub->purchasedWithPrime)
+    {
+        parts << QStringLiteral("Prime");
+    }
+    // any other platform string -> degraded to nothing (field-by-field)
+
+    if (sub->isGift)
+    {
+        parts << QStringLiteral("gift");
+    }
+    if (sub->tier == QLatin1String("2000"))
+    {
+        parts << QStringLiteral("Tier 2");
+    }
+    else if (sub->tier == QLatin1String("3000"))
+    {
+        parts << QStringLiteral("Tier 3");
+    }
+    // "1000" / unknown -> existing sub-age row already shows tier; no duplicate
+
+    if (parts.isEmpty())
+    {
+        return {};
+    }
+    return QStringLiteral(" · ") + parts.join(QStringLiteral(", "));
 }
 
 }  // namespace chatterino::limerino

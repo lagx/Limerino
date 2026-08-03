@@ -1304,6 +1304,14 @@ void UserInfoPopup::updateUserData()
                             QString("★ Previously subscribed for %1 months")
                                 .arg(subageInfo.totalSubMonths));
                     }
+
+                    // Limerino fork hook: GQL sub detail rides on this row
+                    if (this->ui_.subageLabel)
+                    {
+                        this->ui_.subageLabel->setText(
+                            this->ui_.subageLabel->getText() +
+                            extras->subscriptionSuffix());
+                    }
                 },
                 [] {});
         }
