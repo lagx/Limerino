@@ -108,8 +108,11 @@ close to zero as possible — every entry is future merge pain.
 | `src/controllers/highlights/BadgeHighlightModel.hpp` | Group column on the badges table | `Group = 6` before COUNT | Low |
 | `src/widgets/settingspages/HighlightingPage.cpp` | wire Group column, delegate, and manager button on all three tabs | 2 includes, 3 title entries, 3 delegate hooks, 3 "Manage groups..." buttons | Low-moderate |
 | `src/widgets/splits/SplitHeader.cpp` | split context menu shows which highlight groups apply to the channel | one include + one 5-line conditional call to `limerino::buildHighlightGroupsMenuEntry` after "Set filters" | Low |
+| `CMakeLists.txt` | adopt c7 version numbering (`7.x.x`) so Limerino versions align with the c7/technorino lineage, not c2 | one-line `VERSION 2.5.5` → `7.5.5` in `project()` | Low — single line; c7 merges never touch this line (they inherit c2's value, then bump on their own *release tags*, not in-tree) |
+| `README.md` | replace technorino's header with a Limerino header | lines 1–13 swapped: Limerino logo (`resources/icon.svg`), H1, one-line description with Chatterino/Technorino hyperlinks, `---` separator | Low — top-of-file block, upstream rewrites are rare and surgical |
 
 ## Limerino-owned files
+
 
 Entirely ours; will never conflict with upstream merges:
 
