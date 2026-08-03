@@ -2,6 +2,8 @@
 
 #include "providers/limerino/highlights/HighlightGroup.hpp"
 
+#include "util/serialize/List.hpp"  // pajlada::Serialize<QList<T>>
+
 #include <QStringBuilder>
 
 namespace chatterino {
@@ -120,7 +122,21 @@ rapidjson::Value Serialize<chatterino::HighlightGroup>::get(
             break;
     }
     chatterino::rj::set(ret, "scope", scopeStr, a);
-    chatterino::rj::set(ret, "channels", value.channels(), a);
+
+    // Channels: write manually as a JSON array to avoid relying on the QList
+    // serializer, which trips clang-cl through the QByteArray temporary
+    // produced by pajlada::Serialize<QString>.
+    rapidjson::Value channelsArr(rapidjson::kArrayType);
+    for (const auto &channel : value.channels())
+    {
+        rapidjson::Value v;
+        QByteArray utf8 = channel.toUtf8();
+        v.SetString(utf8.constData(), static_cast<rapidjson::SizeType>(
+                                         utf8.size()),
+                    a);
+        channelsArr.PushBack(v, a);
+    }
+    ret.AddMember("channels", channelsArr, a);
 
     return ret;
 }
