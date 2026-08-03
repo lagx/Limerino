@@ -162,9 +162,9 @@ void resolveToken(
     const QString &normalizedToken, bool fromScript,
     const std::function<void(const LimerinoAuthAccount &)> &onDone);
 
-// Device flow constants (Phase 2). Values come from the frozen auth artifact
-// (resources/limerino/limerinoauth.txt); the client id is identical to the
-// primary login's public one.
+// Device flow constants (Phase 2). Client id is the Twitch web / front-end
+// first-party client (see LimerinoAuth.cpp for provenance); the wider scope
+// list is requested so Helix fallback paths are authorized.
 extern const QString CLIENT_ID;
 extern const QString CLIENT_SCOPES;
 extern const QString AUTH_DEVICE_URL;

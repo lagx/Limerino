@@ -27,11 +27,18 @@
 
 namespace chatterino::LimerinoAuth {
 
+// Twitch web / front-end first-party client. Not the Android-TV id the
+// original auth artifact used. This is the only provider of the value;
+// everything else (Helix, GQL, Hermes WS URL, device flow) reads it from here.
+// Supported grants: OAuth 2.0 Device Authorization Grant (twitch.tv/activate)
+// and the refresh_token grant below; both public, no secret.
 const QString CLIENT_ID =
-    QStringLiteral("ue6666qo983tsx6so1t0vnawi233wa");
-// NOTE: the frozen script artifact (resources/limerino/limerinoauth.txt) is
-// displayed verbatim, but the device flow requests this superset so the Helix
-// fallback path (chat/messages, moderation/channels) is authorized too.
+    QStringLiteral("kd1unb4b3q4t58fwlpcbzcbnm76a8fp");
+// NOTE: the frozen script artifact (resources/limerino/limerinoauth.txt) is a
+// historical capture kept for reference; the device flow deliberately requests
+// this broader scope list so the Helix fallback path (chat/messages,
+// moderation/channels) is authorized too. Scopes are unchanged from the prior
+// client - they are all public OAuth scopes, none client-specific.
 const QString CLIENT_SCOPES = QStringLiteral(
     "chat:read chat:edit channel:moderate channel:manage:predictions "
     "channel:read:redemptions channel:manage:redemptions "

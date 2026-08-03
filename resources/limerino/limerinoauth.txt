@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const CLIENT_ID = `ue6666qo983tsx6so1t0vnawi233wa`;
+const CLIENT_ID = `kd1unb4b3q4t58fwlpcbzcbnm76a8fp`;
 const POLLING_MS = 1000;
 const SCOPES = 'chat:read chat:edit channel:moderate\
 channel:manage:predictions channel:read:redemptions channel:manage:redemptions\
