@@ -997,6 +997,22 @@ set(SOURCE_FILES
         providers/limerino/pubsub/LimerinoPubSubTopics.hpp
         widgets/dialogs/limerino/LimerinoEventFilterDialog.cpp
         widgets/dialogs/limerino/LimerinoEventFilterDialog.hpp
+
+        # Limerino highlight groups (upstream-compatible delta; see FORK.md)
+        providers/limerino/highlights/HighlightGroup.cpp
+        providers/limerino/highlights/HighlightGroup.hpp
+        providers/limerino/highlights/HighlightGroupController.cpp
+        providers/limerino/highlights/HighlightGroupController.hpp
+        providers/limerino/highlights/HighlightGroupChannelKey.hpp
+        providers/limerino/highlights/HighlightGroupChannelKey.cpp
+        providers/limerino/highlights/HighlightGroupChannels.hpp
+        providers/limerino/highlights/HighlightGroupChannels.cpp
+        providers/limerino/highlights/HighlightGroupCellDelegate.hpp
+        providers/limerino/highlights/HighlightGroupCellDelegate.cpp
+        providers/limerino/highlights/HighlightGroupDialog.hpp
+        providers/limerino/highlights/HighlightGroupDialog.cpp
+        providers/limerino/highlights/HighlightGroupMenu.hpp
+        providers/limerino/highlights/HighlightGroupMenu.cpp
         )
 
 if (APPLE)

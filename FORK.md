@@ -86,7 +86,14 @@ close to zero as possible — every entry is future merge pain.
 | `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must start/stop with each refresh cycle, and user topics re-resolve on every `userStateChanged` | one include + one call `limerino::ensureHermesChannelTopics(*this)` + one call `limerino::ensureHermesUserTopics()` in `refreshPubSub` | Low — append at that function's existing hook point |
 | `src/messages/Link.hpp` | expose the chat-warning acknowledgement link inside chat messages | one enum value `ChatWarnAcknowledge` | Low |
 | `src/widgets/helper/ChannelView.cpp` | dispatch the new link type | one include + one switch case `Link::ChatWarnAcknowledge` | Low |
-| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests | one entry: `tests/src/LimerinoPubSub.cpp` | Low — append-only |
+| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests | two entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp` | Low — append-only |
+| `src/controllers/highlights/HighlightPhrase.hpp` | per-channel highlights: each phrase/user/badge belongs to one group | added `QUuid groupId_` member + defaulted trailing ctor param (`QUuid()` = Default/legacy-global); serde writes `groupId` only when non-null and reads it tolerantly | Low |
+| `src/controllers/highlights/HighlightPhrase.cpp` | same | delegating ctor + `groupId_` init + `std::tie` extension in `operator==` + `groupId()` getter | Low |
+| `src/controllers/highlights/HighlightBadge.hpp` | same | same shape as HighlightPhrase | Low |
+| `src/controllers/highlights/HighlightBadge.cpp` | same | same shape as HighlightPhrase | Low |
+| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups` | Low |
+| `src/singletons/Settings.cpp` | initialise the vector + create Default group on startup | two includes + one `initializeSignalVector` call + `new HighlightGroupController(*this, this)` after `instance_ = this` | Low |
+| `src/CMakeLists.txt` | compile the group data model | six entries appended to the tail `# Limerino fork files` block (`providers/limerino/highlights/HighlightGroup*`, `HighlightGroupChannelKey*`) | Low — append-only |
 
 ## Limerino-owned files
 
@@ -116,6 +123,10 @@ Entirely ours; will never conflict with upstream merges:
 | `src/limerino/PubSubEventsChannel.{hpp,cpp}` | `/pubsub-events` special channel + per-event-type filter storage (batch P0) |
 | `src/widgets/dialogs/limerino/LimerinoEventFilterDialog.{hpp,cpp}` | events-channel filter checklist (batch P0) |
 | `tests/src/LimerinoPubSub.cpp` | controller state-machine tests over a recording sink double (batch P0) |
+| `src/providers/limerino/highlights/HighlightGroup.{hpp,cpp}` | highlight-group value type: `AllExcept`/`Only` scope, `DEFAULT_ID`, channel-list normalisation, pajlada serde (`/highlighting/groups` schema) (batch H1) |
+| `src/providers/limerino/highlights/HighlightGroupChannelKey.{hpp,cpp}` | `"platform:name"` / `special:*` key derivation from `Channel` and from `MessagePlatform + name` (batch H1) |
+| `src/providers/limerino/highlights/HighlightGroupController.{hpp,cpp}` | guarantees the Default group exists at startup; `findGroup`/`matchingGroupIds` helpers (batch H1) |
+| `tests/src/LimerinoHighlightGroup.cpp` | value-type tests: normalisation, `matches()` (both scopes + sentinels), serde round-trip, absent-ID → Default migration (batch H1) |
 
 ### Extra-features auth (secondary login)
 

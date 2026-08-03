@@ -12,6 +12,7 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QUrl>
+#include <QUuid>
 
 #include <memory>
 
@@ -29,7 +30,8 @@ public:
      */
     HighlightPhrase(const QString &pattern, bool showInMentions, bool hasAlert,
                     bool hasSound, bool isRegex, bool isCaseSensitive,
-                    const QString &soundUrl, QColor color);
+                    const QString &soundUrl, QColor color,
+                    const QUuid &groupId = QUuid());
 
     /**
      * @brief Create a new HighlightPhrase.
@@ -38,11 +40,16 @@ public:
      */
     HighlightPhrase(const QString &pattern, bool showInMentions, bool hasAlert,
                     bool hasSound, bool isRegex, bool isCaseSensitive,
-                    const QString &soundUrl, std::shared_ptr<QColor> color);
+                    const QString &soundUrl, std::shared_ptr<QColor> color,
+                    const QUuid &groupId = QUuid());
 
     const QString &getPattern() const;
     bool showInMentions() const;
     bool hasAlert() const;
+
+    /// Which highlight group this phrase belongs to.
+    /// A null/default QUuid means the Default group (i.e. global).
+    const QUuid &groupId() const;
 
     /**
      * @brief Check if this highlight phrase should play a sound when
@@ -108,6 +115,10 @@ private:
     QUrl soundUrl_;
     std::shared_ptr<QColor> color_;
     QRegularExpression regex_;
+
+    /// Limerino: per-channel highlight group membership.
+    /// Null/default = Default group = global behaviour.
+    QUuid groupId_;
 };
 
 }  // namespace chatterino
@@ -139,6 +150,13 @@ struct Serialize<chatterino::HighlightPhrase> {
         chatterino::rj::set(ret, "color",
                             value.getColor()->name(QColor::HexArgb), a);
 
+        if (!value.groupId().isNull())
+        {
+            chatterino::rj::set(
+                ret, "groupId",
+                value.groupId().toString(QUuid::WithoutBraces), a);
+        }
+
         return ret;
     }
 };
@@ -163,6 +181,7 @@ struct Deserialize<chatterino::HighlightPhrase> {
         bool _isCaseSensitive = false;
         QString _soundUrl;
         QString encodedColor;
+        QString groupIdStr;
 
         chatterino::rj::getSafe(value, "pattern", _pattern);
         chatterino::rj::getSafe(value, "showInMentions", _showInMentions);
@@ -172,6 +191,7 @@ struct Deserialize<chatterino::HighlightPhrase> {
         chatterino::rj::getSafe(value, "case", _isCaseSensitive);
         chatterino::rj::getSafe(value, "soundUrl", _soundUrl);
         chatterino::rj::getSafe(value, "color", encodedColor);
+        chatterino::rj::getSafe(value, "groupId", groupIdStr);
 
         auto _color = QColor(encodedColor);
         if (!_color.isValid())
@@ -179,9 +199,15 @@ struct Deserialize<chatterino::HighlightPhrase> {
             _color = chatterino::HighlightPhrase::FALLBACK_HIGHLIGHT_COLOR;
         }
 
+        // Limerino: absent or unparseable groupId leaves a null QUuid,
+        // which the resolver treats as "ungrouped -> applies in every
+        // channel", exactly matching pre-feature behaviour.
+        auto _groupId = QUuid::fromString(groupIdStr);
+
         return chatterino::HighlightPhrase(_pattern, _showInMentions, _hasAlert,
                                            _hasSound, _isRegex,
-                                           _isCaseSensitive, _soundUrl, _color);
+                                           _isCaseSensitive, _soundUrl, _color,
+                                           _groupId);
     }
 };
 

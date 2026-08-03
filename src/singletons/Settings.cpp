@@ -11,6 +11,8 @@
 #include "controllers/highlights/HighlightBadge.hpp"
 #include "controllers/highlights/HighlightBlacklistUser.hpp"
 #include "controllers/highlights/HighlightPhrase.hpp"
+#include "providers/limerino/highlights/HighlightGroup.hpp"
+#include "providers/limerino/highlights/HighlightGroupController.hpp"
 #include "controllers/ignores/IgnorePhrase.hpp"
 #include "controllers/moderationactions/ModerationAction.hpp"
 #include "controllers/nicknames/Nickname.hpp"
@@ -218,6 +220,8 @@ Settings::Settings(const Modes &modes, const Args &args,
                            this->highlightedUsers);
     initializeSignalVector(this->signalHolder, this->highlightedBadgesSetting,
                            this->highlightedBadges);
+    initializeSignalVector(this->signalHolder, this->highlightGroupsSetting,
+                           this->highlightGroups);
     initializeSignalVector(this->signalHolder, this->blacklistedUsersSetting,
                            this->blacklistedUsers);
     initializeSignalVector(this->signalHolder, this->ignoredMessagesSetting,
@@ -234,6 +238,9 @@ Settings::Settings(const Modes &modes, const Args &args,
                            this->loggedChannels);
 
     instance_ = this;
+
+    // Limerino: ensure the Default highlight group exists.
+    const auto groupController = new HighlightGroupController(*this, this);
 
 #ifdef USEWINSDK
     this->autorun = isRegisteredForStartup();
