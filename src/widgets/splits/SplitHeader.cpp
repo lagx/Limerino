@@ -548,13 +548,6 @@ std::unique_ptr<QMenu> SplitHeader::createMainMenu()
                     h->getDisplaySequence(HotkeyCategory::Split, "pickFilters"),
                     this->split_, &Split::setFiltersDialog);
 
-    // Limerino fork hook: show which highlight groups apply in this channel.
-    if (selected && (selected->getType() == Channel::Type::Twitch ||
-                     selected->getType() == Channel::Type::Kick))
-    {
-        limerino::buildHighlightGroupsMenuEntry(menu.get(), *selected, this);
-    }
-
     // Limerino fork hook: follow the currently selected channel
     menu->addAction("Follow channel", this->split_, [this] {
         LimerinoCommands::followChannelFromMenu(this->split_->getSelectedChannel());
@@ -564,6 +557,13 @@ std::unique_ptr<QMenu> SplitHeader::createMainMenu()
     auto selected = this->split_->getSelectedChannel();
     auto *twitchChannel = dynamic_cast<TwitchChannel *>(selected.get());
     auto *kickChannel = dynamic_cast<KickChannel *>(selected.get());
+
+    // Limerino fork hook: show which highlight groups apply in this channel.
+    if (selected && (selected->getType() == Channel::Type::Twitch ||
+                     selected->getType() == Channel::Type::Kick))
+    {
+        limerino::buildHighlightGroupsMenuEntry(menu.get(), *selected, this);
+    }
 
     // Limerino fork hook: per-event-type filter on the Hermes events channel
     if (selected && selected->getName() == limerino::pubSubEventsChannelName())
