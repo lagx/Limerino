@@ -24,7 +24,7 @@ class LimerinoUserCardWidget final : public BaseWidget
     Q_OBJECT
 
 public:
-    explicit LimerinoUserCardWidget(QWidget *parent);
+    explicit LimerinoUserCardWidget(QWidget *parent = nullptr);
 
     // Hand over which user / channel this card is pointing at now.
     // Empty userId (or a Kick-prefixed one) clears and hides everything -

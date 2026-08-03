@@ -484,7 +484,7 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
 
                 // Limerino fork hook: GQL-extras label (language tag right of
                 // the user ID, team/sub joined onto the lower rows in G3/G4)
-                auto extras = box.emplace<limerino::LimerinoUserCardWidget>();
+                box.emplace<limerino::LimerinoUserCardWidget>();
 
                 // button to pin the window (only if we close automatically)
                 if (this->closeAutomatically_)
@@ -1170,7 +1170,11 @@ void UserInfoPopup::updateUserData()
         {
             targetChannelId = twitchChannel->roomId();
         }
-        extras->setTarget(user.id, targetChannelId, user.login);
+        if (auto *extras =
+                this->findChild<limerino::LimerinoUserCardWidget *>())
+        {
+            extras->setTarget(user.id, targetChannelId, user.login);
+        }
         this->ui_.createdDateLabel->setText(
             TEXT_CREATED.arg(user.createdAt.section("T", 0, 0)));
         this->ui_.createdDateLabel->setToolTip(
@@ -1308,9 +1312,13 @@ void UserInfoPopup::updateUserData()
                     // Limerino fork hook: GQL sub detail rides on this row
                     if (this->ui_.subageLabel)
                     {
-                        this->ui_.subageLabel->setText(
-                            this->ui_.subageLabel->getText() +
-                            extras->subscriptionSuffix());
+                        if (auto *extras = this->findChild<
+                                limerino::LimerinoUserCardWidget *>())
+                        {
+                            this->ui_.subageLabel->setText(
+                                this->ui_.subageLabel->getText() +
+                                extras->subscriptionSuffix());
+                        }
                     }
                 },
                 [] {});
