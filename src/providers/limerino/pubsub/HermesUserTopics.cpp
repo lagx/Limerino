@@ -4,6 +4,7 @@
 
 #include "Application.hpp"
 #include "common/Channel.hpp"
+#include "common/QLogging.hpp"
 #include "messages/MessageBuilder.hpp"
 #include "messages/MessageElement.hpp"
 #include "messages/Link.hpp"
@@ -21,6 +22,7 @@
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
 #include <QString>
 
 #include <array>
@@ -206,6 +208,106 @@ bool handlePointsSpent(const QJsonObject &payload, PubSubEvent &event)
     return true;
 }
 
+// predictions-user-v1 (newpubsubhermesreference/hermes/events/prediction.js).
+// User topic types: "event-created", "event-updated", "prediction-result".
+// event-created/-updated read data.event; prediction-result reads
+// data.prediction {event_id, points, result:{type}}.
+
+QString sharedPredictionOutcomeText(const QJsonObject &event)
+{
+    const QJsonArray outcomes = event[QStringLiteral("outcomes")].toArray();
+    QString opts;
+    for (const QJsonValue &v : outcomes)
+    {
+        if (!opts.isEmpty())
+        {
+            opts += QStringLiteral(" / ");
+        }
+        opts += v.toObject()[QStringLiteral("title")].toString();
+    }
+    return opts;
+}
+
+bool handleUserPredictionEvent(const QJsonObject &data, const QString &type,
+                               PubSubEvent &event)
+{
+    const QJsonObject ev = data[QStringLiteral("event")].toObject();
+    const QString title = ev[QStringLiteral("title")].toString();
+    if (title.isEmpty())
+    {
+        return false;
+    }
+    const QString opts = sharedPredictionOutcomeText(ev);
+    if (type == QLatin1String("event-created"))
+    {
+        event.displayText =
+            opts.isEmpty()
+                ? QStringLiteral("your prediction event started: %1").arg(title)
+                : QStringLiteral("your prediction event started: %1 [%2]")
+                      .arg(title, opts);
+        return true;
+    }
+    if (type == QLatin1String("event-updated"))
+    {
+        const QString status = ev[QStringLiteral("status")].toString();
+        event.displayText =
+            opts.isEmpty()
+                ? QStringLiteral("your prediction event: %1 (%2)")
+                      .arg(title, status)
+                : QStringLiteral("your prediction event: %1 (%2) [%3]")
+                      .arg(title, status, opts);
+        return true;
+    }
+    return false;
+}
+
+// Logs each unknown prediction-user notification shape once per type string,
+// so a repeating unhandled event doesn't spam the debug log.
+bool unhandledPredictionUserNotification(const QString &type)
+{
+    static QSet<QString> loggedOnce;
+    if (!loggedOnce.contains(type))
+    {
+        loggedOnce.insert(type);
+        qCDebug(chatterinoLiveupdates) << "Hermes predictions-user-v1:"
+                                           " unhandled notification type"
+                                       << type;
+    }
+    return false;
+}
+
+bool handlePredictionResult(const QJsonObject &data, PubSubEvent &event)
+{
+    // prediction-result handler (prediction.js L443-450):
+    //   const { event_id: predictionId, points, result } = msg.data.prediction;
+    const QJsonObject prediction = data[QStringLiteral("prediction")].toObject();
+    const QJsonObject result = prediction[QStringLiteral("result")].toObject();
+    const QString resultType = result[QStringLiteral("type")].toString();
+    const int points = prediction[QStringLiteral("points")].toInt();
+
+    if (resultType == QLatin1String("WIN"))
+    {
+        event.displayText =
+            QStringLiteral("your prediction won: +%1 points").arg(points);
+    }
+    else if (resultType == QLatin1String("LOSE"))
+    {
+        event.displayText =
+            QStringLiteral("your prediction lost: -%1 points").arg(points);
+    }
+    else if (resultType == QLatin1String("REFUND"))
+    {
+        event.displayText = QStringLiteral(
+            "your prediction was cancelled; %1 points refunded")
+                                .arg(points);
+    }
+    else
+    {
+        return unhandledPredictionUserNotification(resultType);
+    }
+    return true;
+}
+
 }  // namespace
 
 void ensureHermesUserTopics()
@@ -272,16 +374,32 @@ void installHermesUserTopicHandlers(LimerinoPubSubController &controller)
     // from the subscription (chatrooms-user-v1.USERID) and is only acknowledged.
     controller.registerKnownEventType(QStringLiteral("user_moderation_action"));
 
-    // predictions-user-v1: no reference payload shape. Only pre-register the
-    // likely ones (Q3-you-allowed) so the filter dialog has them early.
-    controller.registerKnownEventType(QStringLiteral("prediction-event"));
-    controller.registerKnownEventType(QStringLiteral("prediction-prediction"));
+    // predictions-user-v1: real wire types per
+    // newpubsubhermesreference/hermes/events/prediction.js. Replaces the
+    // earlier guessed pre-registrations (prediction-event/-prediction), which
+    // never matched live traffic.
+    controller.registerKnownEventType(QStringLiteral("event-created"));
+    controller.registerKnownEventType(QStringLiteral("event-updated"));
+    controller.registerKnownEventType(QStringLiteral("prediction-result"));
 
     controller.registerTopicHandler(
         QStringLiteral("predictions-user-v1."),
-        [](const QString & /*topic*/, const QJsonObject & /*payload*/,
-           PubSubEvent & /*event*/) {
-            return false;
+        [](const QString & /*topic*/, const QJsonObject &payload,
+           PubSubEvent &event) {
+            const QString type =
+                payload[QStringLiteral("type")].toString();
+            const QJsonObject data =
+                payload[QStringLiteral("data")].toObject();
+            if (type == QLatin1String("event-created") ||
+                type == QLatin1String("event-updated"))
+            {
+                return handleUserPredictionEvent(data, type, event);
+            }
+            if (type == QLatin1String("prediction-result"))
+            {
+                return handlePredictionResult(data, event);
+            }
+            return unhandledPredictionUserNotification(type);
         });
 
     // P3-addendum (user-selected): follows (client.js USER_SUBS L110 active).

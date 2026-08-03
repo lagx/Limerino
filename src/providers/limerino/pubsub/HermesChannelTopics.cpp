@@ -47,27 +47,29 @@ QString formatRaidDisplay(const PubSubEvent & /*event*/,
 
 // --- polls.<channelID> / predictions-channel-v1.<channelID> ----------------
 //
-// REFERENCE NOTE: polls and predictions-channel-v1 are present in
-// client.js's *commented-out* CHANNEL_SUBS lists but have no events.js
-// handler. Event-type strings here are therefore documented guesses --
-// these become visible the moment a real one arrives in the stream. Any
-// payload shape mismatch falls through to the generic PubSubEvent display in
-// the events channel instead of crashing.
+// predictions-* shapes are authoritative from newpubsubhermesreference/
+// hermes/events/prediction.js (no longer guesses). Channel + user topics both
+// emit "event-created" / "event-updated" whose data.event carries:
+//   id, channel_id, created_at, title, status, prediction_window_seconds,
+//   outcomes[], winning_outcome_id, created_by.user_id
+//
+// polls.<channelID> has no handler in the new reference; its describePoll
+// reads the shape formerly documented for it.
 
-QString describePrediction(const QJsonObject &payload)
+// One-line summary of a prediction event. `forUserTopic` selects the
+// "your ..." phrasing used on the user topic. Returns empty when unparseable.
+QString sharedPredictionEventText(const QJsonObject &data, const QString &type,
+                                  bool forUserTopic)
 {
-    const QString type = payload[QStringLiteral("type")].toString();
-    const QJsonObject data = payload[QStringLiteral("data")].toObject();
-    const QJsonObject prediction = data[QStringLiteral("prediction")].toObject();
-
-    // "prediction-created", "prediction-updated", "prediction-ended" are
-    // guesses, no reference (see REFERENCE NOTE above). Fall through to the
-    // type string in the events channel for verification.
-    const QString title = prediction[QStringLiteral("title")].toString();
-    const QJsonArray options = prediction[QStringLiteral("options")].toArray();
-
+    const QJsonObject event = data[QStringLiteral("event")].toObject();
+    const QString title = event[QStringLiteral("title")].toString();
+    if (title.isEmpty())
+    {
+        return {};
+    }
+    const QJsonArray outcomes = event[QStringLiteral("outcomes")].toArray();
     QString opts;
-    for (const QJsonValue &v : options)
+    for (const QJsonValue &v : outcomes)
     {
         if (!opts.isEmpty())
         {
@@ -75,12 +77,46 @@ QString describePrediction(const QJsonObject &payload)
         }
         opts += v.toObject()[QStringLiteral("title")].toString();
     }
-
-    if (!title.isEmpty() && !opts.isEmpty())
+    const QString who = forUserTopic ? QStringLiteral("your ")
+                                     : QString();
+    if (type == QLatin1String("event-created"))
     {
-        return QStringLiteral("%1 [%2]").arg(title, opts);
+        return opts.isEmpty()
+                   ? QStringLiteral("%1prediction started: %2").arg(who, title)
+                   : QStringLiteral("%1prediction started: %2 [%3]")
+                         .arg(who, title, opts);
     }
-    return title.isEmpty() ? type : title;
+    if (type == QLatin1String("event-updated"))
+    {
+        const QString status = event[QStringLiteral("status")].toString();
+        QString suffix;
+        if (status == QLatin1String("ACTIVE"))
+        {
+            suffix = QStringLiteral("active");
+        }
+        else if (status == QLatin1String("LOCKED"))
+        {
+            suffix = QStringLiteral("locked");
+        }
+        else if (status == QLatin1String("RESOLVED"))
+        {
+            suffix = QStringLiteral("resolved");
+        }
+        else if (status == QLatin1String("CANCEL_PENDING") ||
+                 status == QLatin1String("CANCELED"))
+        {
+            suffix = QStringLiteral("cancelled");
+        }
+        else
+        {
+            suffix = status;
+        }
+        return suffix.isEmpty()
+                   ? QStringLiteral("%1prediction updated: %2").arg(who, title)
+                   : QStringLiteral("%1prediction updated: %2 (%3)")
+                         .arg(who, title, suffix);
+    }
+    return {};
 }
 
 QString describePoll(const QJsonObject &payload)
@@ -125,8 +161,15 @@ bool handleRaid(const QString & /*topic*/, const QJsonObject &payload,
 bool handlePredictionsChannel(const QString & /*topic*/,
                               const QJsonObject &payload, PubSubEvent &event)
 {
-    event.displayText = describePrediction(payload);
-    return true;
+    const QString type = payload[QStringLiteral("type")].toString();
+    if (type != QLatin1String("event-created") &&
+        type != QLatin1String("event-updated"))
+    {
+        return false;  // unknown type string: generic events-channel line
+    }
+    event.displayText = sharedPredictionEventText(
+        payload[QStringLiteral("data")].toObject(), type, false);
+    return !event.displayText.isEmpty();
 }
 
 bool handlePollChannel(const QString & /*topic*/, const QJsonObject &payload,
@@ -149,6 +192,8 @@ void installHermesChannelTopicHandlers(LimerinoPubSubController &controller)
     // Reference event type strings (pre-register so the filter dialog has
     // known entries before the first stream event).
     controller.registerKnownEventType(QStringLiteral("raid_update_v2"));
+    controller.registerKnownEventType(QStringLiteral("event-created"));
+    controller.registerKnownEventType(QStringLiteral("event-updated"));
 }
 
 void ensureHermesChannelTopics(const TwitchChannel &channel)
