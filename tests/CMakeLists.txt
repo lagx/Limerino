@@ -25,6 +25,7 @@ set(test_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoHighlightGroup.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoHighlightGroups.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoPubSub.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoUserCardExtras.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/IrcMessageHandler.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/HighlightController.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/FormatTime.cpp

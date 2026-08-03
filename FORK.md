@@ -86,7 +86,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must start/stop with each refresh cycle, and user topics re-resolve on every `userStateChanged` | one include + one call `limerino::ensureHermesChannelTopics(*this)` + one call `limerino::ensureHermesUserTopics()` in `refreshPubSub` | Low — append at that function's existing hook point |
 | `src/messages/Link.hpp` | expose the chat-warning acknowledgement link inside chat messages | one enum value `ChatWarnAcknowledge` | Low |
 | `src/widgets/helper/ChannelView.cpp` | dispatch the new link type | one include + one switch case `Link::ChatWarnAcknowledge` | Low |
-| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests + resolver tests | three entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp`, `tests/src/LimerinoHighlightGroups.cpp` | Low — append-only |
+| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests + resolver tests | three entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp`, `tests/src/LimerinoHighlightGroups.cpp`; batch U5 added `tests/src/LimerinoUserCardExtras.cpp` | Low — append-only |
 | `src/controllers/highlights/HighlightPhrase.hpp` | per-channel highlights: each phrase/user/badge belongs to one group | added `QUuid groupId_` member + defaulted trailing ctor param (`QUuid()` = Default/legacy-global); serde writes `groupId` only when non-null and reads it tolerantly | Low |
 | `src/controllers/highlights/HighlightPhrase.cpp` | same | delegating ctor + `groupId_` init + `std::tie` extension in `operator==` + `groupId()` getter | Low |
 | `src/controllers/highlights/HighlightBadge.hpp` | same | same shape as HighlightPhrase | Low |
@@ -148,6 +148,7 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/highlights/HighlightGroupController.{hpp,cpp}` | guarantees the Default group exists at startup; `findGroup`/`matchingGroupIds` helpers (batch H1) |
 | `tests/src/LimerinoHighlightGroup.cpp` | value-type tests: normalisation, `matches()` (both scopes + sentinels), serde round-trip, absent-ID → Default migration (batch H1) |
 | `tests/src/LimerinoHighlightGroups.cpp` | resolver tests: per-channel filtering, Only/AllExcept scoping, legacy overload equivalence, sentinel keys, cache invalidation via rebuild triggers (batch H2) |
+| `tests/src/LimerinoUserCardExtras.cpp` | parse-response tests: full response, empty, partial-with-field-nulls, null team, null subscription (batch U5) |
 | `src/providers/limerino/highlights/HighlightGroupCellDelegate.{hpp,cpp}` | per-row Group combobox delegate with a trailing "New group…" sentinel that opens the manager dialog (batch H3) |
 | `src/providers/limerino/highlights/HighlightGroupDialog.{hpp,cpp}` | group manager dialog: list + add/delete with confirmation and member recount, scope radio, channel-list editor with autocomplete + typo warning, createGroupModal for in-table group creation (batch H3) |
 | `src/providers/limerino/highlights/HighlightGroupChannels.{hpp,cpp}` | known-channel enumeration for the editor, sourced from open splits + persisted group channels (batch H3) |
@@ -175,6 +176,29 @@ zero diff on `src/widgets/dialogs/LoginDialog.*`.
   `authRequiredMessage`, `authExpiredMessage`. Local-only over cached account state.
 - Invariants: never log token material (`redact()` on every stored error text), no telemetry
   piggybacking, no silent clipboard copies (user code copy is announced in the status label).
+
+### UserCard GQL enrichments (language tag, Twitch team, subscription detail)
+
+One combined inline GQL doc `LimerinoUserCardExtras($id, $channelID)` (rate-limited, resolved
+via `LimerinoAuth::resolveReadToken`, cached per user ID for 5 min) fetches three `User`-node
+field sets for the usercard's target. Sources: `gqlreference/gql/{fragments.js,user/queries.js}`;
+**`gqlreference/` is a gitignored untracked-capture root** (entry lives under `.gitignore`'s
+"Fork reference captures"). It holds no client IDs and no captured response bodies — only the
+module source. Display lands in
+`src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` (one `UserInfoPopup.cpp` hook:
+1 include + 1 widget placement + 1 `setTarget()` hand-off + 1 sub-age suffix append; **12 added
+upstream lines total**).
+
+| Field | Data path | Auth (G0.2 analysis) | Renders |
+|---|---|---|---|
+| Preferred language tag | `user.settings.preferredLanguageTag` | any user token (resolver: `resolveReadToken`); perm-miss → `null`, no `errors[]` | bare tag top-right of upper half; hidden (zero footprint) when absent |
+| Primary team | `user.primaryTeam.name` (singular, not a list) | any user token; team-less → `null` | one dimmed label under the tag when present; nothing when absent |
+| Subscription detail | `user.relationship(targetUserID).subscriptionBenefit{platform,purchasedWithPrime,tier,gift.isGift}`+`subscriptionTenure.months` | any user token; not mod-gated; `null` → not subbed | appended onto existing `★ Tier…` IVR sub-age row via ` · web/Android/iOS/Prime, gift, Tier 2/3` (unrecognized platforms hidden; field-by-field degradation, never blanks the base row) |
+
+Open questions (rulings issued before build): show single team only (primaryTeam is not a
+list); platform rendered raw but unrecognized wire values hidden; tag rendered verbatim with no
+tooltip; tag placed immediately right of user ID; 5-min cache; combined-inline doc is acceptable
+(`gqlreference/` has no literal all-three capture); `/gqlreference/` added to `.gitignore`.
 | `scripts/dev-build.sh` | fork setup |
 | `scripts/dev-test.sh` | fork setup |
 | `scripts/merge-upstream.sh` | fork setup |
