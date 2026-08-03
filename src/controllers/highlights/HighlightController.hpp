@@ -14,9 +14,13 @@
 #include <pajlada/settings/settinglistener.hpp>
 #include <pajlada/signals/signalholder.hpp>
 #include <QColor>
+#include <QHash>
+#include <QStringList>
+#include <QUuid>
 #include <QUrl>
 
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -28,9 +32,21 @@ class AccountController;
 enum class MessageFlag : std::int64_t;
 using MessageFlags = FlagsEnum<MessageFlag>;
 
+/// Limerino: a HighlightCheck plus the ID of the group that produced it.
+/// A null groupId_ means the check is *always global* (subscriptions,
+/// whispers, self-highlight, reply threads, automod) and is included in
+/// every channel's resolved set regardless of group membership.
+struct GroupedHighlightCheck {
+    HighlightCheck check;
+    QUuid groupId;  // null = global
+};
+
 class HighlightController final
 {
 public:
+    using SharedCheckVector =
+        std::shared_ptr<const std::vector<HighlightCheck>>;
+
     HighlightController(Settings &settings, AccountController *accounts);
 
     /**
@@ -42,6 +58,18 @@ public:
         const QString &originalMessage, const MessageFlags &messageFlags,
         MessagePlatform platform = MessagePlatform::AnyOrTwitch) const;
 
+    /**
+     * @brief Same as above, but scoped to the given channel key
+     *        ("twitch:forsen", "kick:someone", "special:mentions"). An empty
+     *        channel key resolves to global checks plus all `AllExcept {}`
+     *        groups (legacy behaviour).
+     **/
+    [[nodiscard]] std::pair<bool, HighlightResult> check(
+        const MessageParseArgs &args,
+        const std::vector<TwitchBadge> &twitchBadges, const QString &senderName,
+        const QString &originalMessage, const MessageFlags &messageFlags,
+        MessagePlatform platform, const QString &channelKey) const;
+
 private:
     /**
      * @brief rebuildChecks is called whenever some outside variable has been changed and our checks need to be updated
@@ -50,7 +78,23 @@ private:
      **/
     void rebuildChecks(Settings &settings);
 
-    UniqueAccess<std::vector<HighlightCheck>> checks_;
+    /// Build, or fetch from cache, the checks applicable to @a channelKey.
+    SharedCheckVector resolveChecks(Settings &settings,
+                                    const QString &channelKey) const;
+
+    /// Extracted the shared body so the legacy overload and the new
+    /// channel-keyed overload share identical field-merging logic.
+    std::pair<bool, HighlightResult> runChecks(
+        const MessageParseArgs &args,
+        const std::vector<TwitchBadge> &twitchBadges, const QString &senderName,
+        const QString &originalMessage, const MessageFlags &messageFlags,
+        MessagePlatform platform, const SharedCheckVector &checks) const;
+
+    UniqueAccess<std::vector<GroupedHighlightCheck>> checks_;
+
+    // Limerino: resolved caches. Both cleared together on any rebuild.
+    mutable UniqueAccess<QHash<QString, SharedCheckVector>> channelChecks_;
+    mutable UniqueAccess<QHash<QString, SharedCheckVector>> byGroupSet_;
 
     pajlada::SettingListener rebuildListener_;
     pajlada::Signals::SignalHolder signalHolder_;

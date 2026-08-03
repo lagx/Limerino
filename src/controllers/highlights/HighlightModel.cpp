@@ -8,9 +8,13 @@
 #include "common/SignalVectorModel.hpp"
 #include "controllers/highlights/HighlightPhrase.hpp"
 #include "providers/colors/ColorProvider.hpp"
+#include "providers/limerino/highlights/HighlightGroup.hpp"
+#include "providers/limerino/highlights/HighlightGroupCellDelegate.hpp"
 #include "singletons/Settings.hpp"
 #include "singletons/WindowManager.hpp"
 #include "util/StandardItemHelper.hpp"
+
+#include <QUuid>
 
 namespace chatterino {
 
@@ -38,7 +42,11 @@ HighlightPhrase HighlightModel::getItemFromRow(
         row[Column::UseRegex]->data(Qt::CheckStateRole).toBool(),
         row[Column::CaseSensitive]->data(Qt::CheckStateRole).toBool(),
         row[Column::SoundPath]->data(Qt::UserRole).toString(),
-        highlightColor};
+        highlightColor,
+        // Limerino: groupId comes from the per-row Group cell; it is a
+        // QUuid-as-string set by HighlightingPage's Group-cell delegate.
+        QUuid(row[Column::Group]->data(Qt::UserRole).toString()),
+    };
 }
 
 // turns a row in the model into a vector item
@@ -53,6 +61,34 @@ void HighlightModel::getRowFromItem(const HighlightPhrase &item,
     setBoolItem(row[Column::CaseSensitive], item.isCaseSensitive());
     setFilePathItem(row[Column::SoundPath], item.getSoundUrl());
     setColorItem(row[Column::Color], *item.getColor());
+
+    // Limerino: the Group cell stores the current group id in
+    // Qt::UserRole, the displayed name in Qt::DisplayRole, and the list of
+    // selectable groups in HighlightGroupCellDelegate's custom roles so the
+    // delegate can populate its combobox.
+    const QUuid groupId = item.groupId();
+
+    QStringList names;
+    QStringList ids;
+    auto groupsVec = getSettings()->highlightGroups.readOnly();
+    for (const auto &group : *groupsVec)
+    {
+        names.append(group.displayName());
+        ids.append(group.id().toString(QUuid::WithoutBraces));
+    }
+
+    int found = ids.indexOf(groupId.toString(QUuid::WithoutBraces));
+    const QString displayName =
+        found >= 0 ? names.value(found)
+                   : QStringLiteral("Default");
+
+    using Delegate = limerino::HighlightGroupCellDelegate;
+    row[Column::Group]->setData(displayName, Qt::DisplayRole);
+    row[Column::Group]->setData(groupId.toString(QUuid::WithoutBraces),
+                                Qt::UserRole);
+    row[Column::Group]->setData(names, Delegate::DisplayNamesRole);
+    row[Column::Group]->setData(ids, Delegate::GroupIdsRole);
+    row[Column::Group]->setData(false, Delegate::IsPinnedRowRole);
 }
 
 void HighlightModel::afterInit()
@@ -317,6 +353,19 @@ void HighlightModel::afterInit()
 
     this->insertCustomRow(coloredAnnouncementRow,
                           HighlightRowIndexes::ColoredAnnouncementRow);
+
+    // Limerino: pinned built-in rows must not expose a Group cell - clear
+    // it and mark it as non-editable.
+    for (const auto &modelRow : this->rows())
+    {
+        if (!modelRow.isCustomRow)
+        {
+            continue;
+        }
+        auto *cell = modelRow.items[Column::Group];
+        cell->setData(QVariant(), Qt::DisplayRole);
+        cell->setFlags(Qt::NoItemFlags);
+    }
 }
 
 void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,

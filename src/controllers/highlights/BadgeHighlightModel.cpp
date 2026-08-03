@@ -9,15 +9,19 @@
 #include "controllers/highlights/HighlightBadge.hpp"
 #include "controllers/highlights/HighlightPhrase.hpp"
 #include "messages/Emote.hpp"
+#include "providers/limerino/highlights/HighlightGroup.hpp"
+#include "providers/limerino/highlights/HighlightGroupCellDelegate.hpp"
 #include "providers/twitch/TwitchBadges.hpp"
 #include "singletons/Settings.hpp"
 #include "util/StandardItemHelper.hpp"
+
+#include <QUuid>
 
 namespace chatterino {
 
 // commandmodel
 BadgeHighlightModel::BadgeHighlightModel(QObject *parent)
-    : SignalVectorModel<HighlightBadge>(6, parent)
+    : SignalVectorModel<HighlightBadge>(Column::COUNT, parent)
 {
 }
 
@@ -40,7 +44,11 @@ HighlightBadge BadgeHighlightModel::getItemFromRow(
         row[Column::FlashTaskbar]->data(Qt::CheckStateRole).toBool(),
         row[Column::PlaySound]->data(Qt::CheckStateRole).toBool(),
         row[Column::SoundPath]->data(Qt::UserRole).toString(),
-        highlightColor};
+        highlightColor,
+        // Limerino: groupId comes from the per-row Group cell; it is a
+        // QUuid-as-string set by HighlightingPage's Group-cell delegate.
+        QUuid(row[Column::Group]->data(Qt::UserRole).toString()),
+    };
 }
 
 // row into vector item
@@ -56,6 +64,31 @@ void BadgeHighlightModel::getRowFromItem(const HighlightBadge &item,
     setBoolItem(row[Column::PlaySound], item.hasSound());
     setFilePathItem(row[Column::SoundPath], item.getSoundUrl());
     setColorItem(row[Column::Color], *item.getColor());
+
+    // Limerino: populate the Group cell same as the other two models so the
+    // per-cell combobox delegate can operate here too.
+    const QUuid groupId = item.groupId();
+
+    QStringList names;
+    QStringList ids;
+    auto groupsVec = getSettings()->highlightGroups.readOnly();
+    for (const auto &group : *groupsVec)
+    {
+        names.append(group.displayName());
+        ids.append(group.id().toString(QUuid::WithoutBraces));
+    }
+
+    int found = ids.indexOf(groupId.toString(QUuid::WithoutBraces));
+    const QString displayName = found >= 0 ? names.value(found)
+                                           : QStringLiteral("Default");
+
+    using Delegate = limerino::HighlightGroupCellDelegate;
+    row[Column::Group]->setData(displayName, Qt::DisplayRole);
+    row[Column::Group]->setData(groupId.toString(QUuid::WithoutBraces),
+                                Qt::UserRole);
+    row[Column::Group]->setData(names, Delegate::DisplayNamesRole);
+    row[Column::Group]->setData(ids, Delegate::GroupIdsRole);
+    row[Column::Group]->setData(false, Delegate::IsPinnedRowRole);
 
     getApp()->getTwitchBadges()->getBadgeIcon(
         item.badgeName(), [item, row](QString /*name*/, const QIconPtr pixmap) {

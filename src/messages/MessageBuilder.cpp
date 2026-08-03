@@ -29,6 +29,7 @@
 #include "providers/emoji/Emojis.hpp"
 #include "providers/ffz/FfzBadges.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
+#include "providers/limerino/highlights/HighlightGroupChannelKey.hpp"
 #include "providers/links/LinkResolver.hpp"
 #include "providers/seventv/SeventvBadges.hpp"
 #include "providers/seventv/SeventvEmotes.hpp"
@@ -2524,9 +2525,14 @@ HighlightAlert MessageBuilder::parseHighlights(const QVariantMap &tags,
     }
 
     auto badges = parseBadgeTag(tags);
+    // Limerino: thread the channel key so per-channel highlight groups apply.
+    const auto channelKey = limerino::highlightChannelKey(
+        this->message().platform,
+        this->message().channelName.isEmpty() ? QString()
+                                              : this->message().channelName);
     auto [highlighted, highlightResult] = getApp()->getHighlights()->check(
         args, badges, this->message().loginName, originalMessage,
-        this->message().flags, this->message().platform);
+        this->message().flags, this->message().platform, channelKey);
 
     if (!highlighted)
     {
