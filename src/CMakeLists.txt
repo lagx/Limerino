@@ -979,6 +979,8 @@ set(SOURCE_FILES
         widgets/dialogs/limerino/LimerinoPredictionDialog.hpp
         widgets/dialogs/limerino/LimerinoResultDialog.cpp
         widgets/dialogs/limerino/LimerinoResultDialog.hpp
+        widgets/dialogs/limerino/LimerinoUserCardWidget.cpp
+        widgets/dialogs/limerino/LimerinoUserCardWidget.hpp
         widgets/dialogs/limerino/LimerinoResultList.cpp
         widgets/dialogs/limerino/LimerinoResultList.hpp
         limerino/PubSubEventsChannel.cpp

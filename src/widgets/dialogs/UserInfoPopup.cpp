@@ -41,6 +41,7 @@
 #include "widgets/buttons/LabelButton.hpp"
 #include "widgets/buttons/PixmapButton.hpp"
 #include "widgets/dialogs/EditUserNotesDialog.hpp"
+#include "widgets/dialogs/limerino/LimerinoUserCardWidget.hpp"
 #include "widgets/helper/ChannelView.hpp"
 #include "widgets/helper/InvisibleSizeGrip.hpp"
 #include "widgets/helper/Line.hpp"
@@ -480,6 +481,10 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
 
                 this->ui_.localizedNameLabel->setVisible(false);
                 this->ui_.localizedNameCopyButton->setVisible(false);
+
+                // Limerino fork hook: GQL-extras label (language tag right of
+                // the user ID, team/sub joined onto the lower rows in G3/G4)
+                auto extras = box.emplace<limerino::LimerinoUserCardWidget>();
 
                 // button to pin the window (only if we close automatically)
                 if (this->closeAutomatically_)
@@ -1159,6 +1164,13 @@ void UserInfoPopup::updateUserData()
 
         this->setWindowTitle(TEXT_TITLE.arg(
             user.displayName, this->underlyingChannel_->getName()));
+        QString targetChannelId;
+        if (const auto *twitchChannel =
+                dynamic_cast<TwitchChannel *>(this->underlyingChannel_.get()))
+        {
+            targetChannelId = twitchChannel->roomId();
+        }
+        extras->setTarget(user.id, targetChannelId, user.login);
         this->ui_.createdDateLabel->setText(
             TEXT_CREATED.arg(user.createdAt.section("T", 0, 0)));
         this->ui_.createdDateLabel->setToolTip(
