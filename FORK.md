@@ -63,7 +63,7 @@ close to zero as possible — every entry is future merge pain.
 
 | File | Why | Hook description | Risk on merge |
 |---|---|---|---|
-| `.gitignore` | ignore local `.ccache/` dir | appended 2-line "Limerino local dev" section at the end | Low — append-only; re-add if upstream rewrites the tail |
+| `.gitignore` | ignore local `.ccache/` dir + reference captures | appended 2-line "Limerino local dev" section at the end; later (batch R-series) appended `pubsubreference/`, `newpubsubhermesreference/`, `pluginforreference/` — untracked-capture roots that may embed live credentials and must never be committed | Low — append-only; re-add if upstream rewrites the tail |
 | `.gitattributes` | frozen auth script must survive checkouts byte-identically | one rule: `resources/limerino/limerinoauth.txt -text` (verbatim artifact; git LF normalization silently changed its bytes) | Low |
 | `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | two edits: `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino` | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these two exact edits.** |
 | `.github/workflows/create-installer.yml` | installer workflow must fire after builds on `limerino` | one edit: `limerino` added to the `workflow_run.branches` filter | **High — same rule as build.yml: keep upstream's file, re-apply this edit** |
@@ -139,6 +139,7 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/pubsub/HermesUserTopics.{hpp,cpp}` | authenticated user topics incl. chatrooms-user-v1 warn/ack flow (batch P2) |
 | `src/limerino/PubSubEventsChannel.{hpp,cpp}` | `/pubsub-events` special channel + per-event-type filter storage (batch P0) |
 | `src/widgets/dialogs/limerino/LimerinoEventFilterDialog.{hpp,cpp}` | events-channel filter checklist (batch P0) |
+| **Hermes live-updates topics (as of batch R2)** | inventory: channel `raid` / `polls` / `predictions-channel-v1` (unauth); user `chatrooms-user-v1` / `community-points-user-v1` / `predictions-user-v1` / `follows` (LimerinoAuth). Classic `community-points-channel-v1` + `pinned-chat-updates-v1` remain on upstream `wss://pubsub-edge.twitch.tv` — intentionally NOT migrated to Hermes (the R-series reference does not confirm them over Hermes, so the move precondition is unmet). **Provenance:** prediction parse shapes re-derived from `newpubsubhermesreference/hermes/` (authoritative for the R batches; earlier `pubsubreference/` kept as history); persisted-query hashes from `pluginforreference/`. All three reference folders are untracked working-tree captures, gitignored (may embed credentials — never commit). |
 | `tests/src/LimerinoPubSub.cpp` | controller state-machine tests over a recording sink double (batch P0) |
 | `src/providers/limerino/highlights/HighlightGroup.{hpp,cpp}` | highlight-group value type: `AllExcept`/`Only` scope, `DEFAULT_ID`, channel-list normalisation, pajlada serde (`/highlighting/groups` schema) (batch H1) |
 | `src/providers/limerino/highlights/HighlightGroupChannelKey.{hpp,cpp}` | `"platform:name"` / `special:*` key derivation from `Channel` and from `MessagePlatform + name` (batch H1) |
@@ -184,8 +185,17 @@ zero diff on `src/widgets/dialogs/LoginDialog.*`.
 
 ## Deliberate non-changes
 
-- Twitch client ID: UNCHANGED, intentionally. Do not touch. Same for 7TV/BTTV/FFZ API keys
-  and endpoints (`src/providers/twitch/`, `src/providers/seventv/`, etc.).
+- 7TV/BTTV/FFZ API keys and endpoints (`src/providers/twitch/`, `src/providers/seventv/`,
+  etc.): UNCHANGED, intentionally. Do not touch.
+- Twitch **extra-features auth** client ID: `kd1unb4b3q4t58fwlpcbzcbnm76a8fp` — the Twitch
+  web / front-end first-party client. **Changed once (batch R1, 2026-08)** from the original
+  Android-TV id (`ue6666qo983tsx6so1t0vnawi233wa`) still shown in `pluginforreference/`.
+  Lives in `LimerinoAuth.cpp` (`CLIENT_ID`); every GQL/Helix/device-flow/Hermes-WS-URL call
+  reads it from that one constant. The new id supports the OAuth 2.0 Device Authorization
+  Grant (twitch.tv/activate) — verified 2026-08 — and the public refresh_token grant. Do not
+  change it again without re-verifying the device grant for the replacement; OAuth client
+  registrations, not the protocol, gate that flow.
+- Twitch **primary login** (chatterino's own public client id): UNCHANGED — see the row above.
 - Executable/CMake target name: still `chatterino` (`project(chatterino …)` in `CMakeLists.txt`,
   `${EXECUTABLE_PROJECT}` in `src/CMakeLists.txt`), to keep `.CI/` and workflow scripts working.
   Branding is user-facing only.

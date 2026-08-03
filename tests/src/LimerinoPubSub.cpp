@@ -6,6 +6,7 @@
 
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/pubsub/HermesChannelTopics.hpp"
+#include "providers/limerino/pubsub/HermesMessages.hpp"
 #include "providers/limerino/pubsub/HermesUserTopics.hpp"
 #include "Test.hpp"
 
@@ -616,4 +617,224 @@ TEST(LimerinoPubSubP3, FollowsFollowAndUnfollow)
         "follows.u1", QJsonObject{{"type", "presence"}});
     // presence has no handler here; falls back to type-display.
     ASSERT_TRUE(events[2].displayText.contains(QStringLiteral("presence")));
+}
+
+// ---- R5: Hermes wire-envelope parsing (newpubsubhermesreference shapes) ----
+
+TEST(LimerinoHermesEnvelope, WelcomeDefaultsAndParses)
+{
+    const auto frame = parseHermesFrame(R"({
+        "type":"welcome","id":"x","timestamp":"t",
+        "welcome":{"keepaliveSec":12}
+    })");
+    ASSERT_TRUE(frame.has_value());
+    ASSERT_TRUE(frame->type == HermesFrame::Type::Welcome);
+    const auto welcome = parseHermesWelcome(frame->object);
+    ASSERT_TRUE(welcome.has_value());
+    ASSERT_EQ(welcome->keepaliveSec, 12);
+
+    // (keepaliveSec absent) -> default 10 (client.js: msg.welcome.keepaliveSec || 10)
+    // note: welcome must be a non-empty object for parseHermesWelcome to accept.
+    const auto bare = parseHermesFrame(R"({"type":"welcome","welcome":{"x":1}})");
+    ASSERT_TRUE(bare.has_value());
+    const auto bareWelcome = parseHermesWelcome(bare->object);
+    ASSERT_TRUE(bareWelcome.has_value());
+    ASSERT_EQ(bareWelcome->keepaliveSec, 10);
+}
+
+TEST(LimerinoHermesEnvelope, ResultResponseShapesAndParentId)
+{
+    const auto frame = parseHermesFrame(R"({
+        "type":"subscribeResponse","parentId":"sub-1",
+        "subscribeResponse":{"result":"error","error":"too many subscriptions",
+                             "errorCode":"SUB006"}
+    })");
+    ASSERT_TRUE(frame.has_value());
+    ASSERT_TRUE(frame->type == HermesFrame::Type::SubscribeResponse);
+    const auto r = parseHermesSubscribeResponse(frame->object);
+    ASSERT_TRUE(r.has_value());
+    ASSERT_EQ(r->result, QStringLiteral("error"));
+    ASSERT_EQ(r->errorCode, QStringLiteral("SUB006"));
+    const auto parent = hermesResponseParentId(frame->object);
+    ASSERT_TRUE(parent.has_value());
+    ASSERT_EQ(*parent, QStringLiteral("sub-1"));
+
+    // missing parentId -> nullopt (subscribe/unsubscribe correlate via parentId)
+    const auto unparented = parseHermesFrame(
+        R"({"type":"unsubscribeResponse","unsubscribeResponse":{"result":"ok"}})");
+    ASSERT_TRUE(unparented.has_value());
+    ASSERT_TRUE(unparented->type == HermesFrame::Type::UnsubscribeResponse);
+    ASSERT_TRUE(parseHermesUnsubscribeResponse(unparented->object).has_value());
+    ASSERT_FALSE(hermesResponseParentId(unparented->object).has_value());
+}
+
+TEST(LimerinoHermesEnvelope, NotificationUnwrapsStringifiedPubsub)
+{
+    const auto frame = parseHermesFrame(R"({
+        "type":"notification","id":"n1",
+        "notification":{"subscription":{"id":"sub-9"},"type":"pubsub",
+                        "pubsub":"{\"type\":\"points-spent\",\"data\":{\"x\":1}}"}
+    })");
+    ASSERT_TRUE(frame.has_value());
+    ASSERT_TRUE(frame->type == HermesFrame::Type::Notification);
+    const auto note = parseHermesNotification(frame->object);
+    ASSERT_TRUE(note.has_value());
+    ASSERT_EQ(note->subscriptionId, QStringLiteral("sub-9"));
+    ASSERT_EQ(note->payload.value(QStringLiteral("type")).toString(),
+              QStringLiteral("points-spent"));
+
+    // inner payload missing .type -> dropped by both the reference and us
+    const auto noType = parseHermesFrame(R"({
+        "type":"notification",
+        "notification":{"subscription":{"id":"s"},"pubsub":"{\"a\":1}"}
+    })");
+    ASSERT_TRUE(noType.has_value());
+    ASSERT_FALSE(parseHermesNotification(noType->object).has_value());
+}
+
+TEST(LimerinoHermesEnvelope, FrameTypeDispatchCoversAllKnownAndInvalid)
+{
+    struct Case {
+        const char *json;
+        HermesFrame::Type expect;
+    };
+    const Case cases[] = {
+        {R"({"type":"welcome","welcome":{}})", HermesFrame::Type::Welcome},
+        {R"({"type":"keepalive"})", HermesFrame::Type::Keepalive},
+        {R"({"type":"reconnect"})", HermesFrame::Type::Reconnect},
+        {R"({"type":"authenticateResponse","authenticateResponse":{"result":"ok"}})",
+         HermesFrame::Type::AuthenticateResponse},
+        {R"({"type":"subscribeResponse","subscribeResponse":{"result":"ok"}})",
+         HermesFrame::Type::SubscribeResponse},
+        {R"({"type":"unsubscribeResponse","unsubscribeResponse":{"result":"ok"}})",
+         HermesFrame::Type::UnsubscribeResponse},
+        {R"({"type":"notification",
+             "notification":{"subscription":{"id":"s"},
+                             "pubsub":"{\"type\":\"x\"}"}})",
+         HermesFrame::Type::Notification},
+        {R"({"type":"something-unknown"})", HermesFrame::Type::INVALID},
+    };
+    for (const auto &c : cases)
+    {
+        const auto frame = parseHermesFrame(c.json);
+        ASSERT_TRUE(frame.has_value());
+        ASSERT_TRUE(frame->type == c.expect)
+            << "unexpected type for " << c.json;
+    }
+    ASSERT_FALSE(parseHermesFrame("not json").has_value());
+}
+
+// ---- R2 regression: predictions-* real shapes (no silent no-op) ----
+
+TEST(LimerinoPubSubR2, PredictionsChannelEventCreatedAndUpdated)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesChannelTopicHandlers(controller);
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    const QJsonObject predictionEvent{
+        {"id", "evt-1"},
+        {"channel_id", "1234"},
+        {"title", "Will it rain?"},
+        {"status", "ACTIVE"},
+        {"outcomes",
+         QJsonArray{QJsonObject{{"title", "Yes"}},
+                    QJsonObject{{"title", "No"}}}},
+    };
+
+    sinkPtr->sigTopicMessage.invoke(
+        "predictions-channel-v1.1234",
+        QJsonObject{{"type", "event-created"},
+                    {"data", QJsonObject{{"event", predictionEvent}}}});
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].eventType == QStringLiteral("event-created"));
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("Will it rain?")));
+    // outcome titles joined, not silently dropped
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("Yes")));
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("No")));
+
+    sinkPtr->sigTopicMessage.invoke(
+        "predictions-channel-v1.1234",
+        QJsonObject{{"type", "event-updated"},
+                    {"data", QJsonObject{{"event",
+                                          QJsonObject{{"title", "Will it rain?"},
+                                                      {"status", "LOCKED"}}}}}});
+    ASSERT_EQ(events.size(), 2);
+    ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("locked")));
+
+    // an unknown prediction type on the SAME topic must not be a silent no-op:
+    // falls back to the type string so it surfaces in the events channel.
+    sinkPtr->sigTopicMessage.invoke(
+        "predictions-channel-v1.1234",
+        QJsonObject{{"type", "prediction-unexpected"}});
+    ASSERT_EQ(events.size(), 3);
+    ASSERT_TRUE(events[2].displayText.contains(
+        QStringLiteral("prediction-unexpected")));
+
+    ASSERT_TRUE(
+        controller.knownEventTypes().contains(QStringLiteral("event-created")));
+    ASSERT_TRUE(
+        controller.knownEventTypes().contains(QStringLiteral("event-updated")));
+}
+
+TEST(LimerinoPubSubR2, PredictionsUserEventAndResult)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {"tok", "u1", {}};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesUserTopicHandlers(controller);
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    sinkPtr->sigTopicMessage.invoke(
+        "predictions-user-v1.u1",
+        QJsonObject{{"type", "event-created"},
+                    {"data",
+                     QJsonObject{{"event",
+                                  QJsonObject{{"title", "Beat the boss"},
+                                              {"outcomes",
+                                               QJsonArray{QJsonObject{
+                                                   {"title", "Yes"}}}}}}}}});
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("Beat the boss")));
+
+    // prediction-result: WIN path uses data.prediction.result.type + points
+    sinkPtr->sigTopicMessage.invoke(
+        "predictions-user-v1.u1",
+        QJsonObject{{"type", "prediction-result"},
+                    {"data",
+                     QJsonObject{{"prediction",
+                                  QJsonObject{{"event_id", "evt-1"},
+                                              {"points", 250},
+                                              {"result",
+                                               QJsonObject{{"type",
+                                                            "WIN"}}}}}}}});
+    ASSERT_EQ(events.size(), 2);
+    ASSERT_TRUE(events[1].eventType == QStringLiteral("prediction-result"));
+    ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("250")));
+
+    ASSERT_TRUE(controller.knownEventTypes().contains(
+        QStringLiteral("prediction-result")));
+    // the stale guessed strings must be gone from the pre-registered set
+    ASSERT_FALSE(controller.knownEventTypes().contains(
+        QStringLiteral("prediction-event")));
+    ASSERT_FALSE(controller.knownEventTypes().contains(
+        QStringLiteral("prediction-prediction")));
 }

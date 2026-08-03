@@ -132,3 +132,8 @@ result
 
 # Limerino local dev
 .ccache/
+
+# Fork reference captures (may embed live credentials; never commit)
+/pubsubreference/
+/newpubsubhermesreference/
+/pluginforreference/
