@@ -93,7 +93,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/controllers/highlights/HighlightBadge.cpp` | same | same shape as HighlightPhrase | Low |
 | `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups` | Low |
 | `src/singletons/Settings.cpp` | initialise the vector + create Default group on startup | two includes + one `initializeSignalVector` call + `new HighlightGroupController(*this, this)` after `instance_ = this` | Low |
-| `src/CMakeLists.txt` | compile the group data model + UI | twelve entries appended to the tail `# Limerino fork files` block (`providers/limerino/highlights/HighlightGroup*`, `HighlightGroupChannelKey*`, `HighlightGroupChannels*`, `HighlightGroupCellDelegate*`, `HighlightGroupDialog*`) | Low — append-only |
+| `src/CMakeLists.txt` | compile the group data model + UI | fourteen entries appended to the tail `# Limerino fork files` block (`providers/limerino/highlights/HighlightGroup*`, `HighlightGroupChannelKey*`, `HighlightGroupChannels*`, `HighlightGroupCellDelegate*`, `HighlightGroupDialog*`, `HighlightGroupMenu*`) | Low — append-only |
 | `src/controllers/highlights/HighlightController.hpp` | resolver needs a channel-keyed overload + caches | added `GroupedHighlightCheck` (check + groupId; null = global), `check(... channelKey)` overload, private `resolveChecks`/`runChecks`, two `QHash` caches | Medium |
 | `src/controllers/highlights/HighlightController.cpp` | rebuild splits global vs groupable; per-channel resolve | six builders emit GroupedHighlightCheck; message/user/badge builders record phrase.groupId()/badge.groupId(); `rebuildChecks` clears both caches; legacy `check()` delegates with a NUL-containing sentinel key; per-channel `resolveChecks` caches by group-set key | Medium |
 | `src/messages/MessageBuilder.cpp` | Twitch path must thread the channel key | one include + 5 lines in `parseHighlights` building the key from `message().platform + channelName` | High — hot file, vigilant merge |
@@ -107,6 +107,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/controllers/highlights/UserHighlightModel.cpp` | identical handling for the users table | mirrors HighlightModel (shared Column enum) + SelfMessageRow blanking | Low |
 | `src/controllers/highlights/BadgeHighlightModel.hpp` | Group column on the badges table | `Group = 6` before COUNT | Low |
 | `src/widgets/settingspages/HighlightingPage.cpp` | wire Group column, delegate, and manager button on all three tabs | 2 includes, 3 title entries, 3 delegate hooks, 3 "Manage groups..." buttons | Low-moderate |
+| `src/widgets/splits/SplitHeader.cpp` | split context menu shows which highlight groups apply to the channel | one include + one 5-line conditional call to `limerino::buildHighlightGroupsMenuEntry` after "Set filters" | Low |
 
 ## Limerino-owned files
 
@@ -144,6 +145,7 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/highlights/HighlightGroupCellDelegate.{hpp,cpp}` | per-row Group combobox delegate with a trailing "New group…" sentinel that opens the manager dialog (batch H3) |
 | `src/providers/limerino/highlights/HighlightGroupDialog.{hpp,cpp}` | group manager dialog: list + add/delete with confirmation and member recount, scope radio, channel-list editor with autocomplete + typo warning, createGroupModal for in-table group creation (batch H3) |
 | `src/providers/limerino/highlights/HighlightGroupChannels.{hpp,cpp}` | known-channel enumeration for the editor, sourced from open splits + persisted group channels (batch H3) |
+| `src/providers/limerino/highlights/HighlightGroupMenu.{hpp,cpp}` | read-only "Highlight groups" submenu in the split context menu; entry per matching group + Manage groups... action; no state is written (batch H4) |
 
 ### Extra-features auth (secondary login)
 
