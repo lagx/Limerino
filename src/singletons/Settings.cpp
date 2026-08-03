@@ -23,6 +23,8 @@
 
 #include <pajlada/signals/scoped-connection.hpp>
 
+#include <QCoreApplication>
+
 namespace {
 
 using namespace chatterino;
@@ -240,7 +242,11 @@ Settings::Settings(const Modes &modes, const Args &args,
     instance_ = this;
 
     // Limerino: ensure the Default highlight group exists.
-    const auto groupController = new HighlightGroupController(*this, this);
+    // Settings is not a QObject, so the controller is parented to QApplication
+    // to give its lifetime a deterministic owner across test and runtime
+    // builds. Deletion happens via QCoreApplication teardown.
+    const auto groupController =
+        new HighlightGroupController(*this, QCoreApplication::instance());
 
 #ifdef USEWINSDK
     this->autorun = isRegisteredForStartup();
