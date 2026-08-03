@@ -27,7 +27,8 @@ public:
         PlaySound = 5,
         SoundPath = 6,
         Color = 7,
-        COUNT  // keep this as last member of enum
+        Group = 8,  // Limerino: per-channel highlight group
+        COUNT       // keep this as last member of enum
     };
 
     enum HighlightRowIndexes {

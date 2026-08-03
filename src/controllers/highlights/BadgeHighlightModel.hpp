@@ -24,7 +24,9 @@ public:
         FlashTaskbar = 2,
         PlaySound = 3,
         SoundPath = 4,
-        Color = 5
+        Color = 5,
+        Group = 6,  // Limerino: per-channel highlight group
+        COUNT,      // keep this as last member of enum
     };
 
 protected:

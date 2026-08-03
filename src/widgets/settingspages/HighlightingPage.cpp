@@ -13,6 +13,8 @@
 #include "controllers/highlights/HighlightPhrase.hpp"
 #include "controllers/highlights/UserHighlightModel.hpp"
 #include "providers/colors/ColorProvider.hpp"
+#include "providers/limerino/highlights/HighlightGroupCellDelegate.hpp"
+#include "providers/limerino/highlights/HighlightGroupDialog.hpp"
 #include "singletons/Settings.hpp"
 #include "util/Helpers.hpp"
 #include "util/LayoutCreator.hpp"
@@ -80,13 +82,25 @@ HighlightingPage::HighlightingPage()
                 view->setTitles({"Pattern", "Show in\nMentions",
                                  "Flash\ntaskbar", "Enable\nregex",
                                  "Case-\nsensitive", "Play\nsound",
-                                 "Custom\nsound", "Color"});
+                                 "Custom\nsound", "Color", "Group"});
                 view->getTableView()->horizontalHeader()->setSectionResizeMode(
                     QHeaderView::Fixed);
                 view->getTableView()->horizontalHeader()->setSectionResizeMode(
                     0, QHeaderView::Stretch);
                 view->getTableView()->setItemDelegateForColumn(
                     HighlightModel::Column::Color, new ColorItemDelegate(view));
+                view->getTableView()->setItemDelegateForColumn(
+                    HighlightModel::Column::Group,
+                    new limerino::HighlightGroupCellDelegate(view));
+
+                auto *manageGroups =
+                    new QPushButton(QStringLiteral("Manage groups..."));
+                view->addCustomButton(manageGroups);
+                QObject::connect(
+                    manageGroups, &QPushButton::clicked, this, [this] {
+                        limerino::HighlightGroupDialog dialog(this);
+                        dialog.exec();
+                    });
 
                 // fourtf: make class extrend BaseWidget and add this to
                 // dpiChanged
@@ -134,7 +148,7 @@ HighlightingPage::HighlightingPage()
                 view->setTitles({"Username", "Show in\nMentions",
                                  "Flash\ntaskbar", "Enable\nregex",
                                  "Case-\nsensitive", "Play\nsound",
-                                 "Custom\nsound", "Color"});
+                                 "Custom\nsound", "Color", "Group"});
                 view->getTableView()->horizontalHeader()->setSectionResizeMode(
                     QHeaderView::Fixed);
                 view->getTableView()->horizontalHeader()->setSectionResizeMode(
@@ -142,6 +156,18 @@ HighlightingPage::HighlightingPage()
                 view->getTableView()->setItemDelegateForColumn(
                     UserHighlightModel::Column::Color,
                     new ColorItemDelegate(view));
+                view->getTableView()->setItemDelegateForColumn(
+                    UserHighlightModel::Column::Group,
+                    new limerino::HighlightGroupCellDelegate(view));
+
+                auto *manageGroupsUsers =
+                    new QPushButton(QStringLiteral("Manage groups..."));
+                view->addCustomButton(manageGroupsUsers);
+                QObject::connect(
+                    manageGroupsUsers, &QPushButton::clicked, this, [this] {
+                        limerino::HighlightGroupDialog dialog(this);
+                        dialog.exec();
+                    });
 
                 // fourtf: make class extrend BaseWidget and add this to
                 // dpiChanged
@@ -179,7 +205,8 @@ HighlightingPage::HighlightingPage()
                                              &getSettings()->highlightedBadges))
                                  .getElement();
                 view->setTitles({"Name", "Show In\nMentions", "Flash\ntaskbar",
-                                 "Play\nsound", "Custom\nsound", "Color"});
+                                 "Play\nsound", "Custom\nsound", "Color",
+                                 "Group"});
                 view->getTableView()->horizontalHeader()->setSectionResizeMode(
                     QHeaderView::Fixed);
                 view->getTableView()->horizontalHeader()->setSectionResizeMode(
@@ -187,6 +214,18 @@ HighlightingPage::HighlightingPage()
                 view->getTableView()->setItemDelegateForColumn(
                     BadgeHighlightModel::Column::Color,
                     new ColorItemDelegate(view));
+                view->getTableView()->setItemDelegateForColumn(
+                    BadgeHighlightModel::Column::Group,
+                    new limerino::HighlightGroupCellDelegate(view));
+
+                auto *manageGroupsBadges =
+                    new QPushButton(QStringLiteral("Manage groups..."));
+                view->addCustomButton(manageGroupsBadges);
+                QObject::connect(
+                    manageGroupsBadges, &QPushButton::clicked, this, [this] {
+                        limerino::HighlightGroupDialog dialog(this);
+                        dialog.exec();
+                    });
 
                 // fourtf: make class extrend BaseWidget and add this to
                 // dpiChanged
