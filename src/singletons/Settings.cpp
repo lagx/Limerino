@@ -12,6 +12,7 @@
 #include "controllers/highlights/HighlightBlacklistUser.hpp"
 #include "controllers/highlights/HighlightPhrase.hpp"
 #include "providers/limerino/highlights/HighlightGroup.hpp"
+#include "providers/limerino/autoactions/LimerinoAutoActionController.hpp"
 #include "providers/limerino/highlights/HighlightGroupController.hpp"
 #include "controllers/ignores/IgnorePhrase.hpp"
 #include "controllers/moderationactions/ModerationAction.hpp"
@@ -247,6 +248,11 @@ Settings::Settings(const Modes &modes, const Args &args,
     // builds. Deletion happens via QCoreApplication teardown.
     const auto groupController =
         new HighlightGroupController(*this, QCoreApplication::instance());
+
+    // Limerino: per-channel cached resolver for auto-action rules (batch N5).
+    const auto autoActionsController =
+        new limerino::LimerinoAutoActionController(
+            *this, QCoreApplication::instance());
 
 #ifdef USEWINSDK
     this->autorun = isRegisteredForStartup();

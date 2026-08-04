@@ -1,16 +1,22 @@
-#include "limerino/LimerinoPage.hpp"
+﻿#include "limerino/LimerinoPage.hpp"
 
 #include "limerino/PubSubEventsChannel.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
+#include "providers/limerino/autoactions/LimerinoAutoAction.hpp"
+#include "providers/limerino/autoactions/LimerinoAutoActionStore.hpp"
 #include "providers/limerino/commands/Identity.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 #include "singletons/Settings.hpp"
 #include "widgets/dialogs/LimerinoAuthDialog.hpp"
+#include "widgets/dialogs/limerino/LimerinoAutoActionEditor.hpp"
 #include "widgets/settingspages/GeneralPageView.hpp"
 #include "widgets/settingspages/SettingWidget.hpp"
 
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace chatterino {
@@ -91,6 +97,81 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
     layout.addButton(QStringLiteral("Open PubSub events channel"), [] {
         limerino::openPubSubEventsChannelTab();
     });
+
+    layout.addTitle("Auto actions");
+    layout.addDescription(QStringLiteral(
+        "Rules that run automatically when a message arrives. A rule matches "
+        "message text and/or sender (regex or plain text, case-insensitive by "
+        "default). The action string supports placeholders like "
+        "{sender.name}, {msg.id}, {channel.name}."));
+    this->autoActionList_ = new QListWidget();
+    this->autoActionList_->setMaximumHeight(140);
+    layout.addWidget(this->autoActionList_);
+    auto *aaRow = new QHBoxLayout;
+    aaRow->setContentsMargins(0, 0, 0, 0);
+    this->autoActionAdd_ = new QPushButton(QStringLiteral("Add rule..."));
+    this->autoActionEdit_ = new QPushButton(QStringLiteral("Edit..."));
+    this->autoActionDelete_ = new QPushButton(QStringLiteral("Delete"));
+    aaRow->addWidget(this->autoActionAdd_);
+    aaRow->addWidget(this->autoActionEdit_);
+    aaRow->addWidget(this->autoActionDelete_);
+    aaRow->addStretch(1);
+    layout.addLayout(aaRow);
+    this->autoActionPlaceholderHelp_ =
+        layout.addDescription(QStringLiteral(
+            "Placeholders: {msg.id} {sender.name} {sender.displayName} "
+            "{sender.id} {channel.name} {channel.id} {platform}. "
+            "Unknown placeholders expand to empty; an unavailable value "
+            "skips the action entirely."));
+
+    QObject::connect(this->autoActionAdd_, &QPushButton::clicked, this, [this] {
+        limerino::LimerinoAutoAction blank;
+        auto *dialog =
+            new limerino::LimerinoAutoActionEditor(this, blank);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        QObject::connect(dialog,
+                         &limerino::LimerinoAutoActionEditor::ruleSaved, this,
+                         [this](const limerino::LimerinoAutoAction &rule) {
+                             limerino::addLimerinoAutoAction(rule);
+                             this->rebuildAutoActionList();
+                         });
+        dialog->show();
+    });
+    QObject::connect(this->autoActionEdit_, &QPushButton::clicked, this, [this] {
+        const int row = this->autoActionList_->currentRow();
+        const auto rules = limerino::loadLimerinoAutoActions();
+        if (row < 0 || row >= rules.size())
+        {
+            return;
+        }
+        auto *dialog = new limerino::LimerinoAutoActionEditor(this,
+                                                              rules[row]);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        QObject::connect(dialog,
+                         &limerino::LimerinoAutoActionEditor::ruleSaved, this,
+                         [this](const limerino::LimerinoAutoAction &rule) {
+                             limerino::updateLimerinoAutoAction(rule);
+                             this->rebuildAutoActionList();
+                         });
+        dialog->show();
+    });
+    QObject::connect(this->autoActionDelete_, &QPushButton::clicked, this, [this] {
+        const int row = this->autoActionList_->currentRow();
+        const auto rules = limerino::loadLimerinoAutoActions();
+        if (row < 0 || row >= rules.size())
+        {
+            return;
+        }
+        limerino::removeLimerinoAutoAction(rules[row].id);
+        this->rebuildAutoActionList();
+    });
+    QObject::connect(this->autoActionList_,
+                     &QListWidget::itemDoubleClicked, this,
+                     [this](QListWidgetItem *) {
+                         this->autoActionEdit_->click();
+                     });
+
+    this->rebuildAutoActionList();
 
     layout.addDescription(QStringLiteral(
         "Paste host used by list commands (/listfollows, /modlist, ...): "
@@ -220,4 +301,27 @@ void LimerinoPage::rebuildPubSubDiagnostics()
     this->pubsubDetailLabel_->setText(detail);
 }
 
+void LimerinoPage::rebuildAutoActionList()
+{
+    if (!this->autoActionList_)
+    {
+        return;
+    }
+    this->autoActionList_->clear();
+    for (const auto &rule : limerino::loadLimerinoAutoActions())
+    {
+        const auto label = QStringLiteral("%1 %2%3")
+                               .arg(rule.enabled ? QStringLiteral("[on]")
+                                                 : QStringLiteral("[off]"))
+                               .arg(rule.name)
+                               .arg(rule.action.isEmpty()
+                                        ? QString()
+                                        : QStringLiteral("   ->   ") +
+                                              rule.action.left(64));
+        auto *item = new QListWidgetItem(label, this->autoActionList_);
+        item->setData(Qt::UserRole, rule.id.toString(QUuid::WithoutBraces));
+    }
+}
+
 }  // namespace chatterino
+
