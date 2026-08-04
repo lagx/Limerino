@@ -11,6 +11,7 @@
 #include "widgets/BasePopup.hpp"
 
 #include <QPointer>
+#include <QUuid>
 
 class QCheckBox;
 class QComboBox;

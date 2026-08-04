@@ -2,6 +2,7 @@
 
 #include "providers/limerino/commands/NukeCommands.hpp"
 
+#include "common/Channel.hpp"
 #include "controllers/commands/CommandContext.hpp"
 #include "providers/limerino/nuke/NukeExecutor.hpp"
 

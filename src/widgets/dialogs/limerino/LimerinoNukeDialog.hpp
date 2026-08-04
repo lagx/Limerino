@@ -15,6 +15,7 @@
 
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 
 class QCheckBox;
 class QComboBox;
