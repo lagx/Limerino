@@ -72,7 +72,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/controllers/commands/CommandController.hpp` | fork commands need a registration extension point | one tiny public passthrough `registerExternalCommand()` wrapping the private `registerCommand()` | Low |
 | `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` + one include + one call `limerino::initializePubSub()` (Hermes bootstrap) at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our lines at the end of the function** |
 | `src/widgets/dialogs/UserInfoPopup.cpp` | usercard gets a "Name history" option + a GQL-extras label | one include + one `LabelButton` + connect (pre-existing); batch U2: one include + one `LimerinoUserCardWidget` + one `setTarget()` call inside the existing Helix-success lambda (no `ui_` struct changes) | Low |
-| `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); "Filter events..." conditional menu entry for `/pubsub-events` + 2 hook includes (live-updates P0) | Low |
+| `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); "Filter events..." conditional menu entry for `/pubsub-events` + 2 hook includes (live-updates P0); "Nuke messages..." conditional menu entry gated on `hasModRights() && isTwitchOrKickChannel()` opening `LimerinoNukeDialog` + 1 include (batch N3) | Low |
 | `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries (live-updates P0 added `providers/limerino/pubsub/*`, `PubSubEventsChannel`, `LimerinoEventFilterDialog`; batch U1 added `providers/limerino/gql/LimerinoUserCardExtras`; batch U2 added `widgets/dialogs/limerino/LimerinoUserCardWidget`) | Low — append-only at list tail |
 | `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/`; also `limerinoPubSubHiddenEventTypes` (`ChatterinoSetting<QStringList>`) for the `/pubsub-events` filter and `limerinoAutoAcknowledgeChatWarnings` (batch P2) | Low |
 | `default.nix` | nix package name reflects the fork | `pname = "technorino"` → `"limerino"` | Low |
@@ -86,13 +86,13 @@ close to zero as possible — every entry is future merge pain.
 | `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must start/stop with each refresh cycle, and user topics re-resolve on every `userStateChanged` | one include + one call `limerino::ensureHermesChannelTopics(*this)` + one call `limerino::ensureHermesUserTopics()` in `refreshPubSub` | Low — append at that function's existing hook point |
 | `src/messages/Link.hpp` | expose the chat-warning acknowledgement link inside chat messages | one enum value `ChatWarnAcknowledge` | Low |
 | `src/widgets/helper/ChannelView.cpp` | dispatch the new link type | one include + one switch case `Link::ChatWarnAcknowledge` | Low |
-| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests + resolver tests | three entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp`, `tests/src/LimerinoHighlightGroups.cpp`; batch U5 added `tests/src/LimerinoUserCardExtras.cpp` | Low — append-only |
+| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests + resolver tests | three entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp`, `tests/src/LimerinoHighlightGroups.cpp`; batch U5 added `tests/src/LimerinoUserCardExtras.cpp`; batch N1 added `tests/src/LimerinoMatcher.cpp`; batch N2 added `tests/src/LimerinoNukePlan.cpp` | Low — append-only |
 | `src/controllers/highlights/HighlightPhrase.hpp` | per-channel highlights: each phrase/user/badge belongs to one group | added `QUuid groupId_` member + defaulted trailing ctor param (`QUuid()` = Default/legacy-global); serde writes `groupId` only when non-null and reads it tolerantly | Low |
 | `src/controllers/highlights/HighlightPhrase.cpp` | same | delegating ctor + `groupId_` init + `std::tie` extension in `operator==` + `groupId()` getter | Low |
 | `src/controllers/highlights/HighlightBadge.hpp` | same | same shape as HighlightPhrase | Low |
 | `src/controllers/highlights/HighlightBadge.cpp` | same | same shape as HighlightPhrase | Low |
-| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups` | Low |
-| `src/singletons/Settings.cpp` | initialise the vector + create Default group on startup | two includes + one `initializeSignalVector` call + `new HighlightGroupController(*this, this)` after `instance_ = this` | Low |
+| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups`; batch N4 added `limerinoNukePresets` (`QStringSetting`, presets as JSON); batch N5 added `limerinoAutoActions` (`QStringSetting`, rules as JSON) | Low |
+| `src/singletons/Settings.cpp` | initialise the vector + create Default group on startup | two includes + one `initializeSignalVector` call + `new HighlightGroupController(*this, this)` after `instance_ = this`; batch N5: constructs `LimerinoAutoActionController` next to it | Low |
 | `src/CMakeLists.txt` | compile the group data model + UI | fourteen entries appended to the tail `# Limerino fork files` block (`providers/limerino/highlights/HighlightGroup*`, `HighlightGroupChannelKey*`, `HighlightGroupChannels*`, `HighlightGroupCellDelegate*`, `HighlightGroupDialog*`, `HighlightGroupMenu*`) | Low — append-only |
 | `src/controllers/highlights/HighlightController.hpp` | resolver needs a channel-keyed overload + caches | added `GroupedHighlightCheck` (check + groupId; null = global), `check(... channelKey)` overload, private `resolveChecks`/`runChecks`, two `QHash` caches | Medium |
 | `src/controllers/highlights/HighlightController.cpp` | rebuild splits global vs groupable; per-channel resolve | six builders emit GroupedHighlightCheck; message/user/badge builders record phrase.groupId()/badge.groupId(); `rebuildChecks` clears both caches; legacy `check()` delegates with a NUL-containing sentinel key; per-channel `resolveChecks` caches by group-set key | Medium |
@@ -143,6 +143,15 @@ Entirely ours; will never conflict with upstream merges:
 | `src/widgets/dialogs/limerino/LimerinoEventFilterDialog.{hpp,cpp}` | events-channel filter checklist (batch P0) |
 | **Hermes live-updates topics (as of batch R2)** | inventory: channel `raid` / `polls` / `predictions-channel-v1` (unauth); user `chatrooms-user-v1` / `community-points-user-v1` / `predictions-user-v1` / `follows` (LimerinoAuth). Classic `community-points-channel-v1` + `pinned-chat-updates-v1` remain on upstream `wss://pubsub-edge.twitch.tv` — intentionally NOT migrated to Hermes (the R-series reference does not confirm them over Hermes, so the move precondition is unmet). **Provenance:** prediction parse shapes re-derived from `newpubsubhermesreference/hermes/` (authoritative for the R batches; earlier `pubsubreference/` kept as history); persisted-query hashes from `pluginforreference/`. All three reference folders are untracked working-tree captures, gitignored (may embed credentials — never commit). |
 | `tests/src/LimerinoPubSub.cpp` | controller state-machine tests over a recording sink double (batch P0) |
+| `src/providers/limerino/matcher/` (`LimerinoMatcher`, `LimerinoMatcherValidation`) | shared content/sender matcher + one pair validator (`validateMatcherPair`) enforcing the both-empty rejection; regex + literal modes mirroring `HighlightPhrase`; precompiled `QRegularExpression`, never per message (batch N1) |
+| `tests/src/LimerinoMatcher.cpp` | matcher unit tests: single semantics, invalid regex never falls back, both-empty pair rejection, serde round-trip (batch N1) |
+| `src/providers/limerino/nuke/` (`NukePlan`, `NukeEngine`) | nuke plan types + `buildPlan(snapshot, platform, channel, self, matchers, lookback, action)`: pure, no network/settings/app state. Dedups by sender for ban/timeout/warn, per-message IDs for delete; self + broadcaster excluded; already-deleted/system/timeout-record messages filtered; Kick warns produce zero targets (batch N2) |
+| `src/providers/limerino/nuke/NukePreset.{hpp,cpp}` + `NukePresetsStore.{hpp,cpp}` | named nuke configurations (matchers + lookback + action + params) persisted under `/limerino/nukePresets` (batch N4) |
+| `src/providers/limerino/autoactions/` | auto-action rule model (`LimerinoAutoAction`, scope semantics mirror HighlightGroup), store, and per-channel resolver (`LimerinoAutoActionController`) with a per-channel cached shared_ptr matching the highlight resolver's shape; placeholders in `AutoActionPlaceholders.{hpp,cpp}`, `{msg.text}` deliberately excluded (batch N5) |
+| `tests/src/LimerinoAutoActions.cpp` | auto-action value-type tests: scope, serde round-trip, normalisation (batch N5) |
+| `tests/src/LimerinoNukePlan.cpp` | nuke plan tests: request validation, empty buffer, lookback-overflow flag, exclusion flags, dedup by user, delete per-message, compound action, invalid regex, Kick warn (batch N2) |
+| `src/providers/limerino/nuke/NukeExecutor.{hpp,cpp}` | serial execution of a NukePlan through `LimerinoApi` moderation wrappers (throttled via LimerinoRateLimiter), Kick via `getKickApi()`; progress signals, cancel(), global `/cancelnuke` singleton (batch N3) |
+| `src/widgets/dialogs/limerino/LimerinoNukeDialog.{hpp,cpp}` | nuke dialog: matchers with live regex validation, Preview->Execute gating, buffer-coverage banner, irreversible-delete note, progress/cancel/results (batch N3) |
 | `src/providers/limerino/highlights/HighlightGroup.{hpp,cpp}` | highlight-group value type: `AllExcept`/`Only` scope, `DEFAULT_ID`, channel-list normalisation, pajlada serde (`/highlighting/groups` schema) (batch H1) |
 | `src/providers/limerino/highlights/HighlightGroupChannelKey.{hpp,cpp}` | `"platform:name"` / `special:*` key derivation from `Channel` and from `MessagePlatform + name` (batch H1) |
 | `src/providers/limerino/highlights/HighlightGroupController.{hpp,cpp}` | guarantees the Default group exists at startup; `findGroup`/`matchingGroupIds` helpers (batch H1) |
@@ -199,6 +208,80 @@ Open questions (rulings issued before build): show single team only (primaryTeam
 list); platform rendered raw but unrecognized wire values hidden; tag rendered verbatim with no
 tooltip; tag placed immediately right of user ID; 5-min cache; combined-inline doc is acceptable
 (`gqlreference/` has no literal all-three capture); `/gqlreference/` added to `.gitignore`.
+
+### Nuke (moderation retro-action) and Auto Actions
+
+Two features built on one shared matcher (`src/providers/limerino/matcher/`).
+
+**Shared matcher semantics** (`LimerinoMatcher`):
+
+- Empty pattern is an absent constraint and matches everything.
+- Message-content matcher **AND** sender matcher both must match.
+- Both matchers empty is a validation error — refused by the editor *and* the
+  nuke-engine planning call (would otherwise select the whole buffer).
+- Regex tolerated on compile failure: `matches()` returns `false`, editor shows
+  `compileError()` text, no fallback to substring matching.
+- Case-insensitive by default; per-matcher "Case sensitive" toggle, mirroring
+  `HighlightPhrase`'s `isRegex`/`isCaseSensitive` idiom.
+
+**Nuke (`/cancelnuke`, `/unnuke`, split menu ➜ "Nuke messages...")**
+
+- Moderator-only entry point in the split header dropdown, gated on
+  `hasModRights() && isTwitchOrKickChannel()`.
+- Message buffer coverage: `Channel::getMessageSnapshot()` counts `N` messages
+  per the `/misc/scrollback/splitLimit` setting (default 1000). A 600 s lookback
+  may therefore only cover the last few seconds in a busy channel. The Preview
+  shows the buffer's real coverage `HH:MM:SS → HH:MM:SS` and a prominent
+  warning banner when `lookbackExceedsBuffer` is true.
+- `BuildPlan` (pure) deduplicates by sender for Ban/Timeout/Warn; Delete is
+  per message. Self and the channel broadcaster are always excluded; their
+  matchers never appear in the target list.
+- Already-deleted (`MessageFlag::Disabled`) and timeout/deletion record
+  messages (`Timeout`, `ClearChat`, `ModerationAction`, `System`, `Whisper`)
+  are excluded from matching.
+- Actions route through `LimerinoApi::{ban,warn,deleteChatMessage,unban}User`
+  which submit canonical Helix requests through `LimerinoRateLimiter`. Kick
+  supports ban/timeout/delete but **not warn** (no Kick endpoint) — the Warn
+  option is hidden from the dialog on Kick channels.
+- `/cancelnuke` aborts the running nuke (one in flight globally). `/unnuke`
+  reverses the last completed nuke's bans/timeouts in that channel.
+  **Deletes cannot be undone**; this is stated in the dialog before execute.
+- Presets (`limerinoNukePresets`): matchers + lookback + action + params.
+
+**Auto Actions (`limerinoAutoActions`, settings → Limerino tab ➜ Auto actions)**
+
+- One rule = matchers + `Scope` (AllExcept-with-empty-list = everywhere, or
+  Only-with-list using the shared `highlightChannelKey` scheme) + command
+  template + enabled flag + per-rule cooldown.
+- Resolver caches the applicable rule list per channel as a
+  `std::shared_ptr<const std::vector<LimerinoAutoAction>>` — same shape as the
+  highlight-group per-channel cache. Cache invalidates on `delayedItemsChanged`
+  of the setting.
+- Command dispatch uses `getApp()->getCommands()->execCommand(...)`, so every
+  built-in, Limerino, and user-defined command works ("/ban", "/timeout",
+  "/warn", "/delete", ...).
+- Runtime safety (all unconditional):
+  - Never fires on the current user's own messages.
+  - Per-rule cooldown in seconds; the N7 rule editor defaults to 10.
+  - No re-entry: while an evaluation is in progress the global guard refuses
+    re-entrant calls (this also breaks an action producing a message that
+    triggers the same rule).
+  - Moderator check per channel before any dispatch (`hasModRights()`).
+  - A message emitted by a fired action cannot itself be evaluated: the guard
+    above catches that the action's echo arrives inside the same call.
+- Placeholders expanded at fire time (`AutoActionPlaceholders.cpp`):
+  - `{msg.id}` `{sender.name}` `{sender.displayName}` `{sender.id}`
+    `{channel.name}` `{channel.id}` `{platform}`.
+  - `{{` and `}}` produce literal braces.
+  - Unknown placeholders expand to empty and log a warning once per rule.
+  - An unavailable required value (`{msg.id}` on a channel that lacks message
+    IDs, `{channel.id}` on a special channel) **skips the action** and logs —
+    a command is never sent with an empty ID argument.
+  - `{msg.text}` is **excluded** in v1: the message text is attacker-controlled
+    and would inject directly into a command string. Any future reintroduction
+    must be sanitised first (strip leading `/` and `.`, collapse newlines,
+    cap length).
+
 | `scripts/dev-build.sh` | fork setup |
 | `scripts/dev-test.sh` | fork setup |
 | `scripts/merge-upstream.sh` | fork setup |
