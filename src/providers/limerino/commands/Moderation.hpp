@@ -14,6 +14,7 @@ namespace LimerinoCommands {
 
 QString modlogs(const CommandContext &ctx);
 QString acknowledgeWarning(const CommandContext &ctx);
+QString cancelNuke(const CommandContext &ctx);  // batch N3
 
 }  // namespace LimerinoCommands
 }  // namespace chatterino

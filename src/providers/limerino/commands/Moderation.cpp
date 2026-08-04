@@ -8,6 +8,7 @@
 #include "providers/limerino/gql/PersistedQueries.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/LimerinoErrors.hpp"
+#include "providers/limerino/nuke/NukeExecutor.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "widgets/dialogs/limerino/LimerinoModLogsDialog.hpp"
 
@@ -190,6 +191,16 @@ QString acknowledgeWarning(const CommandContext &ctx)
                 chan->addSystemMessage(e.message);
             }
         });
+    return {};
+}
+
+QString cancelNuke(const CommandContext &ctx)
+{
+    const QString result = limerino::cancelRunningNuke();
+    if (ctx.channel)
+    {
+        ctx.channel->addSystemMessage(result);
+    }
     return {};
 }
 

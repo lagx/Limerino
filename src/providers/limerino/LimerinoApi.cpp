@@ -11,10 +11,15 @@
 #include "providers/twitch/TwitchAccountManager.hpp"
 #include "singletons/Settings.hpp"
 
+#include "common/network/NetworkRequest.hpp"
+#include "common/network/NetworkResult.hpp"
+#include "providers/limerino/LimerinoRateLimiter.hpp"
+
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
+#include <QUrlQuery>
 
 namespace chatterino::LimerinoApi {
 
@@ -206,6 +211,213 @@ void uploadPaste(const QString &text,
             }
         })
         .execute();
+}
+
+// --- moderation (batch N3) ----------------------------------------------------
+// Moderation endpoints accept the *primary* chatterino login's client id and
+// OAuth token (same as every built-in /ban). The Helix request is built inside
+// this translation unit; no raw NetworkRequest appears outside of LimerinoApi.
+
+namespace {
+
+NetworkRequest moderationRequest(NetworkRequestType type, const QString &path,
+                                 const QUrlQuery &query,
+                                 const QString &primaryToken,
+                                 const QString &primaryClientId,
+                                 const QJsonObject *payload)
+{
+    QUrl url(HELIX_BASE + path);
+    url.setQuery(query);
+
+    auto req = NetworkRequest(url, type)
+                   .timeout(5000)
+                   .header("Accept", "application/json")
+                   .header("Client-Id", primaryClientId)
+                   .header("Authorization",
+                           QStringLiteral("Bearer ") + primaryToken);
+    if (payload != nullptr)
+    {
+        req = std::move(req)
+                  .header("Content-Type", "application/json")
+                  .json(*payload);
+    }
+    return req;
+}
+
+QString moderationErrorMessage(const QString &action, const NetworkResult &result)
+{
+    const QString body = QString::fromUtf8(result.getData());
+    const auto obj = QJsonDocument::fromJson(body.toUtf8()).object();
+    QString msg = obj[QStringLiteral("message")].toString();
+    if (msg.isEmpty())
+    {
+        msg = LimerinoAuth::errors::describeHttpFailure(
+            result.status().value_or(0), action);
+    }
+    return msg;
+}
+
+}  // namespace
+
+void banUser(const QString &broadcasterID, const QString &moderatorID,
+             const QString &userID, std::optional<int> durationSeconds,
+             const QString &reason, const QString &bucketKey,
+             std::function<void()> onSuccess,
+             std::function<void(QString)> onError)
+{
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("broadcaster_id"), broadcasterID);
+    query.addQueryItem(QStringLiteral("moderator_id"), moderatorID);
+
+    QJsonObject data;
+    data[QStringLiteral("user_id")] = userID;
+    data[QStringLiteral("reason")] = reason;
+    if (durationSeconds.has_value())
+    {
+        data[QStringLiteral("duration")] = *durationSeconds;
+    }
+    QJsonObject body;
+    body[QStringLiteral("data")] = data;
+
+    const QString token = primaryToken();
+    const QString clientId =
+        getApp()->getAccounts()->twitch.getCurrent()->getOAuthClient();
+
+    LimerinoRateLimiter::instance().execute(
+        bucketKey,
+        [=] {
+            return moderationRequest(NetworkRequestType::Post,
+                                     QStringLiteral("moderation/bans"), query,
+                                     token, clientId, &body);
+        },
+        [onSuccess](NetworkResult /*result*/) {
+            if (onSuccess)
+            {
+                onSuccess();
+            }
+        },
+        [onError](NetworkResult result) {
+            if (onError)
+            {
+                onError(moderationErrorMessage(QStringLiteral("ban / timeout"),
+                                               result));
+            }
+        });
+}
+
+void warnUser(const QString &broadcasterID, const QString &moderatorID,
+              const QString &userID, const QString &reason,
+              const QString &bucketKey, std::function<void()> onSuccess,
+              std::function<void(QString)> onError)
+{
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("broadcaster_id"), broadcasterID);
+    query.addQueryItem(QStringLiteral("moderator_id"), moderatorID);
+
+    QJsonObject body;
+    body[QStringLiteral("data")] = QJsonObject{
+        {QStringLiteral("user_id"), userID},
+        {QStringLiteral("reason"), reason},
+    };
+
+    const QString token = primaryToken();
+    const QString clientId =
+        getApp()->getAccounts()->twitch.getCurrent()->getOAuthClient();
+
+    LimerinoRateLimiter::instance().execute(
+        bucketKey,
+        [=] {
+            return moderationRequest(NetworkRequestType::Post,
+                                     QStringLiteral("moderation/warnings"),
+                                     query, token, clientId, &body);
+        },
+        [onSuccess](NetworkResult /*result*/) {
+            if (onSuccess)
+            {
+                onSuccess();
+            }
+        },
+        [onError](NetworkResult result) {
+            if (onError)
+            {
+                onError(moderationErrorMessage(QStringLiteral("warn"), result));
+            }
+        });
+}
+
+void deleteChatMessage(const QString &broadcasterID,
+                       const QString &moderatorID, const QString &messageID,
+                       const QString &bucketKey, std::function<void()> onSuccess,
+                       std::function<void(QString)> onError)
+{
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("broadcaster_id"), broadcasterID);
+    query.addQueryItem(QStringLiteral("moderator_id"), moderatorID);
+    if (!messageID.isEmpty())
+    {
+        query.addQueryItem(QStringLiteral("message_id"), messageID);
+    }
+
+    const QString token = primaryToken();
+    const QString clientId =
+        getApp()->getAccounts()->twitch.getCurrent()->getOAuthClient();
+
+    LimerinoRateLimiter::instance().execute(
+        bucketKey,
+        [=] {
+            return moderationRequest(NetworkRequestType::Delete,
+                                     QStringLiteral("moderation/chat"), query,
+                                     token, clientId, nullptr);
+        },
+        [onSuccess](NetworkResult /*result*/) {
+            if (onSuccess)
+            {
+                onSuccess();
+            }
+        },
+        [onError](NetworkResult result) {
+            if (onError)
+            {
+                onError(moderationErrorMessage(QStringLiteral("delete message"),
+                                               result));
+            }
+        });
+}
+
+void unbanUser(const QString &broadcasterID, const QString &moderatorID,
+               const QString &userID, const QString &bucketKey,
+               std::function<void()> onSuccess,
+               std::function<void(QString)> onError)
+{
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("broadcaster_id"), broadcasterID);
+    query.addQueryItem(QStringLiteral("moderator_id"), moderatorID);
+    query.addQueryItem(QStringLiteral("user_id"), userID);
+
+    const QString token = primaryToken();
+    const QString clientId =
+        getApp()->getAccounts()->twitch.getCurrent()->getOAuthClient();
+
+    LimerinoRateLimiter::instance().execute(
+        bucketKey,
+        [=] {
+            return moderationRequest(NetworkRequestType::Delete,
+                                     QStringLiteral("moderation/bans"), query,
+                                     token, clientId, nullptr);
+        },
+        [onSuccess](NetworkResult /*result*/) {
+            if (onSuccess)
+            {
+                onSuccess();
+            }
+        },
+        [onError](NetworkResult result) {
+            if (onError)
+            {
+                onError(moderationErrorMessage(QStringLiteral("unban/untimeout"),
+                                               result));
+            }
+        });
 }
 
 }  // namespace chatterino::LimerinoApi

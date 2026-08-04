@@ -913,6 +913,14 @@ public:
     BoolSetting limerinoAutoAcknowledgeChatWarnings{
         "/limerino/pubsub/autoAcknowledgeChatWarnings", false};
 
+    // Limerino: named nuke presets (matchers + lookback + action). JSON array.
+    // The dialog is the editor; there is no separate settings-page UI.
+    QStringSetting limerinoNukePresets{"/limerino/nukePresets", "[]"};
+
+    // Limerino: auto-action rules (batch N5). JSON array of rule objects.
+    QStringSetting limerinoAutoActions{"/limerino/autoActions", "[]"};
+
+
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =
         {"/highlighting/highlights"};

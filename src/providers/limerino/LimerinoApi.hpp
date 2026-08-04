@@ -13,6 +13,7 @@
 #include "providers/limerino/LimerinoAuth.hpp"
 
 #include <functional>
+#include <optional>
 
 namespace chatterino::LimerinoApi {
 
@@ -42,5 +43,32 @@ void uploadPaste(const QString &text,
 
 // The configured paste host ("/limerino/paste/host"), no trailing slash.
 QString pasteHost();
+
+// --- Moderation actions (batch N3) -------------------------------------------
+// Every one of these wraps the canonical Helix call (getHelix()->...) inside
+// LimerinoRateLimiter::execute, so a nuke never bursts against the same
+// endpoint. Success/failure text mirrors the built-in slash-command shapes.
+
+void banUser(const QString &broadcasterID, const QString &moderatorID,
+             const QString &userID, std::optional<int> durationSeconds,
+             const QString &reason, const QString &bucketKey,
+             std::function<void()> onSuccess,
+             std::function<void(QString)> onError);
+
+void warnUser(const QString &broadcasterID, const QString &moderatorID,
+              const QString &userID, const QString &reason,
+              const QString &bucketKey, std::function<void()> onSuccess,
+              std::function<void(QString)> onError);
+
+void deleteChatMessage(const QString &broadcasterID,
+                       const QString &moderatorID, const QString &messageID,
+                       const QString &bucketKey, std::function<void()> onSuccess,
+                       std::function<void(QString)> onError);
+
+// Undo for ban/timeout (both use Helix DELETE moderation/bans).
+void unbanUser(const QString &broadcasterID, const QString &moderatorID,
+               const QString &userID, const QString &bucketKey,
+               std::function<void()> onSuccess,
+               std::function<void(QString)> onError);
 
 }  // namespace chatterino::LimerinoApi

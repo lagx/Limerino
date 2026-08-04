@@ -21,6 +21,7 @@
 #include "providers/limerino/highlights/HighlightGroupMenu.hpp"
 #include "limerino/PubSubEventsChannel.hpp"
 #include "widgets/dialogs/limerino/LimerinoEventFilterDialog.hpp"
+#include "widgets/dialogs/limerino/LimerinoNukeDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoPredictionDialog.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
@@ -563,6 +564,17 @@ std::unique_ptr<QMenu> SplitHeader::createMainMenu()
                      selected->getType() == Channel::Type::Kick))
     {
         limerino::buildHighlightGroupsMenuEntry(menu.get(), *selected, this);
+    }
+
+    // Limerino fork hook: moderator nuke dialog, mod-only.
+    if (selected && selected->hasModRights() &&
+        selected->isTwitchOrKickChannel())
+    {
+        menu->addAction(QStringLiteral("Nuke messages..."), this, [this, selected] {
+            auto *dialog = new limerino::LimerinoNukeDialog(this->split_, selected);
+            dialog->show();
+        });
+        menu->addSeparator();
     }
 
     // Limerino fork hook: per-event-type filter on the Hermes events channel

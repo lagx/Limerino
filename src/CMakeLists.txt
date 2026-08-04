@@ -965,6 +965,8 @@ set(SOURCE_FILES
         widgets/dialogs/LimerinoAuthDialog.hpp
         providers/limerino/commands/Moderation.cpp
         providers/limerino/commands/Moderation.hpp
+        providers/limerino/commands/NukeCommands.cpp
+        providers/limerino/commands/NukeCommands.hpp
         providers/limerino/commands/Pins.cpp
         providers/limerino/commands/Pins.hpp
         widgets/dialogs/limerino/LimerinoModLogsDialog.cpp
@@ -1017,6 +1019,41 @@ set(SOURCE_FILES
         providers/limerino/highlights/HighlightGroupDialog.cpp
         providers/limerino/highlights/HighlightGroupMenu.hpp
         providers/limerino/highlights/HighlightGroupMenu.cpp
+
+        # Limerino matcher (shared by nuke and auto actions)
+        providers/limerino/matcher/LimerinoMatcher.hpp
+        providers/limerino/matcher/LimerinoMatcher.cpp
+        providers/limerino/matcher/LimerinoMatcherValidation.hpp
+        providers/limerino/matcher/LimerinoMatcherValidation.cpp
+
+        # Limerino nuke engine (pure plan builder; execution in N3)
+        providers/limerino/nuke/NukePlan.hpp
+        providers/limerino/nuke/NukePlan.cpp
+        providers/limerino/nuke/NukeEngine.hpp
+        providers/limerino/nuke/NukeEngine.cpp
+        providers/limerino/nuke/NukeExecutor.hpp
+        providers/limerino/nuke/NukeExecutor.cpp
+        providers/limerino/nuke/NukePreset.hpp
+        providers/limerino/nuke/NukePreset.cpp
+        providers/limerino/nuke/NukePresetsStore.hpp
+        providers/limerino/nuke/NukePresetsStore.cpp
+        widgets/dialogs/limerino/LimerinoNukeDialog.hpp
+        widgets/dialogs/limerino/LimerinoNukeDialog.cpp
+
+        # Limerino auto actions (rule model, scope cache, placeholders)
+        providers/limerino/autoactions/LimerinoAutoAction.hpp
+        providers/limerino/autoactions/LimerinoAutoAction.cpp
+        providers/limerino/autoactions/LimerinoAutoActionStore.hpp
+        providers/limerino/autoactions/LimerinoAutoActionStore.cpp
+        providers/limerino/autoactions/AutoActionPlaceholders.hpp
+        providers/limerino/autoactions/AutoActionPlaceholders.cpp
+        providers/limerino/autoactions/LimerinoAutoActionController.hpp
+        providers/limerino/autoactions/LimerinoAutoActionController.cpp
+        providers/limerino/autoactions/LimerinoAutoActionRuntime.hpp
+        providers/limerino/autoactions/LimerinoAutoActionRuntime.cpp
+
+        widgets/dialogs/limerino/LimerinoAutoActionEditor.hpp
+        widgets/dialogs/limerino/LimerinoAutoActionEditor.cpp
         )
 
 if (APPLE)
