@@ -94,7 +94,7 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
     layout.addButton(QStringLiteral("Retry failed listens"), [] {
         limerino::getPubSubController()->retryFailed();
     });
-    layout.addButton(QStringLiteral("Open PubSub events channel"), [] {
+    layout.addButton(QStringLiteral("Open events channel"), [] {
         limerino::openPubSubEventsChannelTab();
     });
 

@@ -90,6 +90,9 @@ private:
         detail::AutoCheckedRadioButton *automod;
         QLabel *automodLabel;
 
+        detail::AutoCheckedRadioButton *events;
+        QLabel *eventsLabel;
+
         QLineEdit *kickName;
 
         QListWidget *multiView;

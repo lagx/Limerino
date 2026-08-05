@@ -27,7 +27,7 @@ pajlada::Signals::SignalHolder &channelConnections()
 
 const QString &pubSubEventsChannelName()
 {
-    static const QString name = QStringLiteral("/pubsub-events");
+    static const QString name = QStringLiteral("/events");
     return name;
 }
 

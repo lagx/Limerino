@@ -6,6 +6,7 @@
 
 #include "Application.hpp"
 #include "controllers/hotkeys/HotkeyController.hpp"
+#include "limerino/PubSubEventsChannel.hpp"
 #include "providers/kick/KickChatServer.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
 #include "singletons/Fonts.hpp"
@@ -288,6 +289,25 @@ SelectChannelDialog::SelectChannelDialog(QWidget *parent)
 
     ui.automod->installEventFilter(&this->tabFilter_);
 
+    // Events (Limerino)
+    ui.events = new AutoCheckedRadioButton("Events");
+    layout->addWidget(ui.events);
+
+    ui.eventsLabel = new QLabel(
+        "Shows live events from your Limerino extra-features sign-in "
+        "(moderation, predictions, channel points, raids)");
+    ui.eventsLabel->setVisible(false);
+    ui.eventsLabel->setWordWrap(true);
+    layout->addWidget(ui.eventsLabel);
+
+    QObject::connect(ui.events, &AutoCheckedRadioButton::toggled, this,
+                     [this](bool enabled) {
+                         auto &ui = this->ui_;
+                         ui.eventsLabel->setVisible(enabled);
+                     });
+
+    ui.events->installEventFilter(&this->tabFilter_);
+
     layout->addStretch(1);
 
     ui.notebook->addPage(ui.twitchPage, "Twitch");
@@ -457,6 +477,18 @@ void SelectChannelDialog::setSelectedChannel(
             this->ui_.notebook->select(this->ui_.kickPage);
         }
         break;
+        case Channel::Type::Misc: {
+            // Limerino: the /events channel is a Misc special channel.
+            if (channel->getName() == limerino::pubSubEventsChannelName())
+            {
+                this->ui_.events->setFocus();
+            }
+            else
+            {
+                this->ui_.channel->setChecked(true);
+            }
+        }
+        break;
         case Channel::Type::Multi: {
             const auto *mc = dynamic_cast<const MultiChannel *>(channel.get());
             if (mc)
@@ -552,6 +584,11 @@ IndirectChannel SelectChannelDialog::getSelectedChannel() const
         return getApp()->getTwitch()->getAutomodChannel();
     }
 
+    if (this->ui_.events->isChecked())
+    {
+        return limerino::pubSubEventsChannel();
+    }
+
     return this->selectedChannel_;
 }
 
@@ -586,9 +623,9 @@ bool SelectChannelDialog::EventFilter::eventFilter(QObject *watched,
                 return true;
             }
 
-            if (widget == ui.automod)
+            if (widget == ui.events)
             {
-                // Special case for when current selection is "AutoMod" (the last entry in the list), next wrap is Channel, but we need to select its edit box
+                // Special case for when current selection is "Events" (the last entry in the list), next wrap is Channel, but we need to select its edit box
                 ui.channel->setFocus();
                 return true;
             }
@@ -614,7 +651,7 @@ bool SelectChannelDialog::EventFilter::eventFilter(QObject *watched,
             if (widget == ui.channelName)
             {
                 // Special case for when current selection is the "Channel" entry's edit box since the Edit box actually has the focus
-                ui.automod->setFocus();
+                ui.events->setFocus();
                 return true;
             }
 
