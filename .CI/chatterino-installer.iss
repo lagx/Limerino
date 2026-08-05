@@ -84,8 +84,8 @@ Source: "{#WORKING_DIR}vc_redist.{#VCRT_ARCH}.exe"; DestDir: "{tmp}"; Tasks: vcr
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "SevenTV.Chatterino7TV"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "SevenTV.Chatterino7TV"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "Limerino.Limerino"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "Limerino.Limerino"; Tasks: desktopicon
 
 [Run]
 ; VC++ redistributable
