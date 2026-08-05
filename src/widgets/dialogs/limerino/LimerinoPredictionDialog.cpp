@@ -113,8 +113,6 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
 
     this->optionsLayout_ = new QVBoxLayout;
     createLayout->addLayout(this->optionsLayout_);
-    this->addOptionRow();
-    this->addOptionRow();
 
     auto *addRow = new QHBoxLayout;
     this->addOptionButton_ =
@@ -122,6 +120,11 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     addRow->addWidget(this->addOptionButton_);
     addRow->addStretch(1);
     createLayout->addLayout(addRow);
+
+    // addOptionRow() drives addOptionButton_->setEnabled(), so the button
+    // must exist before the initial rows are added (F1 crash fix).
+    this->addOptionRow();
+    this->addOptionRow();
 
     this->createButton_ = new QPushButton(QStringLiteral("Create"),
                                           this->createBox_);
@@ -144,8 +147,6 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
 
     this->pollOptionsLayout_ = new QVBoxLayout;
     pollLayout->addLayout(this->pollOptionsLayout_);
-    this->addPollOptionRow();
-    this->addPollOptionRow();
 
     auto *pollAddRow = new QHBoxLayout;
     this->addPollOptionButton_ =
@@ -153,6 +154,11 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     pollAddRow->addWidget(this->addPollOptionButton_);
     pollAddRow->addStretch(1);
     pollLayout->addLayout(pollAddRow);
+
+    // addPollOptionRow() drives addPollOptionButton_->setEnabled(), so the
+    // button must exist before the initial rows are added (F1 crash fix).
+    this->addPollOptionRow();
+    this->addPollOptionRow();
 
     this->createPollButton_ =
         new QPushButton(QStringLiteral("Create poll"), this->createPollBox_);
