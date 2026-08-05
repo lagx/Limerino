@@ -357,7 +357,7 @@ void LimerinoAutoActionEditor::onSave()
     rule.cooldownSeconds = this->cooldownSpin_->value();
     rule.normalize();
 
-    emit ruleSaved(rule);
+    Q_EMIT ruleSaved(rule);
     this->close();
 }
 

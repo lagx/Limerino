@@ -2,6 +2,8 @@
 
 #include "providers/limerino/nuke/NukePreset.hpp"
 
+#include <QStringBuilder>
+
 namespace chatterino::limerino {
 
 bool LimerinoNukePreset::operator==(const LimerinoNukePreset &other) const

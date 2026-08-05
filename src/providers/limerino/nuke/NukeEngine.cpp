@@ -19,10 +19,11 @@ namespace {
 /// Anything in the buffer that is not a plain chat message. Disabled means the
 /// message was already deleted for everyone (CLEARMSG / timeout): re-acting on
 /// it is a wasted, rate-limited call.
-constexpr auto EXCLUDED_FLAGS = MessageFlag::System | MessageFlag::Timeout |
-                                MessageFlag::Whisper | MessageFlag::ClearChat |
-                                MessageFlag::ModerationAction |
-                                MessageFlag::Disabled;
+constexpr MessageFlags EXCLUDED_FLAGS{MessageFlag::System, MessageFlag::Timeout,
+                                      MessageFlag::Whisper,
+                                      MessageFlag::ClearChat,
+                                      MessageFlag::ModerationAction,
+                                      MessageFlag::Disabled};
 
 }  // namespace
 

@@ -39,7 +39,7 @@ void LimerinoAutoActionController::rebuild()
         auto access = this->channelCache_.access();
         access->clear();
     }
-    emit rulesChanged();
+    Q_EMIT rulesChanged();
 }
 
 LimerinoAutoActionController::Shared LimerinoAutoActionController::resolve(

@@ -95,7 +95,23 @@ rapidjson::Value Serialize<chatterino::limerino::LimerinoAutoAction>::get(
     chatterino::rj::set(ret, "content", value.content, a);
     chatterino::rj::set(ret, "sender", value.sender, a);
     chatterino::rj::set(ret, "scope", scopeToString(value.scope), a);
-    chatterino::rj::set(ret, "channels", value.channels, a);
+
+    // QStringList serialisation: mirror the manual pattern from
+    // HighlightGroup.cpp - pajlada's QList serializer trips clang-cl on
+    // the QByteArray temporary it generates per QString.
+    {
+        rapidjson::Value channelsArr(rapidjson::kArrayType);
+        for (const auto &channel : value.channels)
+        {
+            rapidjson::Value v;
+            const QByteArray utf8 = channel.toUtf8();
+            v.SetString(utf8.constData(),
+                        static_cast<rapidjson::SizeType>(utf8.size()), a);
+            channelsArr.PushBack(v, a);
+        }
+        ret.AddMember("channels", channelsArr, a);
+    }
+
     chatterino::rj::set(ret, "action", value.action, a);
     chatterino::rj::set(ret, "cooldownSeconds", value.cooldownSeconds, a);
 

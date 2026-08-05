@@ -114,8 +114,8 @@ void NukeExecutor::start()
 
     if (this->queue_.isEmpty())
     {
-        emit progress(0, 0, 0, 0);
-        emit finished(false, {});
+        Q_EMIT progress(0, 0, 0, 0);
+        Q_EMIT finished(false, {});
         return;
     }
 
@@ -149,8 +149,8 @@ void NukeExecutor::reportFailure(const QString &context, const QString &message)
 
 void NukeExecutor::settle()
 {
-    emit progress(this->cursor_, static_cast<int>(this->queue_.size()),
-                  this->succeeded_, this->failed_);
+    Q_EMIT progress(this->cursor_, static_cast<int>(this->queue_.size()),
+                    this->succeeded_, this->failed_);
 
     if (this->cancelled_ || this->cursor_ >= this->queue_.size())
     {
@@ -163,7 +163,7 @@ void NukeExecutor::settle()
             NukeExecutor::rememberRun();
         }
 
-        emit finished(this->cancelled_, this->failures_);
+        Q_EMIT finished(this->cancelled_, this->failures_);
         return;
     }
 
@@ -217,25 +217,36 @@ void NukeExecutor::dispatchTwitch(TwitchChannel *chan, const Operation &op)
     const QString moderatorID = currentUser->getUserId();
     const QString bucketKey = QStringLiteral("nuke:") + broadcasterID;
 
-    auto handleOk = [this, op] {
-        this->inFlight_ = false;
-        ++this->succeeded_;
+    // Raw this* in these two callbacks would be a use-after-free if the
+    // executor is deleted while an HTTP request is still in flight.
+    QPointer<NukeExecutor> self(this);
+
+    auto handleOk = [self, op] {
+        if (!self)
+        {
+            return;
+        }
+        self->inFlight_ = false;
+        ++self->succeeded_;
         if (op.kind == OpKind::Delete)
         {
-            this->succeededDeletes_.append(op.messageId);
+            self->succeededDeletes_.append(op.messageId);
         }
         else if (op.kind != OpKind::Warn)
         {
-            // Warn is not reversible via Helix — excluded from undo.
-            this->succeededUserOps_.append(
+            self->succeededUserOps_.append(
                 NukeTarget{op.targetUserId, op.targetLogin, op.targetLogin, 0});
         }
-        this->settle();
+        self->settle();
     };
-    auto handleErr = [this](const QString &label, const QString &message) {
-        this->inFlight_ = false;
-        this->reportFailure(label, message);
-        this->settle();
+    auto handleErr = [self](const QString &label, const QString &message) {
+        if (!self)
+        {
+            return;
+        }
+        self->inFlight_ = false;
+        self->reportFailure(label, message);
+        self->settle();
     };
 
     switch (op.kind)
