@@ -5,6 +5,8 @@
 #include "Application.hpp"
 #include "common/Channel.hpp"
 #include "controllers/accounts/AccountController.hpp"
+#include "messages/Message.hpp"
+#include "messages/MessageFlag.hpp"
 #include "providers/kick/KickAccount.hpp"
 #include "providers/kick/KickAccountManager.hpp"
 #include "providers/limerino/matcher/LimerinoMatcher.hpp"

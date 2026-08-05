@@ -2,6 +2,8 @@
 
 #include "providers/limerino/autoactions/LimerinoAutoAction.hpp"
 
+#include "util/serialize/List.hpp"  // QList<QString> inside Deserialize<LimerinoAutoAction>
+
 #include <optional>
 
 namespace chatterino::limerino {
