@@ -5,6 +5,7 @@
 #include "providers/limerino/autoactions/LimerinoAutoAction.hpp"
 #include "providers/limerino/autoactions/LimerinoAutoActionStore.hpp"
 #include "providers/limerino/autoactions/LimerinoAutoActionRuntime.hpp"
+#include "singletons/Settings.hpp"
 
 namespace chatterino::limerino {
 

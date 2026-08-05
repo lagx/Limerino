@@ -9,7 +9,6 @@
 #pragma once
 
 #include "common/UniqueAccess.hpp"
-#include "messages/Message.hpp"
 
 #include <QHash>
 #include <QObject>
