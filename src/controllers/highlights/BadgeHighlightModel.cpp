@@ -23,6 +23,51 @@ namespace chatterino {
 BadgeHighlightModel::BadgeHighlightModel(QObject *parent)
     : SignalVectorModel<HighlightBadge>(Column::COUNT, parent)
 {
+    // Limerino: rebuild per-row Group-cell option lists when the group set
+    // changes (same hook as HighlightModel).
+    this->groupRefreshHolder_.managedConnect(
+        getSettings()->highlightGroups.delayedItemsChanged,
+        [this] { this->refreshGroupCells(); });
+}
+
+void BadgeHighlightModel::refreshGroupCells()
+{
+    QStringList names;
+    QStringList ids;
+    auto groupsVec = getSettings()->highlightGroups.readOnly();
+    for (const auto &group : *groupsVec)
+    {
+        names.append(group.displayName());
+        ids.append(group.id().toString(QUuid::WithoutBraces));
+    }
+
+    using Delegate = limerino::HighlightGroupCellDelegate;
+    for (const auto &modelRow : this->rows())
+    {
+        if (modelRow.isCustomRow)
+        {
+            continue;
+        }
+        auto *cell = modelRow.items[Column::Group];
+        cell->setData(names, Delegate::DisplayNamesRole);
+        cell->setData(ids, Delegate::GroupIdsRole);
+
+        const int found = ids.indexOf(cell->data(Qt::UserRole).toString());
+        cell->setData(found >= 0 ? names.value(found)
+                                 : QStringLiteral("Default"),
+                      Qt::DisplayRole);
+    }
+
+    const int groupRowCount = int(this->rows().size());
+    if (groupRowCount > 0)
+    {
+        const QModelIndex topLeft = this->index(0, Column::Group);
+        const QModelIndex bottomRight =
+            this->index(groupRowCount - 1, Column::Group);
+        QVector<int> roles{Qt::DisplayRole, Delegate::DisplayNamesRole,
+                           Delegate::GroupIdsRole};
+        this->dataChanged(topLeft, bottomRight, roles);
+    }
 }
 
 // turn vector item into model row

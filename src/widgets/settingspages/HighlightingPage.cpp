@@ -107,6 +107,9 @@ HighlightingPage::HighlightingPage()
                 QTimer::singleShot(1, [view] {
                     view->getTableView()->resizeColumnsToContents();
                     view->getTableView()->setColumnWidth(0, 400);
+                    // Limerino: Group names outweigh "Default" quickly.
+                    view->getTableView()->setColumnWidth(
+                        HighlightModel::Column::Group, 140);
                 });
 
                 // We can safely ignore this signal connection since we own the view
@@ -174,6 +177,9 @@ HighlightingPage::HighlightingPage()
                 QTimer::singleShot(1, [view] {
                     view->getTableView()->resizeColumnsToContents();
                     view->getTableView()->setColumnWidth(0, 200);
+                    // Limerino: Group names outweigh "Default" quickly.
+                    view->getTableView()->setColumnWidth(
+                        UserHighlightModel::Column::Group, 140);
                 });
 
                 // We can safely ignore this signal connection since we own the view
@@ -232,6 +238,9 @@ HighlightingPage::HighlightingPage()
                 QTimer::singleShot(1, [view] {
                     view->getTableView()->resizeColumnsToContents();
                     view->getTableView()->setColumnWidth(0, 200);
+                    // Limerino: Group names outweigh "Default" quickly.
+                    view->getTableView()->setColumnWidth(
+                        BadgeHighlightModel::Column::Group, 140);
                 });
 
                 // We can safely ignore this signal connection since we own the view

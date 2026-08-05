@@ -63,6 +63,12 @@ protected:
     void customRowSetData(const std::vector<QStandardItem *> &row, int column,
                           const QVariant &value, int role,
                           int rowIndex) override;
+
+private:
+    // Limerino: refresh Group-cell option lists when the group set changes
+    // (a newly created group must be assignable without reopening settings).
+    void refreshGroupCells();
+    pajlada::Signals::SignalHolder groupRefreshHolder_;
 };
 
 }  // namespace chatterino

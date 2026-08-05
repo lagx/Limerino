@@ -22,6 +22,55 @@ namespace chatterino {
 HighlightModel::HighlightModel(QObject *parent)
     : SignalVectorModel<HighlightPhrase>(Column::COUNT, parent)
 {
+    // Limerino: a group created in the manager dialog must be assignable
+    // immediately. Rebuild the per-row Group-cell option lists when the group
+    // set changes (same signal the resolver uses - no second path).
+    this->groupRefreshHolder_.managedConnect(
+        getSettings()->highlightGroups.delayedItemsChanged,
+        [this] { this->refreshGroupCells(); });
+}
+
+void HighlightModel::refreshGroupCells()
+{
+    QStringList names;
+    QStringList ids;
+    auto groupsVec = getSettings()->highlightGroups.readOnly();
+    for (const auto &group : *groupsVec)
+    {
+        names.append(group.displayName());
+        ids.append(group.id().toString(QUuid::WithoutBraces));
+    }
+
+    using Delegate = limerino::HighlightGroupCellDelegate;
+    for (const auto &modelRow : this->rows())
+    {
+        if (modelRow.isCustomRow)
+        {
+            // Pinned built-in rows expose no Group cell.
+            continue;
+        }
+        auto *cell = modelRow.items[Column::Group];
+        cell->setData(names, Delegate::DisplayNamesRole);
+        cell->setData(ids, Delegate::GroupIdsRole);
+
+        // Re-derive the displayed name: renames show up immediately and a
+        // deleted group falls back to Default like getRowFromItem does.
+        const int found = ids.indexOf(cell->data(Qt::UserRole).toString());
+        cell->setData(found >= 0 ? names.value(found)
+                                 : QStringLiteral("Default"),
+                      Qt::DisplayRole);
+    }
+
+    const int groupRowCount = int(this->rows().size());
+    if (groupRowCount > 0)
+    {
+        const QModelIndex topLeft = this->index(0, Column::Group);
+        const QModelIndex bottomRight =
+            this->index(groupRowCount - 1, Column::Group);
+        QVector<int> roles{Qt::DisplayRole, Delegate::DisplayNamesRole,
+                           Delegate::GroupIdsRole};
+        this->dataChanged(topLeft, bottomRight, roles);
+    }
 }
 
 // turn a vector item into a model row

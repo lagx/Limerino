@@ -36,6 +36,11 @@ protected:
 
     void getRowFromItem(const HighlightBadge &item,
                         std::vector<QStandardItem *> &row) override;
+
+private:
+    // Limerino: refresh Group-cell option lists when the group set changes.
+    void refreshGroupCells();
+    pajlada::Signals::SignalHolder groupRefreshHolder_;
 };
 
 }  // namespace chatterino
