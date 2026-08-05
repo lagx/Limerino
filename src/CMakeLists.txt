@@ -937,6 +937,8 @@ set(SOURCE_FILES
         widgets/splits/PinnedMessageWidget.hpp
 
         # Limerino fork files (owned by this fork; see FORK.md)
+        limerino/LimerinoFeatures.cpp
+        limerino/LimerinoFeatures.hpp
         limerino/LimerinoPage.cpp
         limerino/LimerinoPage.hpp
         providers/limerino/LimerinoApi.cpp
