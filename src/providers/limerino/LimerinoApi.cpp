@@ -65,7 +65,7 @@ void helixTokenFor(
         if (!pt.isEmpty() && primaryScopesLoaded() &&
             primaryScopeCache().contains(requiredScope))
         {
-            cb(LimerinoAuth::LimerinoAuthToken{pt, {}, {}, false}, true);
+            cb(LimerinoAuth::LimerinoAuthToken{pt, {}, {}}, true);
             return;
         }
 

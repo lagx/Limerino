@@ -64,7 +64,6 @@ close to zero as possible — every entry is future merge pain.
 | File | Why | Hook description | Risk on merge |
 |---|---|---|---|
 | `.gitignore` | ignore local `.ccache/` dir + reference captures | appended 2-line "Limerino local dev" section at the end; later (batch R-series) appended `pubsubreference/`, `newpubsubhermesreference/`, `pluginforreference/` — untracked-capture roots that may embed live credentials and must never be committed; (batch U1) appended `gqlreference/` — same reason | Low — append-only; re-add if upstream rewrites the tail |
-| `.gitattributes` | frozen auth script must survive checkouts byte-identically | one rule: `resources/limerino/limerinoauth.txt -text` (verbatim artifact; git LF normalization silently changed its bytes) | Low |
 | `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | two edits: `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino` | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these two exact edits.** |
 | `.github/workflows/create-installer.yml` | installer workflow must fire after builds on `limerino` | one edit: `limerino` added to the `workflow_run.branches` filter | **High — same rule as build.yml: keep upstream's file, re-apply this edit** |
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino` | Low — narrow context, rarely touched upstream |
@@ -129,13 +128,12 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/gql/LimerinoUserCardExtras.{hpp,cpp}` | combined usercard GQL fetch (language tag / team / sub detail) + 5-min per-user cache; doc authored from `gqlreference/gql/` shapes (batch U1) |
 | `src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` | per-usercard extras label (language tag top-right in the header box; team + sub rows later); QPointer + request-generation teardown (batch U2) |
 | `src/providers/limerino/commands/` (`LimerinoCommands.*`) | ported-command registration entry (batches 1-12) |
-| `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Script/Accounts tabs) |
+| `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Accounts tabs; Script tab removed in F2 — clickable verification link, button state machine, success line) |
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
 | `src/widgets/dialogs/limerino/LimerinoResultDialog.{hpp,cpp}` | thin dialog shell for result lists |
 | `src/widgets/dialogs/limerino/LimerinoPinView.{hpp,cpp}` | on-demand pinned-message banner (mounted via runtime layout insert, zero Split.cpp edits) |
 | `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout); extended by P4 with a Hermes live-data pane and the auto-acknowledge-warnings setting |
 | `resources/buttons/channelPoints-{dark,light}Mode.svg` | mod-toolbar predictions icon |
-| `resources/limerino/limerinoauth.txt` | frozen reference auth script (byte-identical; Qt resource `:/limerino/limerinoauth.txt`) |
 | `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`) | Hermes live-updates transport + topic-intent controller (batch P0) |
 | `src/providers/limerino/pubsub/HermesChannelTopics.{hpp,cpp}` | raid/polls/predictions channel topics (batch P1) |
 | `src/providers/limerino/pubsub/HermesUserTopics.{hpp,cpp}` | authenticated user topics incl. chatrooms-user-v1 warn/ack flow (batch P2) |
@@ -175,11 +173,11 @@ zero diff on `src/widgets/dialogs/LoginDialog.*`.
 - Device login: `LimerinoAuth::DeviceLogin` (same module) — generation counter + `QPointer`
   guards, RFC error handling (`authorization_pending` / `slow_down` / `access_denied` /
   `expired_token`), 3 s poll floor, stops at `expires_in`.
-- UI: `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` (new dialog; Device Login / Script
-  Login / Accounts), entered from the Extra features section of the Limerino settings page
-  (live-updating summary via `accountsChanged`).
-- Script fallback: frozen `resources/limerino/limerinoauth.txt` shown read-only; paste-token
-  ingest runs through `normalizeToken()` and clears the clipboard afterward.
+- UI: `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` (new dialog; Device Login /
+  Accounts), entered from the Extra features section of the Limerino settings page
+  (live-updating summary via `accountsChanged`). Batch F2 removed the Script Login tab and
+  the frozen `resources/limerino/limerinoauth.txt` artifact; the button now reflects flow
+  state and the verification URI is a clickable incognito link.
 - Resolver API for feature code (not wired yet): `resolveModerationToken`,
   `resolveBroadcasterToken`, `resolveCurrentUserToken`, `resolveReadToken`,
   `authRequiredMessage`, `authExpiredMessage`. Local-only over cached account state.

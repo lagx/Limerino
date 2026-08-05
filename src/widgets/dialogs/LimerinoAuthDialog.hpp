@@ -13,11 +13,9 @@
 
 class QComboBox;
 class QLabel;
-class QLineEdit;
 class QPushButton;
 class QTabWidget;
 class QTableWidget;
-class QTextEdit;
 
 namespace chatterino {
 
@@ -32,16 +30,18 @@ private:
     void rebuildAccountsTable();
     void setDeviceStatusText(
         const LimerinoAuth::DeviceLogin::Status &status);
+    void updateDeviceResult();
 
     struct {
         QTabWidget *tabs = nullptr;
 
         QLabel *deviceStatus = nullptr;
         QLabel *deviceCode = nullptr;
+        QLabel *deviceLink = nullptr;
+        QPushButton *deviceLinkCopy = nullptr;
+        QLabel *deviceResult = nullptr;
         QPushButton *deviceStart = nullptr;
         QPushButton *deviceCancel = nullptr;
-
-        QLineEdit *scriptTokenInput = nullptr;
 
         QTableWidget *accountsTable = nullptr;
         QLabel *accountsSummary = nullptr;
@@ -49,6 +49,13 @@ private:
 
     QPointer<LimerinoAuth::DeviceLogin> deviceLogin_;
     pajlada::Signals::SignalHolder managedConnections_;
+
+    // Success-state tracking: accounts known before the current attempt and
+    // the verification URI of the in-flight attempt (for the copy button).
+    QStringList knownUserIds_;
+    QString newAccountUserId_;
+    QString currentVerificationUri_;
+    QDateTime generatedAt_;
 };
 
 }  // namespace chatterino

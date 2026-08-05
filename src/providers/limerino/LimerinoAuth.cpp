@@ -34,11 +34,10 @@ namespace chatterino::LimerinoAuth {
 // and the refresh_token grant below; both public, no secret.
 const QString CLIENT_ID =
     QStringLiteral("kd1unb4b3q4t58fwlpcbzcbnm76a8fp");
-// NOTE: the frozen script artifact (resources/limerino/limerinoauth.txt) is a
-// historical capture kept for reference; the device flow deliberately requests
-// this broader scope list so the Helix fallback path (chat/messages,
-// moderation/channels) is authorized too. Scopes are unchanged from the prior
-// client - they are all public OAuth scopes, none client-specific.
+// NOTE: the device flow deliberately requests this broader scope list so the
+// Helix fallback path (chat/messages, moderation/channels) is authorized too.
+// Scopes are unchanged from the prior client - they are all public OAuth
+// scopes, none client-specific.
 const QString CLIENT_SCOPES = QStringLiteral(
     "chat:read chat:edit channel:moderate channel:manage:predictions "
     "channel:read:redemptions channel:manage:redemptions "
@@ -274,11 +273,9 @@ LimerinoAuthSummary summary()
     return out;
 }
 
-void resolveToken(
-    const QString &normalizedToken, bool fromScript,
-    const std::function<void(const LimerinoAuthAccount &)> &onDone)
+void resolveToken(const QString &normalizedToken,
+                  const std::function<void(const LimerinoAuthAccount &)> &onDone)
 {
-    Q_UNUSED(fromScript);
     auto account = std::make_shared<LimerinoAuthAccount>();
     account->token = normalizedToken;
 
@@ -522,7 +519,7 @@ void addOrUpdateToken(const LimerinoAuthToken &token)
     }
     save();
 
-    resolveToken(t.token, t.fromScript,
+    resolveToken(t.token,
                  [token = t.token](const LimerinoAuthAccount &resolved) {
                      auto &items = store().items;
                      auto it = std::find_if(items.begin(), items.end(),
@@ -582,7 +579,7 @@ void refreshAccounts(
     {
         // Resolve (validate) a given token for this account and merge the result.
         auto resolveWith = [old, pending, result, done](const QString &token) {
-            resolveToken(token, false,
+            resolveToken(token,
                          [pending, result, old, done](
                              const LimerinoAuthAccount &resolved) {
                 if (resolved.valid)
@@ -900,7 +897,6 @@ void DeviceLogin::poll(quint64 generation)
                     accessToken,
                     {},
                     {},
-                    false,
                     o[QStringLiteral("refresh_token")].toString(),
                     o[QStringLiteral("expires_in")].toInt(0)});
                 guard->deviceCode_.clear();
@@ -995,7 +991,7 @@ bool accountCoversChannel(const LimerinoAuthAccount &account,
 
 LimerinoAuthToken makeToken(const LimerinoAuthAccount &a)
 {
-    return LimerinoAuthToken{a.token, a.userId, a.login, false};
+    return LimerinoAuthToken{a.token, a.userId, a.login};
 }
 
 void setErr(QString *err, const QString &message)

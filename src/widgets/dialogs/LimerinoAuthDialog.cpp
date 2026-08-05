@@ -6,39 +6,23 @@
 
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "util/Clipboard.hpp"
+#include "util/IncognitoBrowser.hpp"
 
+#include <QDateTime>
 #include <QDesktopServices>
-#include <QFile>
 #include <QFontDatabase>
-#include <QFormLayout>
 #include <QHeaderView>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QTableWidget>
-#include <QTextEdit>
 #include <QUrl>
 #include <QVBoxLayout>
 
 namespace chatterino {
 
 namespace {
-
-// Read-only copy of the frozen auth script, shared by all dialog instances.
-QString scriptText()
-{
-    static const QString text = [] {
-        QFile f(QStringLiteral(":/limerino/limerinoauth.txt"));
-        if (f.open(QIODevice::ReadOnly | QIODevice::Text))
-        {
-            return QString::fromUtf8(f.readAll());
-        }
-        return QStringLiteral("(could not load :/limerino/limerinoauth.txt)");
-    }();
-    return text;
-}
 
 QString channelListText(const LimerinoAuth::LimerinoAuthAccount &account)
 {
@@ -84,10 +68,33 @@ LimerinoAuthDialog::LimerinoAuthDialog(QWidget *parent)
     QFont codeFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
     codeFont.setPointSize(14);
     this->ui_.deviceCode->setFont(codeFont);
+    this->ui_.deviceCode->setTextInteractionFlags(Qt::TextSelectableByMouse);
     deviceLayout->addWidget(this->ui_.deviceCode);
 
+    // Verification link: a real clickable anchor (opens in an incognito
+    // window so the main Twitch session is not disturbed) which stays
+    // selectable/copyable, plus an explicit copy button.
+    auto *linkRow = new QHBoxLayout;
+    this->ui_.deviceLink = new QLabel(devicePage);
+    this->ui_.deviceLink->setTextFormat(Qt::RichText);
+    this->ui_.deviceLink->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    this->ui_.deviceLink->setWordWrap(true);
+    this->ui_.deviceLink->setOpenExternalLinks(false);
+    this->ui_.deviceLinkCopy =
+        new QPushButton(QStringLiteral("Copy link"), devicePage);
+    linkRow->addWidget(this->ui_.deviceLink, 1);
+    linkRow->addWidget(this->ui_.deviceLinkCopy);
+    deviceLayout->addLayout(linkRow);
+    this->ui_.deviceLink->setVisible(false);
+    this->ui_.deviceLinkCopy->setVisible(false);
+
+    // Unambiguous success/failure surface (name + when + status).
+    this->ui_.deviceResult = new QLabel(devicePage);
+    this->ui_.deviceResult->setWordWrap(true);
+    deviceLayout->addWidget(this->ui_.deviceResult);
+
     auto *deviceButtons = new QHBoxLayout;
-    this->ui_.deviceStart = new QPushButton(QStringLiteral("Start login"),
+    this->ui_.deviceStart = new QPushButton(QStringLiteral("Generate auth"),
                                             devicePage);
     this->ui_.deviceCancel = new QPushButton(QStringLiteral("Cancel"),
                                              devicePage);
@@ -97,36 +104,6 @@ LimerinoAuthDialog::LimerinoAuthDialog(QWidget *parent)
     deviceButtons->addStretch(1);
     deviceLayout->addLayout(deviceButtons);
     deviceLayout->addStretch(1);
-
-    // ------------------------- Script Login tab -------------------------
-    auto *scriptPage = new QWidget(this);
-    auto *scriptLayout = new QVBoxLayout(scriptPage);
-
-    auto *scriptInfo = new QLabel(
-        QStringLiteral(
-            "If the in-app device login is unavailable, run this script "
-            "with node (node limerinoauth.txt) and paste the access token "
-            "it prints below. Running the script requires node on your PATH."),
-        scriptPage);
-    scriptInfo->setWordWrap(true);
-    scriptLayout->addWidget(scriptInfo);
-
-    auto *scriptView = new QTextEdit(scriptPage);
-    scriptView->setReadOnly(true);
-    scriptView->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-    scriptView->setPlainText(scriptText());
-    scriptLayout->addWidget(scriptView, 1);
-
-    auto *pasteRow = new QHBoxLayout;
-    this->ui_.scriptTokenInput = new QLineEdit(scriptPage);
-    this->ui_.scriptTokenInput->setEchoMode(QLineEdit::Password);
-    this->ui_.scriptTokenInput->setPlaceholderText(
-        QStringLiteral("paste access token (from the script)"));
-    auto *scriptAdd =
-        new QPushButton(QStringLiteral("Add account"), scriptPage);
-    pasteRow->addWidget(this->ui_.scriptTokenInput, 1);
-    pasteRow->addWidget(scriptAdd);
-    scriptLayout->addLayout(pasteRow);
 
     // --------------------------- Accounts tab ---------------------------
     auto *accountsPage = new QWidget(this);
@@ -158,7 +135,6 @@ LimerinoAuthDialog::LimerinoAuthDialog(QWidget *parent)
     accountsLayout->addLayout(accountsFooter);
 
     this->ui_.tabs->addTab(devicePage, QStringLiteral("Device Login"));
-    this->ui_.tabs->addTab(scriptPage, QStringLiteral("Script Login"));
     this->ui_.tabs->addTab(accountsPage, QStringLiteral("Accounts"));
     root->addWidget(this->ui_.tabs);
 
@@ -173,6 +149,15 @@ LimerinoAuthDialog::LimerinoAuthDialog(QWidget *parent)
         });
 
     QObject::connect(this->ui_.deviceStart, &QPushButton::clicked, this, [this] {
+        // Snapshot the account universe so rebuildAccountsTable() can spot
+        // the account this attempt adds and name it in the success line.
+        this->knownUserIds_.clear();
+        for (const auto &a : LimerinoAuth::accounts())
+        {
+            this->knownUserIds_.append(a.userId);
+        }
+        this->newAccountUserId_.clear();
+        this->ui_.deviceResult->clear();
         this->deviceLogin_->start();
         this->ui_.deviceCancel->setEnabled(true);
     });
@@ -182,19 +167,20 @@ LimerinoAuthDialog::LimerinoAuthDialog(QWidget *parent)
                          this->ui_.deviceCancel->setEnabled(false);
                      });
 
-    QObject::connect(scriptAdd, &QPushButton::clicked, this, [this] {
-        const QString token =
-            LimerinoAuth::normalizeToken(this->ui_.scriptTokenInput->text());
-        if (token.isEmpty())
-        {
-            return;
-        }
-        LimerinoAuth::addOrUpdateToken({token, {}, {}, true});
-        this->ui_.scriptTokenInput->clear();
-        // Clipboard hygiene: the token material just came from the clipboard.
-        crossPlatformCopy(QString());
-        this->ui_.tabs->setCurrentIndex(2);
-    });
+    QObject::connect(this->ui_.deviceLink, &QLabel::linkActivated, this,
+                     [](const QString &url) {
+                         if (!openLinkIncognito(url))
+                         {
+                             QDesktopServices::openUrl(QUrl(url));
+                         }
+                     });
+    QObject::connect(this->ui_.deviceLinkCopy, &QPushButton::clicked, this,
+                     [this] {
+                         if (!this->currentVerificationUri_.isEmpty())
+                         {
+                             crossPlatformCopy(this->currentVerificationUri_);
+                         }
+                     });
 
     QObject::connect(refreshButton, &QPushButton::clicked, this, [this] {
         this->ui_.accountsSummary->setText(QStringLiteral("Checking..."));
@@ -238,22 +224,53 @@ void LimerinoAuthDialog::setDeviceStatusText(
                 status.message +
                 QStringLiteral(" The code was copied to your clipboard."));
             this->ui_.deviceCode->setText(status.userCode);
+
+            this->currentVerificationUri_ = status.verificationUri;
+            const QString escaped = status.verificationUri.toHtmlEscaped();
+            this->ui_.deviceLink->setText(
+                QStringLiteral("<a href=\"%1\">%1</a>").arg(escaped));
+            this->ui_.deviceLink->setVisible(true);
+            this->ui_.deviceLinkCopy->setVisible(true);
+
+            this->ui_.deviceStart->setText(QStringLiteral("Generating…"));
             this->ui_.deviceStart->setEnabled(false);
             break;
         }
         case State::RequestingCode:
             this->ui_.deviceStatus->setText(status.message);
+            this->ui_.deviceLink->clear();
+            this->ui_.deviceLink->setVisible(false);
+            this->ui_.deviceLinkCopy->setVisible(false);
+            this->ui_.deviceStart->setText(QStringLiteral("Generating…"));
             this->ui_.deviceStart->setEnabled(false);
+            break;
+        case State::Authorized:
+            this->ui_.deviceStatus->setText(status.message);
+            this->ui_.deviceCode->clear();
+            this->ui_.deviceLink->clear();
+            this->ui_.deviceLink->setVisible(false);
+            this->ui_.deviceLinkCopy->setVisible(false);
+            this->ui_.deviceStart->setText(QStringLiteral("Generate another"));
+            this->ui_.deviceStart->setEnabled(true);
+            this->ui_.deviceCancel->setEnabled(false);
+            this->updateDeviceResult();
             break;
         case State::Idle:
             this->ui_.deviceStatus->setText(QStringLiteral("Not signed in."));
             this->ui_.deviceCode->clear();
+            this->ui_.deviceLink->clear();
+            this->ui_.deviceLink->setVisible(false);
+            this->ui_.deviceLinkCopy->setVisible(false);
+            this->ui_.deviceStart->setText(QStringLiteral("Generate auth"));
             this->ui_.deviceStart->setEnabled(true);
             this->ui_.deviceCancel->setEnabled(false);
             break;
         default:
-            // Authorized, Denied, Expired, Failed - message only.
+            // Denied, Expired, Failed - message only, reset the button.
             this->ui_.deviceStatus->setText(status.message);
+            this->ui_.deviceLink->setVisible(false);
+            this->ui_.deviceLinkCopy->setVisible(false);
+            this->ui_.deviceStart->setText(QStringLiteral("Generate auth"));
             this->ui_.deviceStart->setEnabled(true);
             this->ui_.deviceCancel->setEnabled(false);
             break;
@@ -265,6 +282,56 @@ void LimerinoAuthDialog::setDeviceStatusText(
         this->ui_.deviceStatus->setText(
             this->ui_.deviceStatus->text() +
             QStringLiteral(" (%1 s left)").arg(status.secondsRemaining));
+    }
+}
+
+// Renders the "Signed in as NAME — generated TIME. Status: …" line on the
+// Device page once the freshly added account shows up in the store, and keeps
+// its status text in sync with validation.
+void LimerinoAuthDialog::updateDeviceResult()
+{
+    using State = LimerinoAuth::DeviceLogin::State;
+    if (this->deviceLogin_ == nullptr ||
+        this->deviceLogin_->status().state != State::Authorized)
+    {
+        return;
+    }
+
+    const auto all = LimerinoAuth::accounts();
+    if (this->newAccountUserId_.isEmpty())
+    {
+        for (const auto &a : all)
+        {
+            if (!this->knownUserIds_.contains(a.userId))
+            {
+                this->newAccountUserId_ = a.userId;
+                this->generatedAt_ = QDateTime::currentDateTime();
+                break;
+            }
+        }
+    }
+    if (this->newAccountUserId_.isEmpty())
+    {
+        return;
+    }
+
+    for (const auto &a : all)
+    {
+        if (a.userId == this->newAccountUserId_)
+        {
+            const QString name =
+                a.displayName.isEmpty()
+                    ? (a.login.isEmpty() ? a.userId : a.login)
+                    : a.displayName;
+            this->ui_.deviceResult->setText(
+                QStringLiteral("Signed in as %1 — generated %2. Status: %3.")
+                    .arg(name)
+                    .arg(this->generatedAt_.toString(
+                        QStringLiteral("yyyy-MM-dd hh:mm:ss")))
+                    .arg(a.valid ? QStringLiteral("valid")
+                                 : QStringLiteral("validating…")));
+            return;
+        }
     }
 }
 
@@ -327,6 +394,8 @@ void LimerinoAuthDialog::rebuildAccountsTable()
             .arg(s.accountCount)
             .arg(s.validAccountCount)
             .arg(s.moderatedChannelCount));
+
+    this->updateDeviceResult();
 }
 
 }  // namespace chatterino
