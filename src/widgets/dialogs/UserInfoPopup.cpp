@@ -536,8 +536,13 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
         auto nameHistory = user.emplace<LabelButton>("Name history", this);
         QObject::connect(nameHistory.getElement(), &Button::leftClicked,
                          [this] {
+                             // Crash fix: no parent — the result dialog must
+                             // be an independent top-level. Parenting it to
+                             // this auto-closing popup kills the dialog when
+                             // the popup deactivates (dialog dies; the fetch
+                             // callback then dereferences freed memory).
                              LimerinoCommands::showNameHistoryDialog(
-                                 this->userName_, this);
+                                 this->userName_, nullptr);
                          });
 
         // Limerino fork hooks: artist / unartist / lead mod (own channel only)

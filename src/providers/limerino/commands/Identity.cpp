@@ -219,12 +219,13 @@ void showNameHistoryDialog(const QString &login, QWidget *parent)
     dialog->resize(360, 400);
     dialog->show();
 
-    auto *lifeGuard = new QObject(dialog);
+    // Crash fix: the callbacks must not touch anything owned by the dialog
+    // after it may have died (the dialog's parent popup can close it first).
+    // Guard every use with the QPointer; there is no separate lifeGuard.
     fetchNameHistory(
         login,
-        [guard = QPointer<limerino::LimerinoResultDialog>(dialog),
-         lifeGuard](const QStringList &logins) {
-            lifeGuard->deleteLater();
+        [guard = QPointer<limerino::LimerinoResultDialog>(dialog)](
+            const QStringList &logins) {
             if (!guard)
             {
                 return;
@@ -239,9 +240,8 @@ void showNameHistoryDialog(const QString &login, QWidget *parent)
             guard->resultList()->setStatusText(
                 QStringLiteral("%1 stored names").arg(logins.size()));
         },
-        [guard = QPointer<limerino::LimerinoResultDialog>(dialog),
-         lifeGuard](const QString &err) {
-            lifeGuard->deleteLater();
+        [guard = QPointer<limerino::LimerinoResultDialog>(dialog)](
+            const QString &err) {
             if (!guard)
             {
                 return;
