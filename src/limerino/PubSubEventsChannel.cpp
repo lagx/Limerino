@@ -105,7 +105,14 @@ MessagePtr buildEventMessage(const PubSubEvent &event)
             builder.emplace<TextElement>(QStringLiteral(" "),
                                          MessageElementFlag::Text,
                                          MessageColor::System);
-            builder.appendChannelName(channelPtr.get());
+            // appendChannelName() is private on MessageBuilder; this is its
+            // exact body via the public element API.
+            builder
+                .emplace<TextElement>(QStringLiteral("#") +
+                                          channelPtr->getName(),
+                                      MessageElementFlag::ChannelName,
+                                      MessageColor::System)
+                ->setLink({Link::JumpToChannel, channelPtr->getName()});
         }
     }
 
