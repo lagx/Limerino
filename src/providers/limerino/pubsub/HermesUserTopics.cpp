@@ -104,8 +104,8 @@ void acknowledgeWarningFor(const QString &channelId)
         [](const auto & /*error*/) {});
 }
 
-// Topic-allowed actions (specstring: warn + acknowledge_warning only; anything
-// else falls through to a generic events-channel line).
+// Actions that get side effects (channel surface + auto-acknowledge). Any
+// other action still renders as a generic events line.
 constexpr std::array<const char *, 2> USER_MOD_ACTION_ALLOWED = {
     "warn",
     "acknowledge_warning",
@@ -129,19 +129,40 @@ bool handleUserModerationAction(const QJsonObject &data,
     const QString action = data[QStringLiteral("action")].toString();
     const QString channelId = data[QStringLiteral("channel_id")].toString();
     const QString reason = data[QStringLiteral("reason")].toString();
-    if (action.isEmpty() || channelId.isEmpty() ||
-        !isAllowedUserModAction(action))
+    // event.channelId is the USER id for this user-scoped topic (the topic
+    // suffix), NOT the channel id - keep the two straight.
+    if (action.isEmpty() || channelId.isEmpty())
     {
         return false;
     }
 
-    QString text = QStringLiteral("%1 in %2").arg(
-        action, describeChannel(channelId));
+    // Plain-language line; unknown action types still render honestly.
+    QString text;
+    if (action == QLatin1String("warn"))
+    {
+        text = QStringLiteral("You were warned in %1")
+                   .arg(describeChannel(channelId));
+    }
+    else if (action == QLatin1String("acknowledge_warning"))
+    {
+        text = QStringLiteral("You acknowledged the warning in %1")
+                   .arg(describeChannel(channelId));
+    }
+    else
+    {
+        text = QStringLiteral("Moderation action \"%1\" in %2")
+                   .arg(action, describeChannel(channelId));
+    }
     if (!reason.isEmpty())
     {
-        text += QStringLiteral(", reason: %1").arg(reason);
+        text += QStringLiteral(" - reason: %1").arg(reason);
     }
     event.displayText = text;
+
+    if (!isAllowedUserModAction(action))
+    {
+        return true;  // rendered generically; no side effects for other actions
+    }
 
     // events.js L27: only act when the action targets our own user id
     // (the topic is user-scoped already, but transcribe the filter anyway).

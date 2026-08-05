@@ -572,6 +572,36 @@ void LimerinoPubSubController::onAuthUnavailable(const QString &tokenKey,
     this->diagChanged.invoke();
 }
 
+namespace {
+
+// Topic prefix -> event category (drives the events channel's coloured chip).
+// Longest prefix first; "event" is the fallback for unregistered topics.
+QString eventCategoryFor(const QString &topic)
+{
+    static const std::pair<QString, QString> groups[] = {
+        {QStringLiteral("chatrooms-user-v1."), QStringLiteral("moderation")},
+        {QStringLiteral("community-points-user-v1."),
+         QStringLiteral("points")},
+        {QStringLiteral("predictions-user-v1."),
+         QStringLiteral("prediction")},
+        {QStringLiteral("predictions-channel-v1."),
+         QStringLiteral("prediction")},
+        {QStringLiteral("polls."), QStringLiteral("poll")},
+        {QStringLiteral("raid."), QStringLiteral("raid")},
+        {QStringLiteral("follows."), QStringLiteral("follow")},
+    };
+    for (const auto &[prefix, category] : groups)
+    {
+        if (topic.startsWith(prefix))
+        {
+            return category;
+        }
+    }
+    return QStringLiteral("event");
+}
+
+}  // namespace
+
 void LimerinoPubSubController::onTopicMessage(const QString &topic,
                                               const QJsonObject &payload)
 {
@@ -579,6 +609,8 @@ void LimerinoPubSubController::onTopicMessage(const QString &topic,
         .topic = topic,
         .channelId = hermesTopicSuffix(topic),
         .eventType = payload[QStringLiteral("type")].toString(),
+        .category = eventCategoryFor(topic),
+        .payload = payload,
         .displayText = {},
     };
 
@@ -593,10 +625,12 @@ void LimerinoPubSubController::onTopicMessage(const QString &topic,
 
     if (event.displayText.isEmpty())
     {
+        // Never print the raw topic string - it is an implementation detail.
+        // Unknown events get an honestly-marked fallback line instead.
         event.displayText = event.eventType.isEmpty()
-                                ? topic
-                                : topic + QStringLiteral(": ") +
-                                      event.eventType;
+                                ? QStringLiteral("[unknown event]")
+                                : QStringLiteral("[unhandled event: %1]")
+                                      .arg(event.eventType);
     }
 
     if (!event.eventType.isEmpty())

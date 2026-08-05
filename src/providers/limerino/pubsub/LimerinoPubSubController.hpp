@@ -42,10 +42,15 @@ enum class PubSubTopicAuth {
 
 /// One notification for the events channel (+ future feature consumers).
 /// eventType is the inner payload's "type", verbatim from the wire.
+/// category groups topics for coloured chips in the events view ("moderation",
+/// "points", "prediction", "poll", "raid", "follow", "event"); payload is the
+/// raw notification, kept for tooltips/debug only - never rendered as text.
 struct PubSubEvent {
     QString topic;
     QString channelId;    // topic suffix annotation (client.js L182, L461)
     QString eventType;
+    QString category;     // controller-derived from the topic prefix
+    QJsonObject payload;  // raw notification (tooltip only)
     QString displayText;  // single-line, user-facing summary
 };
 
