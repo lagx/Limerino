@@ -70,7 +70,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged | Low |
 | `src/controllers/commands/CommandController.hpp` | fork commands need a registration extension point | one tiny public passthrough `registerExternalCommand()` wrapping the private `registerCommand()` | Low |
 | `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` + one include + one call `limerino::initializePubSub()` (Hermes bootstrap) at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our lines at the end of the function** |
-| `src/widgets/dialogs/UserInfoPopup.cpp` | usercard gets a "Name history" option + a GQL-extras label | one include + one `LabelButton` + connect (pre-existing); batch U2: one include + one `LimerinoUserCardWidget` + one `setTarget()` call inside the existing Helix-success lambda (no `ui_` struct changes); batch F1: name-history dialog opened with `nullptr` parent (popup auto-close used to destroy the dialog mid-fetch → UAF crash) | Low |
+| `src/widgets/dialogs/UserInfoPopup.cpp` / `.hpp` | usercard gets a "Name history" option + a GQL-extras label | one include + one `LabelButton` + connect (pre-existing); batch U2: one include + one `LimerinoUserCardWidget` + one `setTarget()` call inside the existing Helix-success lambda (no `ui_` struct changes); batch F1: name-history dialog opened with `nullptr` parent (popup auto-close used to destroy the dialog mid-fetch → UAF crash); batch F4: connect `extrasChanged` → re-append sub suffix (IVR/GQL race fix) + `.hpp` `subageBaseText_` member | Low |
 | `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); "Filter events..." conditional menu entry for `/pubsub-events` + 2 hook includes (live-updates P0); "Nuke messages..." conditional menu entry gated on `hasModRights() && isTwitchOrKickChannel()` opening `LimerinoNukeDialog` + 1 include (batch N3) | Low |
 | `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries (live-updates P0 added `providers/limerino/pubsub/*`, `PubSubEventsChannel`, `LimerinoEventFilterDialog`; batch U1 added `providers/limerino/gql/LimerinoUserCardExtras`; batch U2 added `widgets/dialogs/limerino/LimerinoUserCardWidget`) | Low — append-only at list tail |
 | `src/singletons/Settings.hpp` | secondary extra-features auth needs a persisted store | one `QStringSetting limerinoAuthAccounts{"/limerino/auth/accounts", "[]"};` after the fork's existing `xChatterino7NoHttp2`; disjoint from `/accounts/uid<id>/`; also `limerinoPubSubHiddenEventTypes` (`ChatterinoSetting<QStringList>`) for the `/pubsub-events` filter and `limerinoAutoAcknowledgeChatWarnings` (batch P2) | Low |
@@ -125,8 +125,8 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/LimerinoErrors.{hpp,cpp}` | shared user-facing error mapping |
 | `src/providers/limerino/LimerinoRateLimiter.{hpp,cpp}` | per-host request queue + 429 backoff |
 | `src/providers/limerino/gql/` (`LimerinoGql`, `PersistedQueries`) | GQL client (persisted + inline) with central errors[] extraction; query/hashes transcribed from `pluginforreference/requests.lua` |
-| `src/providers/limerino/gql/LimerinoUserCardExtras.{hpp,cpp}` | combined usercard GQL fetch (language tag / team / sub detail) + 5-min per-user cache; doc authored from `gqlreference/gql/` shapes (batch U1) |
-| `src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` | per-usercard extras label (language tag top-right in the header box; team + sub rows later); QPointer + request-generation teardown (batch U2) |
+| `src/providers/limerino/gql/LimerinoUserCardExtras.{hpp,cpp}` | combined usercard GQL fetch (language tag / team / sub detail) + 5-min per-user cache; doc authored from `gqlreference/gql/` shapes (batch U1); batch F4: `thirdPartySKU` added to selection set + struct + parse |
+| `src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` | per-usercard extras label (language tag top-right in the header box; team + sub rows later); QPointer + request-generation teardown (batch U2); batch F4: unknown platform strings render raw instead of hidden, SKU chip, `extrasChanged` signal |
 | `src/providers/limerino/commands/` (`LimerinoCommands.*`) | ported-command registration entry (batches 1-12) |
 | `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Accounts tabs; Script tab removed in F2 — clickable verification link, button state machine, success line) |
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
@@ -193,8 +193,9 @@ field sets for the usercard's target. Sources: `gqlreference/gql/{fragments.js,u
 "Fork reference captures"). It holds no client IDs and no captured response bodies — only the
 module source. Display lands in
 `src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` (one `UserInfoPopup.cpp` hook:
-1 include + 1 widget placement + 1 `setTarget()` hand-off + 1 sub-age suffix append; **12 added
-upstream lines total**).
+1 include + 1 widget placement + 1 `extrasChanged` connect + 1 `setTarget()` hand-off +
+sub-age base/suffix handling; batch F4 made the suffix re-apply when late GQL extras land,
+which is the race that used to hide platform/SKU entirely).
 
 | Field | Data path | Auth (G0.2 analysis) | Renders |
 |---|---|---|---|

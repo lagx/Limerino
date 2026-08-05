@@ -33,9 +33,14 @@ public:
                    const QString &loginForSubRow);
 
     // G4: detail string the popup appends onto its existing sub-age row.
-    // Empty whenever nothing extra is known (null detail, unknown platform, or
-    // all sub-fields absent) - caller shows nothing in that case.
+    // Empty whenever nothing extra is known (null detail or all sub-fields
+    // absent) - caller shows nothing in that case.
     QString subscriptionSuffix() const;
+
+Q_SIGNALS:
+    // Fired whenever extras_ changes (fetch succeeded or target cleared).
+    // The popup re-appends subscriptionSuffix() to its sub-age row on this.
+    void extrasChanged();
 
 private:
     void refetch();

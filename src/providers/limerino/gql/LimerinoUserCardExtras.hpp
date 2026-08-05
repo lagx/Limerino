@@ -21,6 +21,7 @@ struct LimerinoSubDetail {
     bool purchasedWithPrime = false;
     QString tier;                  // raw wire value (e.g. "1000"/"2000"/"3000")
     bool isGift = false;
+    QString thirdPartySKU;         // raw wire value; empty when field absent
     int tenureMonths = 0;          // 0 when tenure is unknown / not shown
 };
 

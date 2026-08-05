@@ -24,7 +24,7 @@ QJsonObject makeUser(const QString &languageTag = QString(),
                      const QString &platform = QString(),
                      const QString &tier = QString(),
                      bool purchasedWithPrime = false, bool isGift = false,
-                     int tenureMonths = 0)
+                     int tenureMonths = 0, const QString &thirdPartySKU = QString())
 {
     QJsonObject user;
 
@@ -71,6 +71,10 @@ QJsonObject makeUser(const QString &languageTag = QString(),
             sub.insert(QStringLiteral("gift"),
                        QJsonObject{{QStringLiteral("isGift"), true}});
         }
+        if (!thirdPartySKU.isEmpty())
+        {
+            sub.insert(QStringLiteral("thirdPartySKU"), thirdPartySKU);
+        }
         rel.insert(QStringLiteral("subscriptionBenefit"), sub);
 
         if (tenureMonths > 0)
@@ -96,7 +100,7 @@ TEST(LimerinoUserCardExtrasParse, FullResponse)
         /*includePrimaryTeam*/ true,
         /*includeSubscription*/ true, QStringLiteral("android"),
         QStringLiteral("3000"), /*prime*/ false, /*gift*/ false,
-        /*tenure*/ 14);
+        /*tenure*/ 14, QStringLiteral("twitch_sub_tier_3"));
 
     const auto out = parseUserCardExtras(user, false, false);
 
@@ -106,6 +110,8 @@ TEST(LimerinoUserCardExtrasParse, FullResponse)
     EXPECT_EQ(out.subscription->platform, QStringLiteral("android"));
     EXPECT_EQ(out.subscription->tier, QStringLiteral("3000"));
     EXPECT_EQ(out.subscription->tenureMonths, 14);
+    EXPECT_EQ(out.subscription->thirdPartySKU,
+              QStringLiteral("twitch_sub_tier_3"));
     EXPECT_FALSE(out.subscription->purchasedWithPrime);
     EXPECT_FALSE(out.subscription->isGift);
 }

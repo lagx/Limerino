@@ -484,7 +484,26 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
 
                 // Limerino fork hook: GQL-extras label (language tag right of
                 // the user ID, team/sub joined onto the lower rows in G3/G4)
-                box.emplace<limerino::LimerinoUserCardWidget>();
+                auto *extrasWidget =
+                    box.emplace<limerino::LimerinoUserCardWidget>().getElement();
+                // When late GQL extras land, re-apply the sub-age suffix
+                // (the IVR subage row may already have been rendered).
+                QObject::connect(extrasWidget,
+                                 &limerino::LimerinoUserCardWidget::extrasChanged,
+                                 this, [this] {
+                                     if (this->subageBaseText_.isEmpty() ||
+                                         this->ui_.subageLabel == nullptr)
+                                     {
+                                         return;
+                                     }
+                                     if (auto *extras = this->findChild<
+                                             limerino::LimerinoUserCardWidget *>())
+                                     {
+                                         this->ui_.subageLabel->setText(
+                                             this->subageBaseText_ +
+                                             extras->subscriptionSuffix());
+                                     }
+                                 });
 
                 // button to pin the window (only if we close automatically)
                 if (this->closeAutomatically_)
@@ -1271,6 +1290,10 @@ void UserInfoPopup::updateUserData()
 
         if (type == Channel::Type::Twitch)
         {
+            // Limerino: fresh target - drop the previous card's sub-age base so
+            // a late extrasChanged() can't append onto stale text.
+            this->subageBaseText_.clear();
+
             // get followage and subage
             getIvr()->getSubage(
                 this->userName_, this->underlyingChannel_->getName(),
@@ -1314,14 +1337,18 @@ void UserInfoPopup::updateUserData()
                                 .arg(subageInfo.totalSubMonths));
                     }
 
-                    // Limerino fork hook: GQL sub detail rides on this row
+                    // Limerino fork hook: GQL sub detail rides on this row.
+                    // Store the IVR base text separately so late GQL extras
+                    // can re-apply (extrasChanged) without double-appending.
                     if (this->ui_.subageLabel)
                     {
+                        this->subageBaseText_ =
+                            this->ui_.subageLabel->getText();
                         if (auto *extras = this->findChild<
                                 limerino::LimerinoUserCardWidget *>())
                         {
                             this->ui_.subageLabel->setText(
-                                this->ui_.subageLabel->getText() +
+                                this->subageBaseText_ +
                                 extras->subscriptionSuffix());
                         }
                     }

@@ -25,7 +25,7 @@ query LimerinoUserCardExtras($id: ID!, $channelID: ID!) {
         primaryTeam { name owner { login } }
         relationship(targetUserID: $channelID) {
             subscriptionTenure(tenureMethod: CUMULATIVE) { months }
-            subscriptionBenefit { platform purchasedWithPrime tier gift { isGift } }
+            subscriptionBenefit { platform purchasedWithPrime tier thirdPartySKU gift { isGift } }
         }
     }
 }
@@ -83,6 +83,8 @@ LimerinoUserCardExtras parseUserCardExtras(const QJsonObject &userObj,
                              .toObject()
                              .value(QStringLiteral("isGift"))
                              .toBool();
+            det.thirdPartySKU =
+                sub.value(QStringLiteral("thirdPartySKU")).toString();
             det.tenureMonths =
                 rel.value(QStringLiteral("subscriptionTenure"))
                     .toObject()

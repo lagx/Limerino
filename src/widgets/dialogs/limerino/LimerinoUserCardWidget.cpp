@@ -102,6 +102,7 @@ void LimerinoUserCardWidget::refetch()
             }
             self->extras_ = std::move(*extras);
             self->rebuild();
+            Q_EMIT self->extrasChanged();
         });
 }
 
@@ -134,8 +135,9 @@ QString LimerinoUserCardWidget::subscriptionSuffix() const
 
     QStringList parts;
 
-    // Ruling: map only plat­form values with real evidence (raw was ruled, but
-    // un-derivable wire strings are hidden field-by-field rather than shown).
+    // Item 5: known wire values get readable strings; any OTHER non-empty
+    // platform string still renders (as its raw wire value) rather than being
+    // silently dropped. A null platform simply renders nothing.
     const QString &platform = sub->platform;
     if (platform == QLatin1String("web"))
     {
@@ -153,7 +155,10 @@ QString LimerinoUserCardWidget::subscriptionSuffix() const
     {
         parts << QStringLiteral("Prime");
     }
-    // any other platform string -> degraded to nothing (field-by-field)
+    else if (!platform.isEmpty())
+    {
+        parts << platform;
+    }
 
     if (sub->isGift)
     {
@@ -168,6 +173,11 @@ QString LimerinoUserCardWidget::subscriptionSuffix() const
         parts << QStringLiteral("Tier 3");
     }
     // "1000" / unknown -> existing sub-age row already shows tier; no duplicate
+
+    if (!sub->thirdPartySKU.isEmpty())
+    {
+        parts << sub->thirdPartySKU;
+    }
 
     if (parts.isEmpty())
     {
