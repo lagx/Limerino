@@ -166,6 +166,9 @@ Entirely ours; will never conflict with upstream merges:
 | `src/limerino/LimerinoFeatures.{hpp,cpp}` | **the feature catalog: single source of truth for the settings-page wiki + anti-drift tests (batch F8)** |
 | `src/limerino/LimerinoWikiWidget.{hpp,cpp}` | the settings-page feature wiki UI: grouped by category, live filter, status badges in theme colors, command chips + access breadcrumbs, collapsed-by-default rows; renders only from the catalog (batch F8) |
 | `tests/src/LimerinoFeatures.cpp` | anti-drift tests: unique ids, ≥1 access path per entry, non-empty prose, and **catalog commands ⇔ registered commands in both directions** (batch F8) |
+| `src/providers/limerino/theme/LimerinoThemeSeed.{hpp,cpp}` | theme creator input model: four user colors (background/surface/accent/text), WCAG luminance + contrast ratio helpers, Dark/Light presets (batch T1) |
+| `src/providers/limerino/theme/LimerinoThemeGenerator.{hpp,cpp}` | pure seed→QJsonObject theme generator: per-leaf derivation from the built-in diff evidence, no singletons/Settings/Application (batch T1) |
+| `tests/src/LimerinoTheme.cpp` | generator tests: leaf inventory, styleSheet exclusion, iconTheme inversion, determinism, low-contrast flagging, transparent literal (batch T1) |
 
 ### Feature wiki (settings page)
 
