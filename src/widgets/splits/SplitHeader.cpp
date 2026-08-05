@@ -414,7 +414,7 @@ void SplitHeader::initializeLayout()
             .light = ":/buttons/channelPoints-lightMode.svg",
         },
         this, {5, 5});
-    this->pointsButton_->setToolTip(QStringLiteral("Predictions (Limerino)"));
+    this->pointsButton_->setToolTip(QStringLiteral("Limerino Actions"));
     this->pointsButton_->hide();
     QObject::connect(this->pointsButton_, &Button::leftClicked, this, [this]() {
         auto *dialog = new limerino::LimerinoPredictionDialog(this->split_);

@@ -78,7 +78,7 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     : BasePopup({BaseWindow::Flags::Dialog}, split)
     , split_(split)
 {
-    this->setWindowTitle(QStringLiteral("Limerino - channel points"));
+    this->setWindowTitle(QStringLiteral("Limerino Actions"));
     this->resize(460, 640);
     this->setAttribute(Qt::WA_DeleteOnClose);
 
