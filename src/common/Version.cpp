@@ -134,7 +134,7 @@ bool Version::isNightly() const
 
 void Version::generateBuildString()
 {
-    // e.g. Chatterino 2.3.5 or Chatterino Nightly 2.3.5
+    // e.g. Limerino 7.5.5 or Limerino Nightly 7.5.5
     auto s = this->fullVersion();
 
     // Add commit information

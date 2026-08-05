@@ -1340,6 +1340,8 @@ set(VERSION_SOURCE_FILES common/Version.cpp common/Version.hpp)
 add_library(${VERSION_PROJECT} STATIC ${VERSION_SOURCE_FILES})
 target_compile_definitions(${VERSION_PROJECT} PRIVATE
     CHATTERINO_EXTRA_BUILD_STRING=${CHATTERINO_EXTRA_BUILD_STRING}
+    # Limerino: single version source of truth (root CMakeLists project()).
+    CHATTERINO_VERSION_STR=\"${PROJECT_VERSION}\"
     $<$<BOOL:${WIN32}>:USEWINSDK>
     $<$<BOOL:${BUILD_WITH_CRASHPAD}>:CHATTERINO_WITH_CRASHPAD>
 )
@@ -1365,6 +1367,8 @@ target_compile_definitions(${LIBRARY_PROJECT} PUBLIC
     UNICODE
     IRC_STATIC
     IRC_NAMESPACE=Communi
+    # Limerino: single version source of truth (root CMakeLists project()).
+    CHATTERINO_VERSION_STR=\"${PROJECT_VERSION}\"
     $<$<BOOL:${WIN32}>:_WIN32_WINNT=0x0A00> # Windows 10
     $<$<BOOL:${BUILD_TESTS}>:CHATTERINO_WITH_TESTS>
     # Disable min/max macros from Windows.h

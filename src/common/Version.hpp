@@ -33,7 +33,15 @@ namespace chatterino {
  *  - 2.4.0-alpha.2
  *  - 2.4.0-alpha
  **/
-inline const QString CHATTERINO_VERSION = QStringLiteral("2.5.5");
+
+// Limerino: single source of truth for the fork version. The value comes from
+// the root CMakeLists.txt project() version, injected as the
+// CHATTERINO_VERSION_STR string-literal macro by src/CMakeLists.txt, so one
+// number drives every surface (window title, About page, macOS/Windows bundle
+// metadata, IRC version payload). It was previously hardcoded here and had
+// drifted out of sync with the CMake version.
+inline const QString CHATTERINO_VERSION =
+    QStringLiteral(CHATTERINO_VERSION_STR);
 
 class Version
 {
