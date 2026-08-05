@@ -23,12 +23,12 @@ LimerinoAutoActionController::LimerinoAutoActionController(Settings &settings,
 {
     LimerinoAutoActionController::instance_ = this;
 
+    this->rebuildListener_.setCB([this] {
+        this->rebuild();
+    });
     this->rebuildListener_.addSetting(this->settings_.limerinoAutoActions,
-                                      [this] {
-                                          this->rebuild();
-                                      });
+                                      /*autoInvoke=*/false);
 
-    // Also clear any per-rule cooldown state on every rebuild (in Runtime).
     QObject::connect(this, &LimerinoAutoActionController::rulesChanged, this, [] {
         LimerinoAutoActionRuntime_resetCooldowns();
     });
