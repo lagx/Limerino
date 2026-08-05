@@ -37,9 +37,9 @@ ChannelPtr pubSubEventsChannel()
         auto created = std::make_shared<Channel>(pubSubEventsChannelName(),
                                                  Channel::Type::Misc);
         created->addSystemMessage(QStringLiteral(
-            "All Hermes (PubSub) live events appear here. Use the three-dots "
-            "menu of this tab and choose \"Filter events...\" to pick which "
-            "event types are shown."));
+            "All live events appear here. Use the three-dots menu of this "
+            "tab and choose \"Filter events...\" to pick which event types "
+            "are shown."));
         channelConnections().managedConnect(
             getPubSubController()->eventProduced,
             [created](const PubSubEvent &event) {

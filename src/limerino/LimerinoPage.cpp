@@ -80,9 +80,10 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
                          dialog->show();
                      });
 
-    layout.addTitle("Live updates (Hermes)");
+    layout.addTitle("Events");
     layout.addDescription(QStringLiteral(
-        "Live PubSub events over Twitch's Hermes transport. Tokens come only "
+        "Live event notifications from your extra-features sign-in "
+        "(moderation, predictions, channel points, raids). Tokens come only "
         "from the extra-features sign-in above; they are checked once at "
         "startup and whenever this page is opened."));
     this->pubsubSummaryLabel_ = layout.addDescription(QString());

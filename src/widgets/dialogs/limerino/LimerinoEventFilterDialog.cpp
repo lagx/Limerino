@@ -15,12 +15,12 @@ namespace chatterino::limerino {
 LimerinoEventFilterDialog::LimerinoEventFilterDialog(QWidget *parent)
     : BasePopup({BaseWindow::Flags::Dialog}, parent)
 {
-    this->setWindowTitle(QStringLiteral("Filter PubSub events"));
+    this->setWindowTitle(QStringLiteral("Filter events"));
 
     auto *root = new QVBoxLayout(this);
     root->addWidget(new QLabel(
         QStringLiteral(
-            "Choose which PubSub event types appear in the %1 channel. "
+            "Choose which event types appear in the %1 channel. "
             "Filters apply to newly arriving events.")
             .arg(pubSubEventsChannelName()),
         this));
@@ -43,7 +43,7 @@ void LimerinoEventFilterDialog::rebuild()
     if (types.isEmpty())
     {
         this->listLayout_->addWidget(new QLabel(QStringLiteral(
-            "No PubSub event types are known yet. They appear here after the "
+            "No event types are known yet. They appear here after the "
             "first live event of that type (or when a topic batch registers "
             "them).")));
         return;

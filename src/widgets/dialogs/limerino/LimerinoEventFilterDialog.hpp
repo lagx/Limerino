@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Per-event-type visibility filter for the "/pubsub-events" channel.
+// Per-event-type visibility filter for the "/events" channel.
 
 #pragma once
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-// "/pubsub-events" - special channel (like /mentions or /whispers) that
-// receives every Hermes (PubSub) live event. Per-event-type visibility is
+// "/events" - special channel (like /mentions or /whispers) that
+// receives every live event. Per-event-type visibility is
 // user-controlled; filters apply to newly arriving events.
 
 #pragma once
