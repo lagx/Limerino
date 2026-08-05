@@ -6,7 +6,6 @@
 #pragma once
 
 #include <QString>
-#include <QVector>
 
 class QWidget;
 
@@ -22,15 +21,6 @@ QString modList(const CommandContext &ctx);
 
 // Usercard integration (UserInfoPopup hook).
 void showNameHistoryDialog(const QString &login, QWidget *parent);
-
-// Drives the Commands wiki at the top of the Limerino settings page
-// (registry-generated; extended by every batch - never a hardcoded list).
-struct CommandDoc {
-    QString names;
-    QString usage;
-    QString description;
-};
-QVector<CommandDoc> commandDocs();
 
 }  // namespace LimerinoCommands
 }  // namespace chatterino

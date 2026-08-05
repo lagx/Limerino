@@ -163,6 +163,31 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/highlights/HighlightGroupDialog.{hpp,cpp}` | group manager dialog: list + add/delete with confirmation and member recount, scope radio, channel-list editor with autocomplete + typo warning, createGroupModal for in-table group creation (batch H3) |
 | `src/providers/limerino/highlights/HighlightGroupChannels.{hpp,cpp}` | known-channel enumeration for the editor, sourced from open splits + persisted group channels (batch H3) |
 | `src/providers/limerino/highlights/HighlightGroupMenu.{hpp,cpp}` | read-only "Highlight groups" submenu in the split context menu; entry per matching group + Manage groups... action; no state is written (batch H4) |
+| `src/limerino/LimerinoFeatures.{hpp,cpp}` | **the feature catalog: single source of truth for the settings-page wiki + anti-drift tests (batch F8)** |
+| `src/limerino/LimerinoWikiWidget.{hpp,cpp}` | the settings-page feature wiki UI: grouped by category, live filter, status badges in theme colors, command chips + access breadcrumbs, collapsed-by-default rows; renders only from the catalog (batch F8) |
+| `tests/src/LimerinoFeatures.cpp` | anti-drift tests: unique ids, ≥1 access path per entry, non-empty prose, and **catalog commands ⇔ registered commands in both directions** (batch F8) |
+
+### Feature wiki (settings page)
+
+The Limerino settings page opens with the feature wiki. Rules that keep it from drifting
+out of sync with the code again:
+
+- **The wiki renders entirely from `src/limerino/LimerinoFeatures.cpp`** (the catalog).
+  `LimerinoPage` only mounts `LimerinoWikiWidget`; the widget maps catalog entries to UI.
+  There is no hardcoded feature text left in the page — delete a stale claim by editing the
+  catalog, not the widget.
+- **The catalog is the only place to edit the wiki.** Every entry is one Limerino
+  **feature** (a capability), not one command; a command is just one way to reach a feature
+  (`access` holds every path — commands, menus, dialogs, toggles, background behavior —
+  and must be non-empty even when `commands` is empty).
+- **`tests/src/LimerinoFeatures.cpp` enforces it:** unique ids, ≥1 access path per entry,
+  non-empty prose, and catalog commands ⇔ actually-registered commands in both directions
+  (aliases included).
+- **Any future feature adds its catalog entry — with its non-command access paths — in the
+  same commit as the feature's code.** A missing entry fails the tests only if the feature
+  registers a command; background-only features use `AccessKind::Automatic`.
+- The UI currently shows `Implemented` entries only; `Partial`/`Planned`/`Unavailable`
+  statuses exist in the catalog for when they're wanted.
 
 ### Extra-features auth (secondary login)
 

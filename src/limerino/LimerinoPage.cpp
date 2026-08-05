@@ -1,10 +1,10 @@
 ﻿#include "limerino/LimerinoPage.hpp"
 
+#include "limerino/LimerinoWikiWidget.hpp"
 #include "limerino/PubSubEventsChannel.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/autoactions/LimerinoAutoAction.hpp"
 #include "providers/limerino/autoactions/LimerinoAutoActionStore.hpp"
-#include "providers/limerino/commands/Identity.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 #include "singletons/Settings.hpp"
 #include "widgets/dialogs/LimerinoAuthDialog.hpp"
@@ -50,17 +50,14 @@ bool LimerinoPage::filterElements(const QString &query)
 
 void LimerinoPage::initLayout(GeneralPageView &layout)
 {
-    // Commands wiki (top of page, registry-driven; batches extend it).
-    layout.addTitle("Limerino commands");
+    // Feature wiki (top of page). Renders entirely from the catalog in
+    // LimerinoFeatures.cpp; tests/src/LimerinoFeatures.cpp keeps it honest.
+    layout.addTitle("Limerino features");
     layout.addDescription(QStringLiteral(
-        "Commands ported from the reference plugin, running natively. "
-        "Usage and backends are documented here."));
-    for (const auto &doc : LimerinoCommands::commandDocs())
-    {
-        layout.addDescription(
-            QStringLiteral("%1 - %2 - %3")
-                .arg(doc.names, doc.usage, doc.description));
-    }
+        "What this fork adds, and every way to reach it. Generated from the "
+        "feature catalog - new features add their entry (including non-command "
+        "access paths) in the same commit as their code."));
+    layout.addWidget(new limerino::LimerinoWikiWidget());
 
     layout.addTitle("Limerino");
     layout.addDescription(QStringLiteral(
