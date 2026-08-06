@@ -69,6 +69,7 @@ close to zero as possible — every entry is future merge pain.
 | `.CI/chatterino-installer.iss` | shortcut AppUserModelID must match the app's own identity string | two lines: `"SevenTV.Chatterino7TV"` → `"Limerino.Limerino"` (paired with `Version.cpp`) | Low |
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino`; F7: `appUserModelID_` → `Limerino.Limerino`, stale buildString example comment fixed | Low — narrow context, rarely touched upstream |
 | `src/common/Version.hpp` | displayed version must not drift from the CMake version | one edit: hardcoded `CHATTERINO_VERSION "2.5.5"` → derived from `CHATTERINO_VERSION_STR` (CMake `PROJECT_VERSION` injected in src/CMakeLists.txt) | Low |
+| `src/singletons/Theme.hpp` | theme creator must make an exported theme selectable in the same session | 2-line public `rescanCustomThemes(const Paths &)` forwarder to the already-idempotent private `loadAvailableThemes` + comment refresh (the reloadability caution targets property reloads, not the directory rescan) | Low |
 | `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged | Low |
 | `src/controllers/commands/CommandController.hpp` | fork commands need a registration extension point | one tiny public passthrough `registerExternalCommand()` wrapping the private `registerCommand()` | Low |
 | `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` + one include + one call `limerino::initializePubSub()` (Hermes bootstrap) at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our lines at the end of the function** |
@@ -169,6 +170,8 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/theme/LimerinoThemeSeed.{hpp,cpp}` | theme creator input model: four user colors (background/surface/accent/text), WCAG luminance + contrast ratio helpers, Dark/Light presets (batch T1) |
 | `src/providers/limerino/theme/LimerinoThemeGenerator.{hpp,cpp}` | pure seed→QJsonObject theme generator: per-leaf derivation from the built-in diff evidence, no singletons/Settings/Application (batch T1) |
 | `tests/src/LimerinoTheme.cpp` | generator tests: leaf inventory, styleSheet exclusion, iconTheme inversion, determinism, low-contrast flagging, transparent literal (batch T1) |
+| `src/providers/limerino/theme/LimerinoThemeStore.{hpp,cpp}` | two-file-model seed wrapper (`limerinoThemeVersion`), filename sanitization, Themes/ install + rescan + select; full-theme files imported as-is with no reverse derivation (batch T2) |
+| `tests/src/LimerinoThemeStore.cpp` | seed serde round-trip, version gate, filename sanitizer (batch T2) |
 
 ### Feature wiki (settings page)
 

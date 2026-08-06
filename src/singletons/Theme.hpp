@@ -176,6 +176,14 @@ public:
      **/
     std::vector<std::pair<QString, QVariant>> availableThemes() const;
 
+    // Limerino: rescan the Themes directory for custom theme files.
+    // loadAvailableThemes is idempotent; the theme creator calls this after
+    // installing a generated theme so it is selectable in the same session.
+    void rescanCustomThemes(const Paths &paths)
+    {
+        this->loadAvailableThemes(paths);
+    }
+
     pajlada::Signals::NoArgSignal updated;
 
     QStringSetting themeName{"/appearance/theme/name", "Dark"};
@@ -196,9 +204,12 @@ private:
     QObject lifetime_;
 
     /**
-     * Figure out which themes are available in the Themes directory
+     * Figure out which themes are available in the Themes directory.
      *
-     * NOTE: This is currently not built to be reloadable
+     * Idempotent and safe to call again; rescanCustomThemes() is the public
+     * entry point for that (the historically-noted "not built to be
+     * reloadable" caution applies to theme property reloads, not to this
+     * directory rescan).
      **/
     void loadAvailableThemes(const Paths &paths);
 

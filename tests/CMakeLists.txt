@@ -24,6 +24,7 @@ set(test_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/TwitchPubSubClient.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoFeatures.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoTheme.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoThemeStore.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoHighlightGroup.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoHighlightGroups.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoPubSub.cpp

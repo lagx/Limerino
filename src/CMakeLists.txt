@@ -1030,11 +1030,13 @@ set(SOURCE_FILES
         providers/limerino/matcher/LimerinoMatcherValidation.hpp
         providers/limerino/matcher/LimerinoMatcherValidation.cpp
 
-        # Limerino theme creator (seed model + pure generator)
+        # Limerino theme creator (seed model + pure generator + store)
         providers/limerino/theme/LimerinoThemeSeed.cpp
         providers/limerino/theme/LimerinoThemeSeed.hpp
         providers/limerino/theme/LimerinoThemeGenerator.cpp
         providers/limerino/theme/LimerinoThemeGenerator.hpp
+        providers/limerino/theme/LimerinoThemeStore.cpp
+        providers/limerino/theme/LimerinoThemeStore.hpp
 
         # Limerino nuke engine (pure plan builder; execution in N3)
         providers/limerino/nuke/NukePlan.hpp
