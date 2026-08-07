@@ -176,15 +176,16 @@ query GetUserEditorOf($id: ObjectID!) {
 
 // requests.lua: editors -> POST https://7tv.io/v4/gql
 // NOTE: the plugin query fetches only mainConnection.platformDisplayName.
-// `id` was added (one extra field on the same selection) solely to enable the
-// user-requested https://7tv.app/users/<id> links; nothing else changed.
+// `editor { id }` was added (on the nested User, not UserEditor) solely to
+// enable https://7tv.app/users/<id> links. Selecting `id` on UserEditor is
+// rejected by current v4 schema ("Unknown field id on type UserEditor").
 inline const QString SEVENTV_ONE_USER_QUERY = QStringLiteral(R"GQL(
 query OneUser($id: Id!) {
     users {
         user(id: $id) {
             editors {
-                id
                 editor {
+                    id
                     mainConnection {
                         platformDisplayName
                         __typename

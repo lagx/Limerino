@@ -299,22 +299,39 @@ void showSeventvChannelEditors(const ChannelPtr &channel)
                          .toJson(QJsonDocument::Compact))
             .timeout(5000)
             .onSuccess([channel](NetworkResult result) {
+                const QJsonObject root =
+                    QJsonDocument::fromJson(result.getData()).object();
+                // 7TV returns HTTP 200 with data:null + errors[] for bad
+                // selection sets; treat that as failure, not an empty list.
+                if (root.contains(QStringLiteral("errors")) &&
+                    !root.value(QStringLiteral("errors")).toArray().isEmpty() &&
+                    (root.value(QStringLiteral("data")).isNull() ||
+                     !root.contains(QStringLiteral("data"))))
+                {
+                    say(channel,
+                        QStringLiteral("Failed to fetch 7tv editors."));
+                    return;
+                }
                 const QJsonArray editors =
-                    QJsonDocument::fromJson(result.getData())
-                        .object()[QStringLiteral("data")]
+                    root.value(QStringLiteral("data"))
                         .toObject()[QStringLiteral("users")]
                         .toObject()[QStringLiteral("user")]
                         .toObject()[QStringLiteral("editors")]
                         .toArray();
                 QVector<QStringList> rows;
-                for (const QJsonValue &v : editors)
+                for (int i = 0; i < editors.size(); ++i)
                 {
                     const QJsonObject editor =
-                        v.toObject()[QStringLiteral("editor")].toObject();
-                    rows.append({editor[QStringLiteral("mainConnection")]
-                                     .toObject()[QStringLiteral("platformDisplayName")]
-                                     .toString(),
-                                 editor[QStringLiteral("id")].toString()});
+                        editors.at(i)
+                            .toObject()
+                            .value(QStringLiteral("editor"))
+                            .toObject();
+                    rows.append(
+                        {editor.value(QStringLiteral("mainConnection"))
+                             .toObject()
+                             .value(QStringLiteral("platformDisplayName"))
+                             .toString(),
+                         editor.value(QStringLiteral("id")).toString()});
                 }
 
                 auto *dialog = new limerino::LimerinoResultDialog;
