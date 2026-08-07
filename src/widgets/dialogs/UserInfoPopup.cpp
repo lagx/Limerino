@@ -581,10 +581,21 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
             dialog->show();
         });
 
-        // Limerino fork hooks: artist / unartist / lead mod (own channel only)
-        auto artistButton = user.emplace<LabelButton>("Artist", this);
-        auto unartistButton = user.emplace<LabelButton>("Unartist", this);
-        auto leadModButton = user.emplace<LabelButton>("Lead mod", this);
+        // Limerino fork hooks: artist / unartist / lead mod (own channel only).
+        // Same PixmapButton construction as mod/unmod (30x30); tooltips keep
+        // the action names the old text labels provided.
+        auto artistButton = user.emplace<PixmapButton>(this);
+        artistButton->setPixmap(getResources().buttons.artist);
+        artistButton->setScaleIndependentSize(30, 30);
+        artistButton->setToolTip(QStringLiteral("Artist"));
+        auto unartistButton = user.emplace<PixmapButton>(this);
+        unartistButton->setPixmap(getResources().buttons.unartist);
+        unartistButton->setScaleIndependentSize(30, 30);
+        unartistButton->setToolTip(QStringLiteral("Unartist"));
+        auto leadModButton = user.emplace<PixmapButton>(this);
+        leadModButton->setPixmap(getResources().buttons.leadmod);
+        leadModButton->setScaleIndependentSize(30, 30);
+        leadModButton->setToolTip(QStringLiteral("Lead mod"));
         {
             const auto selfUser = getApp()->getAccounts()->twitch.getCurrent();
             auto *twitchChan = dynamic_cast<TwitchChannel *>(

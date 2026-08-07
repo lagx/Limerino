@@ -314,14 +314,14 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("Grant artist or lead-mod on your own channel"),
             QStringLiteral("Assign the artist role (and revoke it) or the lead "
                            "moderator role on your own channel - by command or "
-                           "from buttons on the user's card."),
+                           "from icon buttons on the user's card."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Command, QStringLiteral("/artist <user>")},
                 {AccessKind::Command, QStringLiteral("/unartist <user>")},
                 {AccessKind::Command, QStringLiteral("/leadmod <user>")},
                 {AccessKind::Dialog,
-                 QStringLiteral("usercard > Artist / Unartist / Lead mod buttons "
+                 QStringLiteral("usercard > Artist / Unartist / Lead mod icons "
                                 "(own channel only)")},
             },
             {QStringLiteral("/artist"), QStringLiteral("/unartist"),
