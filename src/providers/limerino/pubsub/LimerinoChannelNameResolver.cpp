@@ -43,16 +43,18 @@ void flushQueued();
 
 State &state()
 {
-    static State s = [] {
-        State out;
-        out.coalesce.setSingleShot(true);
-        out.coalesce.setInterval(COALESCE_MS);
-        QObject::connect(&out.coalesce, &QTimer::timeout, [] {
+    // Heap singleton: State holds a QTimer (non-copyable), so it cannot be
+    // returned from an immediately-invoked initializer by value (clang-cl).
+    static State *s = [] {
+        auto *out = new State;
+        out->coalesce.setSingleShot(true);
+        out->coalesce.setInterval(COALESCE_MS);
+        QObject::connect(&out->coalesce, &QTimer::timeout, [] {
             flushQueued();
         });
         return out;
     }();
-    return s;
+    return *s;
 }
 
 QString nameFromOpenChannel(const QString &id)

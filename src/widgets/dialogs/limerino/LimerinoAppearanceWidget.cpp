@@ -264,7 +264,7 @@ void LimerinoAppearanceWidget::refreshBadges()
                 data[QStringLiteral("currentUser")].toObject()[
                     QStringLiteral("availableBadges")].toArray();
             QList<DisplayBadge> items;
-            for (const QJsonValue &v : badges)
+            for (const QJsonValue v : badges)
             {
                 const QString setId =
                     v.toObject()[QStringLiteral("setID")].toString();
