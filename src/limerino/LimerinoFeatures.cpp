@@ -44,17 +44,21 @@ QList<LimerinoFeature> buildCatalog()
                            "messages with a coloured category chip; the chip "
                            "tooltip holds the raw event. Right-click an event "
                            "to copy the pretty-printed raw payload. Channel "
-                           "ids in moderation lines resolve to logins. Filter "
-                           "which event types appear via the split's "
-                           "three-dots menu. Tokens are checked once at "
-                           "startup and whenever the Limerino settings page "
-                           "is opened."),
+                           "ids in moderation lines resolve to logins. Identical "
+                           "wire events are deduplicated (toggle under Settings "
+                           "> Limerino). Filter which event types appear via "
+                           "the split's three-dots menu. Tokens are checked "
+                           "once at startup and whenever the Limerino settings "
+                           "page is opened."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Dialog,
                  QStringLiteral("New split dialog > Twitch > Events")},
                 {AccessKind::Dialog,
                  QStringLiteral("Settings > Limerino > Open events channel")},
+                {AccessKind::SettingsToggle,
+                 QStringLiteral("Settings > Limerino > Deduplicate identical "
+                                "events in /events")},
                 {AccessKind::ContextMenu,
                  QStringLiteral("/events split > three-dots menu > Filter events...")},
                 {AccessKind::ContextMenu,

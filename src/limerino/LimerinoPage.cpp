@@ -94,6 +94,10 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
         QStringLiteral("Automatically acknowledge chat warnings"),
         getSettings()->limerinoAutoAcknowledgeChatWarnings)
         ->addTo(layout);
+    SettingWidget::checkbox(
+        QStringLiteral("Deduplicate identical events in /events"),
+        getSettings()->limerinoPubSubDedupeEnabled)
+        ->addTo(layout);
     layout.addButton(QStringLiteral("Retry failed listens"), [] {
         limerino::getPubSubController()->retryFailed();
     });

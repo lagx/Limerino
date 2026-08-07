@@ -17,47 +17,39 @@ namespace {
 
 // --- raid.<channelID> -------------------------------------------------------
 //
-// Reference transcripts: events.js L78-129 (works on the raid.<channelID>
-// topic; type "raid_update_v2").
-//
-// Fields consumed (transcribed):
-//   raid.id / raid.source_id - identity + cooldown key
-//   raid.target_login / raid.target_display_name - destination
-//   raid.creator_id - only interesting when != source_id (summoned)
-//
-// The reference tolerates raid at the top level ("msg.raid") or nested
-// ("msg.data.raid") - same fallback kept here.
+// Reference: events.js L78-129 (raid_update_v2). raid_go_v2 shares the same
+// raid object shape; it means the raid has started (distinct from pending).
 
-QString formatRaidDisplay(const PubSubEvent & /*event*/,
-                          const QJsonObject &raid)
+QString formatRaidDisplay(const QJsonObject &raid, bool started)
 {
-    const QString from = raid[QStringLiteral("source_id")].toString();
+    const QString fromId = raid[QStringLiteral("source_id")].toString();
     const QString toL = raid[QStringLiteral("target_login")].toString();
     const QString toD = raid[QStringLiteral("target_display_name")].toString();
     const QString to = toD.isEmpty() ? toL : toD;
 
-    QString text = QStringLiteral("raid from %1 to %2").arg(from, to);
+    // source_id is numeric on the wire; displayChannelId (set by handleRaid)
+    // resolves it via Helix before emit. Until then / on failure the
+    // controller prefixes unresolved ids with "id:".
+    const QString verb = started ? QStringLiteral("raid started from %1 to %2")
+                                 : QStringLiteral("raid from %1 to %2");
+    QString text = verb.arg(fromId, to);
+
     const QString creatorId = raid[QStringLiteral("creator_id")].toString();
-    if (!creatorId.isEmpty() && creatorId != from)
+    if (!creatorId.isEmpty() && creatorId != fromId)
     {
-        text += QStringLiteral(" (created by %1)").arg(creatorId);
+        text += QStringLiteral(" (created by id:%1)").arg(creatorId);
+    }
+
+    const int viewers = raid[QStringLiteral("viewer_count")].toInt(-1);
+    if (viewers >= 0)
+    {
+        text += QStringLiteral(" · %1 viewers").arg(viewers);
     }
     return text;
 }
 
 // --- polls.<channelID> / predictions-channel-v1.<channelID> ----------------
-//
-// predictions-* shapes are authoritative from newpubsubhermesreference/
-// hermes/events/prediction.js (no longer guesses). Channel + user topics both
-// emit "event-created" / "event-updated" whose data.event carries:
-//   id, channel_id, created_at, title, status, prediction_window_seconds,
-//   outcomes[], winning_outcome_id, created_by.user_id
-//
-// polls.<channelID> has no handler in the new reference; its describePoll
-// reads the shape formerly documented for it.
 
-// One-line summary of a prediction event. `forUserTopic` selects the
-// "your ..." phrasing used on the user topic. Returns empty when unparseable.
 QString sharedPredictionEventText(const QJsonObject &data, const QString &type,
                                   bool forUserTopic)
 {
@@ -69,16 +61,16 @@ QString sharedPredictionEventText(const QJsonObject &data, const QString &type,
     }
     const QJsonArray outcomes = event[QStringLiteral("outcomes")].toArray();
     QString opts;
-    for (const QJsonValue &v : outcomes)
+    for (int i = 0; i < outcomes.size(); ++i)
     {
         if (!opts.isEmpty())
         {
             opts += QStringLiteral(" / ");
         }
-        opts += v.toObject()[QStringLiteral("title")].toString();
+        opts += outcomes.at(i).toObject()[QStringLiteral("title")].toString();
     }
-    const QString who = forUserTopic ? QStringLiteral("your ")
-                                     : QString();
+    const QString who =
+        forUserTopic ? QStringLiteral("your ") : QString();
     if (type == QLatin1String("event-created"))
     {
         return opts.isEmpty()
@@ -119,30 +111,87 @@ QString sharedPredictionEventText(const QJsonObject &data, const QString &type,
     return {};
 }
 
+/// POLL_CREATE: title + numbered choices, no zero vote noise.
+/// POLL_UPDATE / POLL_COMPLETE / POLL_END / POLL_ARCHIVE: include totals.
 QString describePoll(const QJsonObject &payload)
 {
     const QString type = payload[QStringLiteral("type")].toString();
-    const QJsonObject data = payload[QStringLiteral("data")].toObject();
-    const QString title = data[QStringLiteral("poll")]
-                            .toObject()[QStringLiteral("title")]
-                            .toString();
-    return title.isEmpty() ? type : title;
+    const QJsonObject poll = payload[QStringLiteral("data")]
+                                 .toObject()[QStringLiteral("poll")]
+                                 .toObject();
+    const QString title = poll[QStringLiteral("title")].toString();
+    const QJsonArray choices = poll[QStringLiteral("choices")].toArray();
+
+    // CREATE: all counts are zero — listing "(0)" on every choice is noise.
+    // UPDATE / END / COMPLETE / ARCHIVE: include live or final totals.
+    const bool includeCounts = type != QLatin1String("POLL_CREATE");
+
+    QString choicesText;
+    for (int i = 0; i < choices.size(); ++i)
+    {
+        const QJsonObject choice = choices.at(i).toObject();
+        const QString cTitle = choice[QStringLiteral("title")].toString();
+        if (cTitle.isEmpty())
+        {
+            continue;
+        }
+        if (!choicesText.isEmpty())
+        {
+            choicesText += QStringLiteral(" · ");
+        }
+        choicesText += QStringLiteral("%1. %2").arg(i + 1).arg(cTitle);
+        if (includeCounts)
+        {
+            const int votes =
+                choice[QStringLiteral("votes")].toObject()
+                    [QStringLiteral("total")]
+                        .toInt();
+            choicesText += QStringLiteral(" (%1)").arg(votes);
+        }
+    }
+
+    QString head = title.isEmpty() ? type : title;
+    if (type == QLatin1String("POLL_UPDATE"))
+    {
+        head = QStringLiteral("poll update: %1").arg(head);
+    }
+    else if (type == QLatin1String("POLL_COMPLETE") ||
+             type == QLatin1String("POLL_END") ||
+             type == QLatin1String("POLL_ARCHIVE"))
+    {
+        head = QStringLiteral("poll ended: %1").arg(head);
+    }
+    else if (type == QLatin1String("POLL_CREATE"))
+    {
+        head = QStringLiteral("poll: %1").arg(head);
+    }
+
+    if (poll[QStringLiteral("settings")]
+            .toObject()[QStringLiteral("multi_choice")]
+            .toObject()[QStringLiteral("is_enabled")]
+            .toBool())
+    {
+        head += QStringLiteral(" (multi)");
+    }
+
+    if (choicesText.isEmpty())
+    {
+        return head;
+    }
+    return head + QStringLiteral(" — ") + choicesText;
 }
 
-// Event handlers. true = consumed; the generic PubSubEvent still fires so the
-// events channel receives a line regardless.
 bool handleRaid(const QString & /*topic*/, const QJsonObject &payload,
                 PubSubEvent &event)
 {
     const QString type = payload[QStringLiteral("type")].toString();
-    // Reference callback name events.js L78: raid_update_v2
-    if (type != QLatin1String("raid_update_v2"))
+    const bool pending = type == QLatin1String("raid_update_v2");
+    const bool started = type == QLatin1String("raid_go_v2");
+    if (!pending && !started)
     {
         return false;
     }
 
-    // Payload fallback: events.js L79 reads msg.raid; tolerate data.raid too
-    // (seen via the notification-wrapping pubsub path in client.js).
     QJsonObject raid = payload[QStringLiteral("raid")].toObject();
     if (raid.isEmpty())
     {
@@ -154,7 +203,13 @@ bool handleRaid(const QString & /*topic*/, const QJsonObject &payload,
         return false;
     }
 
-    event.displayText = formatRaidDisplay(event, raid);
+    const QString sourceId = raid[QStringLiteral("source_id")].toString();
+    event.displayText = formatRaidDisplay(raid, started);
+    if (!sourceId.isEmpty())
+    {
+        // Wire into existing Helix batch resolver (E1.b / B4.2).
+        event.displayChannelId = sourceId;
+    }
     return true;
 }
 
@@ -165,7 +220,7 @@ bool handlePredictionsChannel(const QString & /*topic*/,
     if (type != QLatin1String("event-created") &&
         type != QLatin1String("event-updated"))
     {
-        return false;  // unknown type string: generic events-channel line
+        return false;
     }
     event.displayText = sharedPredictionEventText(
         payload[QStringLiteral("data")].toObject(), type, false);
@@ -189,11 +244,15 @@ void installHermesChannelTopicHandlers(LimerinoPubSubController &controller)
     controller.registerTopicHandler(QStringLiteral("polls."),
                                     &handlePollChannel);
 
-    // Reference event type strings (pre-register so the filter dialog has
-    // known entries before the first stream event).
     controller.registerKnownEventType(QStringLiteral("raid_update_v2"));
+    controller.registerKnownEventType(QStringLiteral("raid_go_v2"));
     controller.registerKnownEventType(QStringLiteral("event-created"));
     controller.registerKnownEventType(QStringLiteral("event-updated"));
+    controller.registerKnownEventType(QStringLiteral("POLL_CREATE"));
+    controller.registerKnownEventType(QStringLiteral("POLL_UPDATE"));
+    controller.registerKnownEventType(QStringLiteral("POLL_COMPLETE"));
+    controller.registerKnownEventType(QStringLiteral("POLL_END"));
+    controller.registerKnownEventType(QStringLiteral("POLL_ARCHIVE"));
 }
 
 void ensureHermesChannelTopics(const TwitchChannel &channel)

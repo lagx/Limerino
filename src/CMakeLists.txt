@@ -1009,6 +1009,8 @@ set(SOURCE_FILES
         providers/limerino/pubsub/LimerinoChannelNameResolver.hpp
         providers/limerino/pubsub/LimerinoPubSubController.cpp
         providers/limerino/pubsub/LimerinoPubSubController.hpp
+        providers/limerino/pubsub/LimerinoPubSubEventDedupe.cpp
+        providers/limerino/pubsub/LimerinoPubSubEventDedupe.hpp
         providers/limerino/pubsub/LimerinoPubSubTopics.cpp
         providers/limerino/pubsub/LimerinoPubSubTopics.hpp
         widgets/dialogs/limerino/LimerinoEventFilterDialog.cpp

@@ -135,6 +135,10 @@ public:
     ~Settings();
 
     static Settings &instance();
+    static bool hasInstance() noexcept
+    {
+        return instance_ != nullptr;
+    }
 
     /// Request the settings to be saved to file
     ///
@@ -906,6 +910,11 @@ public:
     // Limerino: event types hidden in the /events channel.
     ChatterinoSetting<QStringList> limerinoPubSubHiddenEventTypes{
         "/limerino/pubsub/hiddenEventTypes", {}};
+
+    // Limerino: suppress duplicate Hermes notifications in /events (B4.1).
+    // Off = show every wire notification (debug "why did my event vanish").
+    BoolSetting limerinoPubSubDedupeEnabled{
+        "/limerino/pubsub/dedupeEnabled", true};
 
     // Limerino: auto-acknowledge chat warnings received over chatrooms-user-v1.
     // Off by default (decided in batch P2); mirrors reference

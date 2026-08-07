@@ -8,8 +8,10 @@
 #include "providers/limerino/pubsub/HermesChannelTopics.hpp"
 #include "providers/limerino/pubsub/HermesMessages.hpp"
 #include "providers/limerino/pubsub/HermesUserTopics.hpp"
+#include "providers/limerino/pubsub/LimerinoPubSubEventDedupe.hpp"
 #include "Test.hpp"
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
 #include <QtCore/qtestsupport_core.h>
@@ -436,15 +438,68 @@ TEST(LimerinoPubSubP1, HandlersInstallAndRaidFormats)
 
     ASSERT_EQ(events.size(), 1);
     ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("Target")));
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("id:9001")));
     ASSERT_TRUE(events[0].channelId == QStringLiteral("2500"));
+    ASSERT_TRUE(events[0].displayChannelId == QStringLiteral("9001"));
 
-    // Fallback shape: raid nested under data.
+    // Nested data.raid shape (same raid id → still a second line when Settings
+    // / dedupe is unavailable in this test harness).
     sinkPtr->sigTopicMessage.invoke(
         "raid.2500",
         QJsonObject{{"type", "raid_update_v2"},
                     {"data", QJsonObject{{"raid", raid}}}});
     ASSERT_EQ(events.size(), 2);
     ASSERT_TRUE(events[1].displayText.contains(QStringLiteral("Target")));
+
+    // raid_go_v2 is distinct from raid_update_v2 despite sharing raid.id.
+    sinkPtr->sigTopicMessage.invoke(
+        "raid.2500",
+        QJsonObject{{"type", "raid_go_v2"}, {"raid", raid}});
+    ASSERT_EQ(events.size(), 3);
+    ASSERT_TRUE(events[2].displayText.contains(QStringLiteral("raid started")));
+}
+
+TEST(LimerinoPubSubP1, PollCreateListsChoicesWithoutZeroCounts)
+{
+    auto sink = std::make_unique<FakeSink>();
+    auto *sinkPtr = sink.get();
+    LimerinoPubSubController controller(
+        std::move(sink), [](PubSubTopicAuth) -> PubSubTokenResolution {
+            return {};
+        },
+        TEST_CONFIG);
+
+    limerino::installHermesChannelTopicHandlers(controller);
+
+    std::vector<PubSubEvent> events;
+    controller.eventProduced.connect(
+        [&events](const PubSubEvent &event) { events.push_back(event); });
+
+    const QJsonObject poll{
+        {"poll_id", "p1"},
+        {"title", "aa"},
+        {"status", "ACTIVE"},
+        {"settings",
+         QJsonObject{{"multi_choice", QJsonObject{{"is_enabled", true}}}}},
+        {"choices",
+         QJsonArray{
+             QJsonObject{{"title", "1"},
+                         {"votes", QJsonObject{{"total", 0}}}},
+             QJsonObject{{"title", "2"},
+                         {"votes", QJsonObject{{"total", 0}}}},
+         }},
+    };
+    sinkPtr->sigTopicMessage.invoke(
+        "polls.99",
+        QJsonObject{{"type", "POLL_CREATE"},
+                    {"data", QJsonObject{{"poll", poll}}}});
+
+    ASSERT_EQ(events.size(), 1);
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("aa")));
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("1. 1")));
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("2. 2")));
+    ASSERT_TRUE(events[0].displayText.contains(QStringLiteral("multi")));
+    ASSERT_FALSE(events[0].displayText.contains(QStringLiteral("(0)")));
 }
 
 TEST(LimerinoPubSubP1, UnknownTypesFallBackToTypeString)
@@ -837,4 +892,59 @@ TEST(LimerinoPubSubR2, PredictionsUserEventAndResult)
         QStringLiteral("prediction-event")));
     ASSERT_FALSE(controller.knownEventTypes().contains(
         QStringLiteral("prediction-prediction")));
+}
+
+TEST(LimerinoPubSubDedupe, RaidIdentitySeparatesUpdateAndGo)
+{
+    PubSubEvent update{
+        .eventType = QStringLiteral("raid_update_v2"),
+        .payload =
+            QJsonObject{{"type", "raid_update_v2"},
+                        {"raid", QJsonObject{{"id", "r1"},
+                                             {"source_id", "1"}}}},
+    };
+    PubSubEvent go = update;
+    go.eventType = QStringLiteral("raid_go_v2");
+    go.payload["type"] = QStringLiteral("raid_go_v2");
+
+    const QString idUpdate = pubSubEventIdentity(update);
+    const QString idGo = pubSubEventIdentity(go);
+    ASSERT_FALSE(idUpdate.isEmpty());
+    ASSERT_NE(idUpdate, idGo);
+
+    PubSubEventDedupe dedupe;
+    ASSERT_FALSE(dedupe.isDuplicate(idUpdate, pubSubDedupeWindowMs(
+                                                  update.eventType)));
+    ASSERT_TRUE(dedupe.isDuplicate(idUpdate, pubSubDedupeWindowMs(
+                                                 update.eventType)));
+    ASSERT_FALSE(
+        dedupe.isDuplicate(idGo, pubSubDedupeWindowMs(go.eventType)));
+}
+
+TEST(LimerinoPubSubDedupe, PollIdentityIncludesType)
+{
+    PubSubEvent create{
+        .eventType = QStringLiteral("POLL_CREATE"),
+        .payload =
+            QJsonObject{
+                {"type", "POLL_CREATE"},
+                {"data",
+                 QJsonObject{
+                     {"poll", QJsonObject{{"poll_id", "p1"},
+                                          {"status", "ACTIVE"},
+                                          {"title", "aa"}}}}}},
+    };
+    PubSubEvent update{
+        .eventType = QStringLiteral("POLL_UPDATE"),
+        .payload =
+            QJsonObject{
+                {"type", "POLL_UPDATE"},
+                {"data",
+                 QJsonObject{
+                     {"poll", QJsonObject{{"poll_id", "p1"},
+                                          {"status", "ACTIVE"},
+                                          {"title", "aa"}}}}}},
+    };
+
+    ASSERT_NE(pubSubEventIdentity(create), pubSubEventIdentity(update));
 }

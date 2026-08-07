@@ -10,7 +10,9 @@
 #include "providers/limerino/pubsub/HermesManager.hpp"
 #include "providers/limerino/pubsub/HermesUserTopics.hpp"
 #include "providers/limerino/pubsub/LimerinoChannelNameResolver.hpp"
+#include "providers/limerino/pubsub/LimerinoPubSubEventDedupe.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubTopics.hpp"
+#include "singletons/Settings.hpp"
 
 #include <QTimer>
 
@@ -640,7 +642,22 @@ void LimerinoPubSubController::onTopicMessage(const QString &topic,
         this->registerKnownEventType(event.eventType);
     }
 
-    // E1.b: resolve channel id -> login before constructing the /events line.
+    // B4.1: drop byte-identical / heartbeat repeats (keyed on payload identity).
+    // Skip when Settings is unavailable (unit tests construct bare controllers).
+    if (Settings::hasInstance() &&
+        getSettings()->limerinoPubSubDedupeEnabled.getValue())
+    {
+        const QString identity = pubSubEventIdentity(event);
+        if (pubSubEventDedupe().isDuplicate(
+                identity, pubSubDedupeWindowMs(event.eventType)))
+        {
+            return;
+        }
+    }
+
+    // E1.b / B4.2: resolve displayChannelId -> login before constructing the
+    // /events line. Unresolved ids are rewritten as "id:<n>" so they cannot be
+    // mistaken for a display name.
     const QString channelId = event.displayChannelId;
     if (!channelId.isEmpty() && event.displayText.contains(channelId))
     {
@@ -649,6 +666,11 @@ void LimerinoPubSubController::onTopicMessage(const QString &topic,
             if (name != channelId)
             {
                 event.displayText.replace(channelId, name);
+            }
+            else
+            {
+                event.displayText.replace(
+                    channelId, QStringLiteral("id:%1").arg(channelId));
             }
             this->eventProduced.invoke(event);
         });
