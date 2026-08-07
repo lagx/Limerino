@@ -18,6 +18,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class QPushButton;
 class QTabWidget;
 class QTableWidget;
 class QCheckBox;
@@ -65,12 +66,15 @@ private:
     // Presets tab
     void rebuildPresetList();
     void onPresetSelectionChanged();
+    void updatePresetEditorEnabled();
     void onAddPreset();
     void onDeletePreset();
     void onSavePresetChannels();
     void onAddPresetChannel();
     void onRemovePresetChannel();
     void fillModeratedIntoInputCompleter();
+
+    const CrossbanPreset *currentEditingPreset() const;
 
     QString targetUserId_;
     QString targetLogin_;
@@ -90,8 +94,13 @@ private:
     // Presets tab
     QListWidget *presetList_ = nullptr;
     QLineEdit *presetNameEdit_ = nullptr;
+    QLabel *dynamicHintLabel_ = nullptr;
     QLineEdit *channelInput_ = nullptr;
     QListWidget *channelList_ = nullptr;
+    QPushButton *addChannelBtn_ = nullptr;
+    QPushButton *removeChannelBtn_ = nullptr;
+    QPushButton *savePresetBtn_ = nullptr;
+    QPushButton *deletePresetBtn_ = nullptr;
     QUuid editingPresetId_;
 };
 

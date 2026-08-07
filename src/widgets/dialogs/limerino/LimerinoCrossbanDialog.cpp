@@ -188,15 +188,15 @@ void LimerinoCrossbanDialog::buildUi()
         left->addWidget(this->presetList_, 1);
         auto *leftBtns = new QHBoxLayout;
         auto *addP = new QPushButton(QStringLiteral("Add"), page);
-        auto *delP = new QPushButton(QStringLiteral("Delete"), page);
+        this->deletePresetBtn_ = new QPushButton(QStringLiteral("Delete"), page);
         leftBtns->addWidget(addP);
-        leftBtns->addWidget(delP);
+        leftBtns->addWidget(this->deletePresetBtn_);
         left->addLayout(leftBtns);
         lay->addLayout(left, 1);
 
         QObject::connect(addP, &QPushButton::clicked, this,
                          &LimerinoCrossbanDialog::onAddPreset);
-        QObject::connect(delP, &QPushButton::clicked, this,
+        QObject::connect(this->deletePresetBtn_, &QPushButton::clicked, this,
                          &LimerinoCrossbanDialog::onDeletePreset);
         QObject::connect(this->presetList_, &QListWidget::currentRowChanged,
                          this, [this](int) {
@@ -208,31 +208,44 @@ void LimerinoCrossbanDialog::buildUi()
         this->presetNameEdit_->setPlaceholderText(QStringLiteral("Preset name"));
         right->addWidget(this->presetNameEdit_);
 
+        this->dynamicHintLabel_ = new QLabel(
+            QStringLiteral(
+                "This preset always uses every channel you currently "
+                "moderate (from Limerino auth). It updates when you gain "
+                "or lose mod — no channel list to edit."),
+            page);
+        this->dynamicHintLabel_->setWordWrap(true);
+        this->dynamicHintLabel_->setVisible(false);
+        right->addWidget(this->dynamicHintLabel_);
+
         this->channelInput_ = new QLineEdit(page);
         this->channelInput_->setPlaceholderText(
-            QStringLiteral("Add channel login (from moderated list)"));
+            QStringLiteral("Add channel login (moderated or not)"));
         right->addWidget(this->channelInput_);
 
         this->channelList_ = new QListWidget(page);
         right->addWidget(this->channelList_, 1);
 
         auto *chBtns = new QHBoxLayout;
-        auto *addCh = new QPushButton(QStringLiteral("Add channel"), page);
-        auto *rmCh = new QPushButton(QStringLiteral("Remove selected"), page);
-        auto *saveP = new QPushButton(QStringLiteral("Save preset"), page);
-        chBtns->addWidget(addCh);
-        chBtns->addWidget(rmCh);
+        this->addChannelBtn_ =
+            new QPushButton(QStringLiteral("Add channel"), page);
+        this->removeChannelBtn_ =
+            new QPushButton(QStringLiteral("Remove selected"), page);
+        this->savePresetBtn_ =
+            new QPushButton(QStringLiteral("Save preset"), page);
+        chBtns->addWidget(this->addChannelBtn_);
+        chBtns->addWidget(this->removeChannelBtn_);
         chBtns->addStretch(1);
-        chBtns->addWidget(saveP);
+        chBtns->addWidget(this->savePresetBtn_);
         right->addLayout(chBtns);
 
-        QObject::connect(addCh, &QPushButton::clicked, this,
+        QObject::connect(this->addChannelBtn_, &QPushButton::clicked, this,
                          &LimerinoCrossbanDialog::onAddPresetChannel);
         QObject::connect(this->channelInput_, &QLineEdit::returnPressed, this,
                          &LimerinoCrossbanDialog::onAddPresetChannel);
-        QObject::connect(rmCh, &QPushButton::clicked, this,
+        QObject::connect(this->removeChannelBtn_, &QPushButton::clicked, this,
                          &LimerinoCrossbanDialog::onRemovePresetChannel);
-        QObject::connect(saveP, &QPushButton::clicked, this,
+        QObject::connect(this->savePresetBtn_, &QPushButton::clicked, this,
                          &LimerinoCrossbanDialog::onSavePresetChannels);
 
         lay->addLayout(right, 2);
@@ -257,8 +270,12 @@ void LimerinoCrossbanDialog::rebuildPresetCombo()
     }
     for (const auto &p : this->presets_)
     {
+        const int count =
+            p.useAllModeratedChannels
+                ? collectAllModeratedChannels().size()
+                : p.channels.size();
         this->presetCombo_->addItem(
-            QStringLiteral("%1 (%2)").arg(p.name).arg(p.channels.size()),
+            QStringLiteral("%1 (%2)").arg(p.name).arg(count),
             p.id.toString(QUuid::WithoutBraces));
     }
 }
@@ -283,7 +300,19 @@ void LimerinoCrossbanDialog::loadSelectedPresetIntoTable()
     const auto &preset = this->presets_[idx];
     setLastCrossbanPresetId(preset.id);
 
-    for (const auto &ch : preset.channels)
+    const QVector<CrossbanChannel> channels =
+        preset.useAllModeratedChannels ? collectAllModeratedChannels()
+                                       : preset.channels;
+
+    if (preset.useAllModeratedChannels && channels.isEmpty())
+    {
+        this->statusLabel_->setText(QStringLiteral(
+            "No moderated channels on your Limerino accounts yet. "
+            "Refresh moderated channels from the Limerino settings tab, "
+            "or add a custom preset."));
+    }
+
+    for (const auto &ch : channels)
     {
         RowState row;
         row.channel = ch;
@@ -672,14 +701,45 @@ void LimerinoCrossbanDialog::onRowComments(int row)
 
 // ----- Presets tab -----
 
+const CrossbanPreset *LimerinoCrossbanDialog::currentEditingPreset() const
+{
+    for (const auto &p : this->presets_)
+    {
+        if (p.id == this->editingPresetId_)
+        {
+            return &p;
+        }
+    }
+    return nullptr;
+}
+
+void LimerinoCrossbanDialog::updatePresetEditorEnabled()
+{
+    const auto *p = this->currentEditingPreset();
+    const bool dynamic = p != nullptr && p->useAllModeratedChannels;
+    const bool hasSelection = p != nullptr;
+
+    this->dynamicHintLabel_->setVisible(dynamic);
+    this->presetNameEdit_->setEnabled(hasSelection && !dynamic);
+    this->channelInput_->setEnabled(hasSelection && !dynamic);
+    this->channelList_->setEnabled(hasSelection);
+    this->addChannelBtn_->setEnabled(hasSelection && !dynamic);
+    this->removeChannelBtn_->setEnabled(hasSelection && !dynamic);
+    this->savePresetBtn_->setEnabled(hasSelection && !dynamic);
+    this->deletePresetBtn_->setEnabled(hasSelection && !dynamic);
+}
+
 void LimerinoCrossbanDialog::rebuildPresetList()
 {
     const QSignalBlocker block(this->presetList_);
     this->presetList_->clear();
     for (const auto &p : this->presets_)
     {
+        const int count =
+            p.useAllModeratedChannels ? collectAllModeratedChannels().size()
+                                      : p.channels.size();
         auto *item = new QListWidgetItem(
-            QStringLiteral("%1 (%2)").arg(p.name).arg(p.channels.size()),
+            QStringLiteral("%1 (%2)").arg(p.name).arg(count),
             this->presetList_);
         item->setData(Qt::UserRole, p.id.toString(QUuid::WithoutBraces));
     }
@@ -693,6 +753,7 @@ void LimerinoCrossbanDialog::onPresetSelectionChanged()
         this->editingPresetId_ = QUuid();
         this->presetNameEdit_->clear();
         this->channelList_->clear();
+        this->updatePresetEditorEnabled();
         return;
     }
     this->editingPresetId_ =
@@ -705,7 +766,10 @@ void LimerinoCrossbanDialog::onPresetSelectionChanged()
         }
         this->presetNameEdit_->setText(p.name);
         this->channelList_->clear();
-        for (const auto &c : p.channels)
+        const QVector<CrossbanChannel> channels =
+            p.useAllModeratedChannels ? collectAllModeratedChannels()
+                                      : p.channels;
+        for (const auto &c : channels)
         {
             auto *ci = new QListWidgetItem(
                 c.displayName.isEmpty()
@@ -716,8 +780,10 @@ void LimerinoCrossbanDialog::onPresetSelectionChanged()
             ci->setData(Qt::UserRole + 1, c.login);
             ci->setData(Qt::UserRole + 2, c.displayName);
         }
+        this->updatePresetEditorEnabled();
         return;
     }
+    this->updatePresetEditorEnabled();
 }
 
 void LimerinoCrossbanDialog::onAddPreset()
@@ -725,6 +791,7 @@ void LimerinoCrossbanDialog::onAddPreset()
     CrossbanPreset p;
     p.id = QUuid::createUuid();
     p.name = QStringLiteral("Preset %1").arg(this->presets_.size() + 1);
+    p.useAllModeratedChannels = false;
     this->presets_.append(p);
     saveCrossbanPresets(this->presets_);
     this->rebuildPresetList();
@@ -739,8 +806,22 @@ void LimerinoCrossbanDialog::onDeletePreset()
     {
         return;
     }
+    if (this->presets_[row].useAllModeratedChannels)
+    {
+        QMessageBox::information(
+            this, QStringLiteral("Cannot delete"),
+            QStringLiteral(
+                "\"Every moderated channel\" is the built-in default and "
+                "cannot be deleted. Add a custom preset for a fixed list."));
+        return;
+    }
     this->presets_.removeAt(row);
     saveCrossbanPresets(this->presets_);
+    // Re-ensure dynamic default still present (no-op if already there).
+    if (ensureAllModeratedPreset(this->presets_))
+    {
+        saveCrossbanPresets(this->presets_);
+    }
     this->rebuildPresetList();
     this->rebuildPresetCombo();
     this->loadSelectedPresetIntoTable();
@@ -757,6 +838,10 @@ void LimerinoCrossbanDialog::onSavePresetChannels()
         if (p.id != this->editingPresetId_)
         {
             continue;
+        }
+        if (p.useAllModeratedChannels)
+        {
+            return;
         }
         p.name = this->presetNameEdit_->text().trimmed();
         if (p.name.isEmpty())
@@ -783,6 +868,11 @@ void LimerinoCrossbanDialog::onSavePresetChannels()
 
 void LimerinoCrossbanDialog::onAddPresetChannel()
 {
+    if (const auto *p = this->currentEditingPreset();
+        p != nullptr && p->useAllModeratedChannels)
+    {
+        return;
+    }
     const QString raw = this->channelInput_->text().trimmed();
     if (raw.isEmpty())
     {
@@ -826,6 +916,11 @@ void LimerinoCrossbanDialog::onAddPresetChannel()
 
 void LimerinoCrossbanDialog::onRemovePresetChannel()
 {
+    if (const auto *p = this->currentEditingPreset();
+        p != nullptr && p->useAllModeratedChannels)
+    {
+        return;
+    }
     for (auto *item : this->channelList_->selectedItems())
     {
         delete this->channelList_->takeItem(this->channelList_->row(item));

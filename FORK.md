@@ -182,9 +182,9 @@ Entirely ours; will never conflict with upstream merges:
 | `src/widgets/dialogs/limerino/LimerinoAppearanceWidget.{hpp,cpp}` | Appearance chat colour: Helix swatch grid + custom field + persisted recents (E7) |
 | `src/providers/limerino/crossban/CrossbanStrike.{hpp,cpp}` | parse ChatModeratorStrikeStatus → Clean/Banned/TimedOut/Warning (crossban) |
 | `src/providers/limerino/crossban/CrossbanComments.{hpp,cpp}` | parse ViewerCardModLogsComments + createModComment helper (crossban) |
-| `src/providers/limerino/crossban/CrossbanPresets.{hpp,cpp}` | JSON presets under `/limerino/crossban/presets` (crossban) |
-| `src/widgets/dialogs/limerino/LimerinoCrossbanDialog.{hpp,cpp}` | usercard crossban UI: Channels + Presets tabs, strike refresh, Helix ban/timeout/unban, mod notes (crossban) |
-| `tests/src/LimerinoCrossban.cpp` | strike + comment parse fixtures from live captures (crossban) |
+| `src/providers/limerino/crossban/CrossbanPresets.{hpp,cpp}` | JSON presets under `/limerino/crossban/presets` (crossban); D7: `useAllModeratedChannels` dynamic default + migration via `ensureAllModeratedPreset` |
+| `src/widgets/dialogs/limerino/LimerinoCrossbanDialog.{hpp,cpp}` | usercard crossban UI: Channels + Presets tabs, strike refresh, Helix ban/timeout/unban, mod notes (crossban); D7: expand live moderated list for default preset |
+| `tests/src/LimerinoCrossban.cpp` | strike + comment parse fixtures from live captures (crossban); D7: ensure-default migration unit tests |
 
 ### Feature wiki (settings page)
 

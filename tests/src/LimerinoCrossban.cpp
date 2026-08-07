@@ -2,10 +2,12 @@
 
 #include "providers/limerino/crossban/CrossbanStrike.hpp"
 #include "providers/limerino/crossban/CrossbanComments.hpp"
+#include "providers/limerino/crossban/CrossbanPresets.hpp"
 
 #include <gtest/gtest.h>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUuid>
 
 using namespace chatterino::limerino;
 
@@ -94,4 +96,35 @@ TEST(LimerinoCrossban, ParseModComments)
     ASSERT_EQ(comments.size(), 1);
     EXPECT_EQ(comments[0].text, QStringLiteral("abcdef"));
     EXPECT_EQ(comments[0].authorLogin, QStringLiteral("lime"));
+}
+
+TEST(LimerinoCrossban, EnsureAllModeratedOnEmpty)
+{
+    QVector<CrossbanPreset> presets;
+    EXPECT_TRUE(ensureAllModeratedPreset(presets));
+    ASSERT_EQ(presets.size(), 1);
+    EXPECT_TRUE(presets[0].useAllModeratedChannels);
+    EXPECT_EQ(presets[0].id, allModeratedChannelsPresetId());
+    EXPECT_TRUE(presets[0].channels.isEmpty());
+    // Second call is a no-op.
+    EXPECT_FALSE(ensureAllModeratedPreset(presets));
+    EXPECT_EQ(presets.size(), 1);
+}
+
+TEST(LimerinoCrossban, EnsureAllModeratedKeepsCustomPresets)
+{
+    CrossbanPreset custom;
+    custom.id = QUuid::createUuid();
+    custom.name = QStringLiteral("My mods snapshot");
+    custom.channels.append(
+        CrossbanChannel{QStringLiteral("1"), QStringLiteral("forsen"),
+                        QStringLiteral("Forsen")});
+
+    QVector<CrossbanPreset> presets{custom};
+    EXPECT_TRUE(ensureAllModeratedPreset(presets));
+    ASSERT_EQ(presets.size(), 2);
+    EXPECT_TRUE(presets[0].useAllModeratedChannels);
+    EXPECT_EQ(presets[1].id, custom.id);
+    EXPECT_EQ(presets[1].channels.size(), 1);
+    EXPECT_EQ(presets[1].channels[0].login, QStringLiteral("forsen"));
 }

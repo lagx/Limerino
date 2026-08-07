@@ -479,13 +479,15 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("Crossban"),
             QStringLiteral("Moderation"),
             QStringLiteral("Ban, timeout, or unban a user across a channel preset"),
-            QStringLiteral("Opens from the usercard. Build named channel presets "
-                           "(from channels you moderate), refresh live strike "
-                           "status per channel (banned / timed out / clean), "
-                           "act with a shared reason, and read or add mod notes. "
-                           "Ban/timeout/unban use the primary Twitch account "
-                           "(same as Nuke); status and notes use Limerino "
-                           "extra-features auth."),
+            QStringLiteral("Opens from the usercard. Default preset is every "
+                           "channel you currently moderate (live from Limerino "
+                           "auth, not a snapshot). Custom presets can pin a "
+                           "fixed list, including channels you don't mod "
+                           "(those rows show an auth/mod error). Refresh live "
+                           "strike status per channel, act with a shared reason, "
+                           "and read or add mod notes. Ban/timeout/unban use the "
+                           "primary Twitch account (same as Nuke); status and "
+                           "notes use Limerino extra-features auth."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Dialog,
