@@ -29,7 +29,10 @@ void revokeArtist(const QString &userLogin, const ChannelPtr &channel);
 void grantLeadMod(const QString &userLogin, const ChannelPtr &channel);
 
 // Avatar-menu entries (7tv lookups, any channel/user)
-void showSeventvChannelEditors(const ChannelPtr &channel);
+/** Editors of the given Twitch user (usercard target), not the split channel. */
+void showSeventvUserEditors(const QString &twitchUserId,
+                            const QString &userLogin,
+                            const ChannelPtr &feedbackChannel);
 void showSeventvUserEditorIn(const QString &userLogin);
 
 }  // namespace LimerinoCommands

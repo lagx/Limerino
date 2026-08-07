@@ -11,7 +11,6 @@
 #include "providers/limerino/gql/PersistedQueries.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
 #include "providers/limerino/LimerinoErrors.hpp"
-#include "providers/twitch/TwitchChannel.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoResultList.hpp"
 
@@ -278,88 +277,105 @@ void grantLeadMod(const QString &userLogin, const ChannelPtr &channel)
 // Avatar-menu 7tv info widgets
 // ---------------------------------------------------------------
 
-void showSeventvChannelEditors(const ChannelPtr &channel)
+void showSeventvUserEditors(const QString &twitchUserId,
+                            const QString &userLogin,
+                            const ChannelPtr &feedbackChannel)
 {
-    auto *tchan = dynamic_cast<TwitchChannel *>(channel.get());
-    if (tchan == nullptr)
+    if (twitchUserId.isEmpty())
     {
-        say(channel, QStringLiteral("not a twitch channel"));
+        say(feedbackChannel,
+            QStringLiteral("No Twitch user id for '%1'.").arg(userLogin));
         return;
     }
 
-    fetchSeventvUserId(tchan->roomId(), [channel](const QString &stvUserId) {
-        NetworkRequest(QUrl(QStringLiteral("https://7tv.io/v4/gql")),
-                       NetworkRequestType::Post)
-            .header("Content-Type", "application/json")
-            .payload(QJsonDocument(
-                         QJsonObject{{QStringLiteral("query"),
-                                      gql::SEVENTV_ONE_USER_QUERY},
-                                     {QStringLiteral("variables"),
-                                      QJsonObject{{QStringLiteral("id"), stvUserId}}}})
-                         .toJson(QJsonDocument::Compact))
-            .timeout(5000)
-            .onSuccess([channel](NetworkResult result) {
-                const QJsonObject root =
-                    QJsonDocument::fromJson(result.getData()).object();
-                // 7TV returns HTTP 200 with data:null + errors[] for bad
-                // selection sets; treat that as failure, not an empty list.
-                if (root.contains(QStringLiteral("errors")) &&
-                    !root.value(QStringLiteral("errors")).toArray().isEmpty() &&
-                    (root.value(QStringLiteral("data")).isNull() ||
-                     !root.contains(QStringLiteral("data"))))
-                {
-                    say(channel,
-                        QStringLiteral("Failed to fetch 7tv editors."));
-                    return;
-                }
-                const QJsonArray editors =
-                    root.value(QStringLiteral("data"))
-                        .toObject()[QStringLiteral("users")]
-                        .toObject()[QStringLiteral("user")]
-                        .toObject()[QStringLiteral("editors")]
-                        .toArray();
-                QVector<QStringList> rows;
-                for (int i = 0; i < editors.size(); ++i)
-                {
-                    const QJsonObject editor =
-                        editors.at(i)
-                            .toObject()
-                            .value(QStringLiteral("editor"))
-                            .toObject();
-                    rows.append(
-                        {editor.value(QStringLiteral("mainConnection"))
-                             .toObject()
-                             .value(QStringLiteral("platformDisplayName"))
-                             .toString(),
-                         editor.value(QStringLiteral("id")).toString()});
-                }
+    const QString label =
+        userLogin.trimmed().isEmpty() ? twitchUserId : userLogin.trimmed();
 
-                auto *dialog = new limerino::LimerinoResultDialog;
-                dialog->setAttribute(Qt::WA_DeleteOnClose);
-                dialog->setWindowTitle(QStringLiteral("Channel editors"));
-                dialog->resultList()->setTitleText(QStringLiteral(
-                    "The editors (%1) of this channel are:").arg(rows.size()));
-                dialog->resultList()->setColumns(
-                    {QStringLiteral("name"), QStringLiteral("7tv id")});
-                dialog->resultList()->setRows(rows);
-                dialog->resultList()->setStatusText(
-                    QStringLiteral("click a row to open the 7tv profile"));
-                dialog->resultList()->setRowOpenUrlProvider(
-                    [](const QStringList &row) {
-                        const QString id = row.value(1);
-                        return id.isEmpty()
-                                   ? QString()
-                                   : QStringLiteral("https://7tv.app/users/%1")
-                                         .arg(id);
-                    });
-                dialog->resize(420, 460);
-                dialog->show();
-            })
-            .onError([channel](NetworkResult result) {
-                say(channel, QStringLiteral("Failed to fetch 7tv editors."));
-            })
-            .execute();
-    }, [channel](const QString &err) { say(channel, err); });
+    fetchSeventvUserId(
+        twitchUserId,
+        [label, feedbackChannel](const QString &stvUserId) {
+            NetworkRequest(QUrl(QStringLiteral("https://7tv.io/v4/gql")),
+                           NetworkRequestType::Post)
+                .header("Content-Type", "application/json")
+                .payload(QJsonDocument(
+                             QJsonObject{
+                                 {QStringLiteral("query"),
+                                  gql::SEVENTV_ONE_USER_QUERY},
+                                 {QStringLiteral("variables"),
+                                  QJsonObject{
+                                      {QStringLiteral("id"), stvUserId}}}})
+                             .toJson(QJsonDocument::Compact))
+                .timeout(5000)
+                .onSuccess([label, feedbackChannel](NetworkResult result) {
+                    const QJsonObject root =
+                        QJsonDocument::fromJson(result.getData()).object();
+                    // 7TV returns HTTP 200 with data:null + errors[] for bad
+                    // selection sets; treat that as failure, not an empty list.
+                    if (root.contains(QStringLiteral("errors")) &&
+                        !root.value(QStringLiteral("errors"))
+                             .toArray()
+                             .isEmpty() &&
+                        (root.value(QStringLiteral("data")).isNull() ||
+                         !root.contains(QStringLiteral("data"))))
+                    {
+                        say(feedbackChannel,
+                            QStringLiteral("Failed to fetch 7tv editors."));
+                        return;
+                    }
+                    const QJsonArray editors =
+                        root.value(QStringLiteral("data"))
+                            .toObject()[QStringLiteral("users")]
+                            .toObject()[QStringLiteral("user")]
+                            .toObject()[QStringLiteral("editors")]
+                            .toArray();
+                    QVector<QStringList> rows;
+                    for (int i = 0; i < editors.size(); ++i)
+                    {
+                        const QJsonObject editor =
+                            editors.at(i)
+                                .toObject()
+                                .value(QStringLiteral("editor"))
+                                .toObject();
+                        rows.append(
+                            {editor.value(QStringLiteral("mainConnection"))
+                                 .toObject()
+                                 .value(QStringLiteral("platformDisplayName"))
+                                 .toString(),
+                             editor.value(QStringLiteral("id")).toString()});
+                    }
+
+                    auto *dialog = new limerino::LimerinoResultDialog;
+                    dialog->setAttribute(Qt::WA_DeleteOnClose);
+                    dialog->setWindowTitle(
+                        QStringLiteral("7TV editors — %1").arg(label));
+                    dialog->resultList()->setTitleText(
+                        QStringLiteral("The editors (%1) of %2 are:")
+                            .arg(rows.size())
+                            .arg(label));
+                    dialog->resultList()->setColumns(
+                        {QStringLiteral("name"), QStringLiteral("7tv id")});
+                    dialog->resultList()->setRows(rows);
+                    dialog->resultList()->setStatusText(QStringLiteral(
+                        "click a row to open the 7tv profile"));
+                    dialog->resultList()->setRowOpenUrlProvider(
+                        [](const QStringList &row) {
+                            const QString id = row.value(1);
+                            return id.isEmpty()
+                                       ? QString()
+                                       : QStringLiteral(
+                                             "https://7tv.app/users/%1")
+                                             .arg(id);
+                        });
+                    dialog->resize(420, 460);
+                    dialog->show();
+                })
+                .onError([feedbackChannel](NetworkResult) {
+                    say(feedbackChannel,
+                        QStringLiteral("Failed to fetch 7tv editors."));
+                })
+                .execute();
+        },
+        [feedbackChannel](const QString &err) { say(feedbackChannel, err); });
 }
 
 void showSeventvUserEditorIn(const QString &userLogin)
@@ -410,11 +426,12 @@ void showSeventvUserEditorIn(const QString &userLogin)
                             user[QStringLiteral("editor_of")].toArray();
 
                         QVector<QStringList> rows;
-                        for (const QJsonValue &v : editorOf)
+                        for (int i = 0; i < editorOf.size(); ++i)
                         {
-                            const QJsonObject u = v.toObject()
-                                                      [QStringLiteral("user")]
-                                                      .toObject();
+                            const QJsonObject u =
+                                editorOf.at(i)
+                                    .toObject()[QStringLiteral("user")]
+                                    .toObject();
                             rows.append({u[QStringLiteral("display_name")]
                                              .toString(),
                                          u[QStringLiteral("id")].toString()});

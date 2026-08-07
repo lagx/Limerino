@@ -351,10 +351,14 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                         });
 
                         // Limerino fork hooks: 7tv role information
-                        menu->addAction("View channel editors (7TV)", this,
+                        // Editors of the usercard target (userId_), not the
+                        // split channel's broadcaster (roomId).
+                        menu->addAction("View user editors (7TV)", this,
                                         [this] {
                                             LimerinoCommands::
-                                                showSeventvChannelEditors(
+                                                showSeventvUserEditors(
+                                                    this->userId_,
+                                                    this->userName_,
                                                     this->underlyingChannel_);
                                         });
                         menu->addAction("View editor-in-channels (7TV)", this,

@@ -407,14 +407,14 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("seventv-editors"),
             QStringLiteral("7TV editor lists"),
             QStringLiteral("User info"),
-            QStringLiteral("View a channel or user's 7TV editors"),
-            QStringLiteral("From a usercard's avatar menu: list a channel's "
+            QStringLiteral("View a user's 7TV editors"),
+            QStringLiteral("From a usercard's avatar menu: list that user's "
                            "7TV editors, or the channels somebody edits in; "
                            "rows link to their 7TV user pages."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::ContextMenu,
-                 QStringLiteral("usercard avatar right-click > View channel "
+                 QStringLiteral("usercard avatar right-click > View user "
                                 "editors (7TV) / View editor-in-channels (7TV)")},
             },
             {},
