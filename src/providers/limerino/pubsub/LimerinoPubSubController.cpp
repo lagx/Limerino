@@ -9,6 +9,7 @@
 #include "providers/limerino/pubsub/HermesChannelTopics.hpp"
 #include "providers/limerino/pubsub/HermesManager.hpp"
 #include "providers/limerino/pubsub/HermesUserTopics.hpp"
+#include "providers/limerino/pubsub/LimerinoChannelNameResolver.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubTopics.hpp"
 
 #include <QTimer>
@@ -612,6 +613,7 @@ void LimerinoPubSubController::onTopicMessage(const QString &topic,
         .category = eventCategoryFor(topic),
         .payload = payload,
         .displayText = {},
+        .displayChannelId = {},
     };
 
     for (const auto &[prefix, handler] : this->handlers_)
@@ -637,6 +639,22 @@ void LimerinoPubSubController::onTopicMessage(const QString &topic,
     {
         this->registerKnownEventType(event.eventType);
     }
+
+    // E1.b: resolve channel id -> login before constructing the /events line.
+    const QString channelId = event.displayChannelId;
+    if (!channelId.isEmpty() && event.displayText.contains(channelId))
+    {
+        resolveChannelName(channelId, [this, event,
+                                       channelId](const QString &name) mutable {
+            if (name != channelId)
+            {
+                event.displayText.replace(channelId, name);
+            }
+            this->eventProduced.invoke(event);
+        });
+        return;
+    }
+
     this->eventProduced.invoke(event);
 }
 

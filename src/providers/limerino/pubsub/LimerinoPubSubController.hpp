@@ -50,8 +50,11 @@ struct PubSubEvent {
     QString channelId;    // topic suffix annotation (client.js L182, L461)
     QString eventType;
     QString category;     // controller-derived from the topic prefix
-    QJsonObject payload;  // raw notification (tooltip only)
+    QJsonObject payload;  // raw notification (tooltip / copy-raw)
     QString displayText;  // single-line, user-facing summary
+    // When set, displayText may still contain this numeric id; the controller
+    // resolves it to a login before eventProduced (E1.b).
+    QString displayChannelId;
 };
 
 /// Transport truth as seen through the sink.

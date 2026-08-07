@@ -13,6 +13,7 @@
 #include "providers/limerino/commands/Identity.hpp"
 #include "providers/limerino/gql/LimerinoGql.hpp"
 #include "providers/limerino/gql/PersistedQueries.hpp"
+#include "providers/limerino/pubsub/LimerinoChannelNameResolver.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubController.hpp"
 #include "providers/limerino/pubsub/LimerinoPubSubTopics.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
@@ -58,24 +59,17 @@ bool warnRecentlyIn(const QString &channelId)
     return false;
 }
 
-// Resolve a display name best-effort for chat reads. Priority = displayName,
-// then login. channelId -> name lookup is done via the live Twitch channel
-// (where that's open); otherwise we just print the id.
+// Resolve a display name best-effort for chat reads. Sync hits only (open
+// channel / auth lists / session cache); unresolved ids stay as the numeric
+// id and LimerinoPubSubController replaces them after Helix resolve (E1.b).
 QString describeChannel(const QString &channelId)
 {
-    auto channelPtr =
-        getApp()->getTwitch()->getChannelOrEmptyByID(channelId);
-    if (channelPtr->isEmpty())
+    QString name;
+    if (trySyncChannelName(channelId, name))
     {
-        return channelId;
+        return name;
     }
-
-    auto *tchan = dynamic_cast<TwitchChannel *>(channelPtr.get());
-    if (tchan == nullptr)
-    {
-        return channelId;
-    }
-    return tchan->getName();  // TwitchChannel::getName is login (or #login)
+    return channelId;
 }
 
 void acknowledgeWarningFor(const QString &channelId)
@@ -135,6 +129,8 @@ bool handleUserModerationAction(const QJsonObject &data,
     {
         return false;
     }
+
+    event.displayChannelId = channelId;
 
     // Plain-language line; unknown action types still render honestly.
     QString text;
@@ -207,6 +203,32 @@ bool handleUserModerationAction(const QJsonObject &data,
             acknowledgeWarningFor(channelId);
         }
     }
+    return true;
+}
+
+// Observed live on chatrooms-user-v1 immediately after a ban/unban that
+// affects the subscribed user. Payload uses capital ChannelID (not the
+// lowercase channel_id convention of user_moderation_action).
+bool handleAliasRestrictionUpdate(const QJsonObject &data, PubSubEvent &event)
+{
+    QString channelId = data.value(QStringLiteral("ChannelID")).toString();
+    if (channelId.isEmpty())
+    {
+        channelId = data.value(QStringLiteral("channel_id")).toString();
+    }
+    if (channelId.isEmpty())
+    {
+        return false;
+    }
+
+    event.displayChannelId = channelId;
+    const bool restricted =
+        data.value(QStringLiteral("user_is_restricted")).toBool();
+    event.displayText =
+        restricted ? QStringLiteral("Alias restriction enabled in %1")
+                         .arg(describeChannel(channelId))
+                   : QStringLiteral("Alias restriction disabled in %1")
+                         .arg(describeChannel(channelId));
     return true;
 }
 
@@ -381,6 +403,11 @@ void installHermesUserTopicHandlers(LimerinoPubSubController &controller)
                 return handleUserModerationAction(
                     payload[QStringLiteral("data")].toObject(), event);
             }
+            if (type == QLatin1String("channel_banned_alias_restriction_update"))
+            {
+                return handleAliasRestrictionUpdate(
+                    payload[QStringLiteral("data")].toObject(), event);
+            }
             return false;
         });
 
@@ -394,6 +421,8 @@ void installHermesUserTopicHandlers(LimerinoPubSubController &controller)
     // user_moderation_action (events.js L21); referenced action trust comes
     // from the subscription (chatrooms-user-v1.USERID) and is only acknowledged.
     controller.registerKnownEventType(QStringLiteral("user_moderation_action"));
+    controller.registerKnownEventType(
+        QStringLiteral("channel_banned_alias_restriction_update"));
 
     // predictions-user-v1: real wire types per
     // newpubsubhermesreference/hermes/events/prediction.js. Replaces the

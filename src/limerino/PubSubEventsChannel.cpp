@@ -18,8 +18,11 @@
 
 #include <pajlada/signals/signalholder.hpp>
 
+#include <QHash>
 #include <QJsonDocument>
+#include <QList>
 #include <QTime>
+#include <QUuid>
 
 namespace chatterino::limerino {
 
@@ -29,6 +32,41 @@ pajlada::Signals::SignalHolder &channelConnections()
 {
     static auto *holder = new pajlada::Signals::SignalHolder();
     return *holder;
+}
+
+// Compact raw payloads keyed by Message::id. Bounded so a long /events
+// scrollback does not retain unbounded JSON. Pretty-print happens on copy.
+constexpr int RAW_EVENT_CAP = 1000;
+
+struct RawEventStore {
+    QHash<QString, QString> byId;
+    QList<QString> order;
+};
+
+RawEventStore &rawEventStore()
+{
+    static RawEventStore store;
+    return store;
+}
+
+void rememberRawEvent(const QString &messageId, const QString &compactJson)
+{
+    if (messageId.isEmpty() || compactJson.isEmpty())
+    {
+        return;
+    }
+    auto &store = rawEventStore();
+    if (store.byId.contains(messageId))
+    {
+        store.byId.insert(messageId, compactJson);
+        return;
+    }
+    while (store.order.size() >= RAW_EVENT_CAP && !store.order.isEmpty())
+    {
+        store.byId.remove(store.order.takeFirst());
+    }
+    store.order.append(messageId);
+    store.byId.insert(messageId, compactJson);
 }
 
 // Category chip: short label + theme-derived color (never hardcoded).
@@ -82,15 +120,29 @@ MessagePtr buildEventMessage(const PubSubEvent &event)
     builder.message().flags.set(MessageFlag::System);
     builder.message().flags.set(MessageFlag::DoNotTriggerNotification);
 
+    const QString msgId =
+        QUuid::createUuid().toString(QUuid::WithoutBraces);
+    builder.message().id = msgId;
+
     const QString rawJson = QString::fromUtf8(
         QJsonDocument(event.payload).toJson(QJsonDocument::Compact));
+    rememberRawEvent(msgId, rawJson);
+
     builder.emplace<TextElement>(style.label, MessageElementFlag::Text,
                                  style.color, FontStyle::ChatMediumBold)
         ->setTooltip(event.topic + QLatin1Char('\n') + rawJson);
+
     builder.emplace<TextElement>(QStringLiteral(" "), MessageElementFlag::Text,
                                  MessageColor::System);
-    builder.emplace<TextElement>(event.displayText, MessageElementFlag::Text,
-                                 MessageColor::Text);
+
+    auto *textEl =
+        builder.emplace<TextElement>(event.displayText, MessageElementFlag::Text,
+                                     MessageColor::Text);
+    // E1.b: resolved name stays in the line; numeric id remains on hover.
+    if (!event.displayChannelId.isEmpty())
+    {
+        textEl->setTooltip(event.displayChannelId);
+    }
 
     // Cheap channel focus link: shown only when the topic's channel resolves
     // to an open channel whose name isn't already in the text.
@@ -193,6 +245,20 @@ void setPubSubEventTypeHidden(const QString &type, bool hidden)
 QStringList hiddenPubSubEventTypes()
 {
     return getSettings()->limerinoPubSubHiddenEventTypes.getValue();
+}
+
+std::optional<QString> rawEventPayloadCompact(const QString &messageId)
+{
+    if (messageId.isEmpty())
+    {
+        return std::nullopt;
+    }
+    const auto it = rawEventStore().byId.constFind(messageId);
+    if (it == rawEventStore().byId.cend())
+    {
+        return std::nullopt;
+    }
+    return it.value();
 }
 
 }  // namespace chatterino::limerino

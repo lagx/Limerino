@@ -10,6 +10,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <optional>
+
 namespace chatterino::limerino {
 
 /// Routed in TwitchIrcServer::getCustomChannel so tabs/splits/startup
@@ -26,5 +28,8 @@ void openPubSubEventsChannelTab();
 bool pubSubEventTypeHidden(const QString &type);
 void setPubSubEventTypeHidden(const QString &type, bool hidden);
 QStringList hiddenPubSubEventTypes();
+
+/// Compact raw Hermes payload retained for /events messages (E1.d).
+std::optional<QString> rawEventPayloadCompact(const QString &messageId);
 
 }  // namespace chatterino::limerino

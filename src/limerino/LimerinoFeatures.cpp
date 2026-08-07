@@ -42,10 +42,13 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("Opens like /mentions or /whispers: pick \"Events\" "
                            "in the new-split dialog. Events render as proper "
                            "messages with a coloured category chip; the chip "
-                           "tooltip holds the raw event. Filter which event "
-                           "types appear via the split's three-dots menu. "
-                           "Tokens are checked once at startup and whenever "
-                           "the Limerino settings page is opened."),
+                           "tooltip holds the raw event. Right-click an event "
+                           "to copy the pretty-printed raw payload. Channel "
+                           "ids in moderation lines resolve to logins. Filter "
+                           "which event types appear via the split's "
+                           "three-dots menu. Tokens are checked once at "
+                           "startup and whenever the Limerino settings page "
+                           "is opened."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Dialog,
@@ -54,6 +57,8 @@ QList<LimerinoFeature> buildCatalog()
                  QStringLiteral("Settings > Limerino > Open events channel")},
                 {AccessKind::ContextMenu,
                  QStringLiteral("/events split > three-dots menu > Filter events...")},
+                {AccessKind::ContextMenu,
+                 QStringLiteral("/events message > Copy raw event")},
                 {AccessKind::Automatic,
                  QStringLiteral("topic subscriptions run in the background")},
             },

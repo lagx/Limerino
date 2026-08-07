@@ -1001,6 +1001,8 @@ set(SOURCE_FILES
         providers/limerino/pubsub/HermesMessages.hpp
         providers/limerino/pubsub/HermesUserTopics.cpp
         providers/limerino/pubsub/HermesUserTopics.hpp
+        providers/limerino/pubsub/LimerinoChannelNameResolver.cpp
+        providers/limerino/pubsub/LimerinoChannelNameResolver.hpp
         providers/limerino/pubsub/LimerinoPubSubController.cpp
         providers/limerino/pubsub/LimerinoPubSubController.hpp
         providers/limerino/pubsub/LimerinoPubSubTopics.cpp
