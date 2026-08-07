@@ -148,16 +148,18 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("followers-following"),
             QStringLiteral("Followers / following windows"),
             QStringLiteral("Chat features"),
-            QStringLiteral("Browse a channel's followers or your own following list"),
+            QStringLiteral("Browse your own channel's followers or following list"),
             QStringLiteral("The followers window is searchable, shows since-when "
                            "dates, and can block from a context menu; the "
                            "following window shows live dots, notifications, and "
-                           "opens chats from a context menu."),
+                           "opens chats from a context menu. Both entries appear "
+                           "in the split three-dots menu only on your own Twitch "
+                           "channel when extra-features auth is available."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::ContextMenu,
                  QStringLiteral("split three-dots menu > View followers / View "
-                                "following")},
+                                "following (own channel)")},
             },
             {},
             {QStringLiteral("Requires Limerino auth")},
