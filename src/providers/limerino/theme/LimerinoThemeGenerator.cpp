@@ -267,8 +267,8 @@ QJsonObject generateTheme(const LimerinoThemeSeed &seed)
     // Canonical public URL form: exports validate in editors outside the
     // source tree (the bundled ../..-relative path is meaningless there).
     root.insert(QStringLiteral("$schema"),
-                QStringLiteral("https://raw.githubusercontent.com/Chatterino/"
-                               "chatterino2/master/docs/"
+                QStringLiteral("https://raw.githubusercontent.com/lagx/"
+                               "Limerino/limerino/docs/"
                                "ChatterinoTheme.schema.json"));
     root.insert(QStringLiteral("metadata"), buildMetadata(seed));
 

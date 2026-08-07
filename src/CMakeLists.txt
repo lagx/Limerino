@@ -1037,6 +1037,8 @@ set(SOURCE_FILES
         providers/limerino/theme/LimerinoThemeGenerator.hpp
         providers/limerino/theme/LimerinoThemeStore.cpp
         providers/limerino/theme/LimerinoThemeStore.hpp
+        widgets/dialogs/limerino/LimerinoThemeDialog.cpp
+        widgets/dialogs/limerino/LimerinoThemeDialog.hpp
 
         # Limerino nuke engine (pure plan builder; execution in N3)
         providers/limerino/nuke/NukePlan.hpp

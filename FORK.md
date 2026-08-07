@@ -169,9 +169,10 @@ Entirely ours; will never conflict with upstream merges:
 | `tests/src/LimerinoFeatures.cpp` | anti-drift tests: unique ids, ≥1 access path per entry, non-empty prose, and **catalog commands ⇔ registered commands in both directions** (batch F8) |
 | `src/providers/limerino/theme/LimerinoThemeSeed.{hpp,cpp}` | theme creator input model: four user colors (background/surface/accent/text), WCAG luminance + contrast ratio helpers, Dark/Light presets (batch T1) |
 | `src/providers/limerino/theme/LimerinoThemeGenerator.{hpp,cpp}` | pure seed→QJsonObject theme generator: per-leaf derivation from the built-in diff evidence, no singletons/Settings/Application (batch T1) |
-| `tests/src/LimerinoTheme.cpp` | generator tests: leaf inventory, styleSheet exclusion, iconTheme inversion, determinism, low-contrast flagging, transparent literal (batch T1) |
+| `tests/src/LimerinoTheme.cpp` | generator tests: leaf inventory, styleSheet exclusion, public Limerino `$schema` URL, iconTheme inversion, determinism, low-contrast flagging, transparent literal (batch T1/T3) |
 | `src/providers/limerino/theme/LimerinoThemeStore.{hpp,cpp}` | two-file-model seed wrapper (`limerinoThemeVersion`), filename sanitization, Themes/ install + rescan + select; full-theme files imported as-is with no reverse derivation (batch T2) |
 | `tests/src/LimerinoThemeStore.cpp` | seed serde round-trip, version gate, filename sanitizer (batch T2) |
+| `src/widgets/dialogs/limerino/LimerinoThemeDialog.{hpp,cpp}` | theme creator UI: four-color seed editor, ColorPickerDialog + QToolButton/hex swatches, live preview via Themes/_LimerinoPreview.json + setAutoReload, import seed/full theme, export seed/theme, Apply installs+selects (batch T3) |
 
 ### Feature wiki (settings page)
 
@@ -194,6 +195,28 @@ out of sync with the code again:
   registers a command; background-only features use `AccessKind::Automatic`.
 - The UI currently shows `Implemented` entries only; `Partial`/`Planned`/`Unavailable`
   statuses exist in the catalog for when they're wanted.
+
+### Theme creator (four-color seed → Chatterino theme)
+
+Settings > Limerino > Theme creator. Four user colors (`background`, `surface`,
+`accent`, `text` / font color); everything else is derived by the pure generator.
+Font family/size/weight are **not** part of a theme — they stay under Settings >
+Appearance.
+
+| Piece | Role |
+|---|---|
+| `LimerinoThemeSeed` | four colors + WCAG luminance / `isLight()` / contrast helpers + Dark/Light presets |
+| `LimerinoThemeGenerator` | pure `seed → QJsonObject`; emits every leaf; never `splits.input.styleSheet`; `$schema` is the public raw URL on this repo |
+| `LimerinoThemeStore` | `limerino_theme.json` seed wrapper (`limerinoThemeVersion: 1`), filename sanitize, Themes/ install + `rescanCustomThemes` + select by full filename |
+| `LimerinoThemeDialog` | UI; ColorPickerDialog + QToolButton/hex swatches; live preview via `Themes/_LimerinoPreview.json` + `setAutoReload` |
+
+Selection key is the filename **with** `.json` (`/appearance/theme/name`). Built-in
+names `Black`/`Dark`/`Light`/`White` are rejected on Apply. Known limitation: the
+General page theme picker is a static settings singleton — a newly exported theme
+applies immediately but may not appear in that dropdown until Settings is reopened.
+
+Upstream touch: one public `Theme::rescanCustomThemes(paths)` forwarder in
+`Theme.hpp` (logged above). Do not expand it.
 
 ### Extra-features auth (secondary login)
 

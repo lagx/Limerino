@@ -110,6 +110,15 @@ TEST(LimerinoTheme, StyleSheetNeverEmitted)
     EXPECT_FALSE(splitsInput.contains("stylesheets"));
 }
 
+TEST(LimerinoTheme, SchemaUsesPublicLimerinoUrl)
+{
+    const auto dark = generateTheme(LimerinoThemeSeed::darkPreset());
+    EXPECT_EQ(
+        dark[QStringLiteral("$schema")].toString(),
+        QStringLiteral("https://raw.githubusercontent.com/lagx/Limerino/"
+                       "limerino/docs/ChatterinoTheme.schema.json"));
+}
+
 TEST(LimerinoTheme, IconThemeFollowsLightness)
 {
     const auto dark = generateTheme(LimerinoThemeSeed::darkPreset());

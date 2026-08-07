@@ -9,6 +9,7 @@
 #include "singletons/Settings.hpp"
 #include "widgets/dialogs/LimerinoAuthDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoAutoActionEditor.hpp"
+#include "widgets/dialogs/limerino/LimerinoThemeDialog.hpp"
 #include "widgets/settingspages/GeneralPageView.hpp"
 #include "widgets/settingspages/SettingWidget.hpp"
 
@@ -64,6 +65,16 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
         R"(<a href="https://github.com/lagx/Limerino">Limerino</a> is a Chatterino fork built on top of technorino.)"));
     layout.addDescription(QStringLiteral(
         "Limerino-specific settings and features will live on this page."));
+
+    layout.addTitle("Theme creator");
+    layout.addDescription(QStringLiteral(
+        "Build a Chatterino theme from four colors (background, surface, "
+        "accent, text/font). Live-previews while you edit; Apply installs it "
+        "into Themes/ and selects it immediately."));
+    layout.addButton(QStringLiteral("Create theme..."), [this] {
+        auto *dialog = new limerino::LimerinoThemeDialog(this);
+        dialog->show();
+    });
 
     layout.addTitle("Extra features");
     layout.addDescription(QStringLiteral(
