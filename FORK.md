@@ -89,12 +89,12 @@ close to zero as possible — every entry is future merge pain.
 | `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must start/stop with each refresh cycle, and user topics re-resolve on every `userStateChanged` | one include + one call `limerino::ensureHermesChannelTopics(*this)` + one call `limerino::ensureHermesUserTopics()` in `refreshPubSub` | Low — append at that function's existing hook point |
 | `src/messages/Link.hpp` | expose the chat-warning acknowledgement link inside chat messages | one enum value `ChatWarnAcknowledge` | Low |
 | `src/widgets/helper/ChannelView.cpp` | dispatch the new link type; /events "Copy raw event" | one include + one switch case `Link::ChatWarnAcknowledge`; E1.d: one include + "Copy raw event" menu entry gated on `/events` | Low |
-| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests + resolver tests | three entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp`, `tests/src/LimerinoHighlightGroups.cpp`; batch U5 added `tests/src/LimerinoUserCardExtras.cpp`; batch N1 added `tests/src/LimerinoMatcher.cpp`; batch N2 added `tests/src/LimerinoNukePlan.cpp` | Low — append-only |
+| `tests/CMakeLists.txt` | build the Limerino PubSub controller tests + highlight-group value tests + resolver tests | three entries: `tests/src/LimerinoPubSub.cpp`, `tests/src/LimerinoHighlightGroup.cpp`, `tests/src/LimerinoHighlightGroups.cpp`; batch U5 added `tests/src/LimerinoUserCardExtras.cpp`; batch N1 added `tests/src/LimerinoMatcher.cpp`; batch N2 added `tests/src/LimerinoNukePlan.cpp`; E7 added `tests/src/LimerinoChatColor.cpp` | Low — append-only |
 | `src/controllers/highlights/HighlightPhrase.hpp` | per-channel highlights: each phrase/user/badge belongs to one group | added `QUuid groupId_` member + defaulted trailing ctor param (`QUuid()` = Default/legacy-global); serde writes `groupId` only when non-null and reads it tolerantly | Low |
 | `src/controllers/highlights/HighlightPhrase.cpp` | same | delegating ctor + `groupId_` init + `std::tie` extension in `operator==` + `groupId()` getter | Low |
 | `src/controllers/highlights/HighlightBadge.hpp` | same | same shape as HighlightPhrase | Low |
 | `src/controllers/highlights/HighlightBadge.cpp` | same | same shape as HighlightPhrase | Low |
-| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups`; batch N4 added `limerinoNukePresets` (`QStringSetting`, presets as JSON); batch N5 added `limerinoAutoActions` (`QStringSetting`, rules as JSON); crossban added `limerinoCrossbanPresets` + `limerinoCrossbanLastPresetId` | Low |
+| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups`; batch N4 added `limerinoNukePresets` (`QStringSetting`, presets as JSON); batch N5 added `limerinoAutoActions` (`QStringSetting`, rules as JSON); crossban added `limerinoCrossbanPresets` + `limerinoCrossbanLastPresetId`; E7 added `limerinoChatColorRecents` + `limerinoChatColorLast` | Low |
 | `src/singletons/Settings.cpp` | initialise the vector + create Default group on startup | two includes + one `initializeSignalVector` call + `new HighlightGroupController(*this, this)` after `instance_ = this`; batch N5: constructs `LimerinoAutoActionController` next to it | Low |
 | `src/CMakeLists.txt` | compile the group data model + UI | fourteen entries appended to the tail `# Limerino fork files` block (`providers/limerino/highlights/HighlightGroup*`, `HighlightGroupChannelKey*`, `HighlightGroupChannels*`, `HighlightGroupCellDelegate*`, `HighlightGroupDialog*`, `HighlightGroupMenu*`) | Low — append-only |
 | `src/controllers/highlights/HighlightController.hpp` | resolver needs a channel-keyed overload + caches | added `GroupedHighlightCheck` (check + groupId; null = global), `check(... channelKey)` overload, private `resolveChecks`/`runChecks`, two `QHash` caches | Medium |
@@ -173,7 +173,11 @@ Entirely ours; will never conflict with upstream merges:
 | `tests/src/LimerinoTheme.cpp` | generator tests: leaf inventory, styleSheet exclusion, public Limerino `$schema` URL, iconTheme inversion, determinism, low-contrast flagging, transparent literal (batch T1/T3) |
 | `src/providers/limerino/theme/LimerinoThemeStore.{hpp,cpp}` | two-file-model seed wrapper (`limerinoThemeVersion`), filename sanitization, Themes/ install + rescan + select; full-theme files imported as-is with no reverse derivation (batch T2) |
 | `tests/src/LimerinoThemeStore.cpp` | seed serde round-trip, version gate, filename sanitizer (batch T2) |
-| `src/widgets/dialogs/limerino/LimerinoThemeDialog.{hpp,cpp}` | theme creator UI: four-color seed editor, ColorPickerDialog + QToolButton/hex swatches, live preview via Themes/_LimerinoPreview.json + setAutoReload, import seed/full theme, export seed/theme, Apply installs+selects (batch T3) |
+| `src/widgets/dialogs/limerino/LimerinoThemeDialog.{hpp,cpp}` | theme creator UI: four-color seed editor, shared `LimerinoColorField` (ColorPickerDialog + swatch + hex), live preview via Themes/_LimerinoPreview.json + setAutoReload, import seed/full theme, export seed/theme, Apply installs+selects (batch T3; E7 extracted colour field) |
+| `src/widgets/dialogs/limerino/LimerinoColorField.{hpp,cpp}` | shared swatch + hex + ColorPickerDialog field (E7); used by Theme Creator and Appearance |
+| `src/providers/limerino/appearance/LimerinoChatColor.{hpp,cpp}` | Helix name/hex parse + MRU custom chat-colour recents (E7); not ColorProvider |
+| `tests/src/LimerinoChatColor.cpp` | legacy name load, hex round-trip incl. alpha, recents cap/dedupe (E7) |
+| `src/widgets/dialogs/limerino/LimerinoAppearanceWidget.{hpp,cpp}` | Appearance chat colour: Helix swatch grid + custom field + persisted recents (E7) |
 | `src/providers/limerino/crossban/CrossbanStrike.{hpp,cpp}` | parse ChatModeratorStrikeStatus → Clean/Banned/TimedOut/Warning (crossban) |
 | `src/providers/limerino/crossban/CrossbanComments.{hpp,cpp}` | parse ViewerCardModLogsComments + createModComment helper (crossban) |
 | `src/providers/limerino/crossban/CrossbanPresets.{hpp,cpp}` | JSON presets under `/limerino/crossban/presets` (crossban) |
@@ -214,7 +218,7 @@ Appearance.
 | `LimerinoThemeSeed` | four colors + WCAG luminance / `isLight()` / contrast helpers + Dark/Light presets |
 | `LimerinoThemeGenerator` | pure `seed → QJsonObject`; emits every leaf; never `splits.input.styleSheet`; `$schema` is the public raw URL on this repo |
 | `LimerinoThemeStore` | `limerino_theme.json` seed wrapper (`limerinoThemeVersion: 1`), filename sanitize, Themes/ install + `rescanCustomThemes` + select by full filename |
-| `LimerinoThemeDialog` | UI; ColorPickerDialog + QToolButton/hex swatches; live preview via `Themes/_LimerinoPreview.json` + `setAutoReload` |
+| `LimerinoThemeDialog` | UI; shared `LimerinoColorField` (ColorPickerDialog + swatch/hex); live preview via `Themes/_LimerinoPreview.json` + `setAutoReload` |
 
 Selection key is the filename **with** `.json` (`/appearance/theme/name`). Built-in
 names `Black`/`Dark`/`Light`/`White` are rejected on Apply. Known limitation: the

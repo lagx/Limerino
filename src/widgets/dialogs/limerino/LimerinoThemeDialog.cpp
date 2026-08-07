@@ -7,7 +7,7 @@
 #include "providers/limerino/theme/LimerinoThemeStore.hpp"
 #include "singletons/Paths.hpp"
 #include "singletons/Theme.hpp"
-#include "widgets/dialogs/ColorPickerDialog.hpp"
+#include "widgets/dialogs/limerino/LimerinoColorField.hpp"
 
 #include <QCloseEvent>
 #include <QDir>
@@ -20,8 +20,6 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QSignalBlocker>
-#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace chatterino::limerino {
@@ -29,22 +27,6 @@ namespace chatterino::limerino {
 namespace {
 
 constexpr const char *PREVIEW_FILENAME = "_LimerinoPreview.json";
-
-QString hexForDisplay(const QColor &c)
-{
-    return c.alpha() < 255 ? c.name(QColor::HexArgb) : c.name(QColor::HexRgb);
-}
-
-QColor parseHex(const QString &raw)
-{
-    const QString trimmed = raw.trimmed();
-    if (trimmed.isEmpty())
-    {
-        return {};
-    }
-    QColor c(trimmed);
-    return c.isValid() ? c : QColor();
-}
 
 }  // namespace
 
@@ -91,36 +73,26 @@ void LimerinoThemeDialog::buildUi()
     }
 
     auto makeColorRow = [this](const QString &label, SeedField field,
-                               QToolButton *&swatch, QLineEdit *&hex) {
+                               LimerinoColorField *&fieldWidget) {
         auto *row = new QHBoxLayout;
         row->addWidget(new QLabel(label, this), 1);
-        swatch = new QToolButton(this);
-        swatch->setFixedSize(40, 24);
-        swatch->setToolTip(QStringLiteral("Pick color"));
-        QObject::connect(swatch, &QToolButton::clicked, this, [this, field] {
-            this->openColorPicker(field);
-        });
-        hex = new QLineEdit(this);
-        hex->setPlaceholderText(QStringLiteral("#RRGGBB"));
-        hex->setMaximumWidth(110);
-        QObject::connect(hex, &QLineEdit::textEdited, this, [this, field] {
-            this->onHexEdited(field);
-        });
-        row->addWidget(swatch);
-        row->addWidget(hex);
+        fieldWidget = new LimerinoColorField(this);
+        QObject::connect(fieldWidget, &LimerinoColorField::colorChanged, this,
+                         [this, field](QColor color) {
+                             this->setFieldColor(field, color);
+                         });
+        row->addWidget(fieldWidget, 1);
         return row;
     };
 
     root->addLayout(makeColorRow(QStringLiteral("Background"),
-                                SeedField::Background, this->backgroundSwatch_,
-                                this->backgroundHex_));
+                                SeedField::Background, this->backgroundField_));
     root->addLayout(makeColorRow(QStringLiteral("Surface"), SeedField::Surface,
-                                this->surfaceSwatch_, this->surfaceHex_));
+                                this->surfaceField_));
     root->addLayout(makeColorRow(QStringLiteral("Accent"), SeedField::Accent,
-                                this->accentSwatch_, this->accentHex_));
+                                this->accentField_));
     root->addLayout(makeColorRow(QStringLiteral("Text / font color"),
-                                SeedField::Text, this->textSwatch_,
-                                this->textHex_));
+                                SeedField::Text, this->textField_));
 
     this->warningsLabel_ = new QLabel(this);
     this->warningsLabel_->setWordWrap(true);
@@ -159,67 +131,23 @@ void LimerinoThemeDialog::buildUi()
 
 void LimerinoThemeDialog::syncUiFromSeed()
 {
-    this->setSwatchColor(this->backgroundSwatch_, this->seed_.background);
-    this->setSwatchColor(this->surfaceSwatch_, this->seed_.surface);
-    this->setSwatchColor(this->accentSwatch_, this->seed_.accent);
-    this->setSwatchColor(this->textSwatch_, this->seed_.text);
-
-    this->backgroundHex_->setText(hexForDisplay(this->seed_.background));
-    this->surfaceHex_->setText(hexForDisplay(this->seed_.surface));
-    this->accentHex_->setText(hexForDisplay(this->seed_.accent));
-    this->textHex_->setText(hexForDisplay(this->seed_.text));
-
+    this->backgroundField_->setColor(this->seed_.background);
+    this->surfaceField_->setColor(this->seed_.surface);
+    this->accentField_->setColor(this->seed_.accent);
+    this->textField_->setColor(this->seed_.text);
     this->refreshWarnings();
 }
 
-void LimerinoThemeDialog::setSwatchColor(QToolButton *swatch,
-                                         const QColor &color)
-{
-    swatch->setStyleSheet(
-        QStringLiteral("QToolButton {"
-                       "background-color: %1;"
-                       "border: 1px solid #888;"
-                       "border-radius: 2px;"
-                       "}")
-            .arg(color.name(QColor::HexArgb)));
-}
-
-void LimerinoThemeDialog::setFieldColor(SeedField field, const QColor &color,
-                                        bool updateHex)
+void LimerinoThemeDialog::setFieldColor(SeedField field, const QColor &color)
 {
     if (!color.isValid())
     {
         return;
     }
     this->fieldColor(field) = color;
-
-    QToolButton *swatch = nullptr;
-    QLineEdit *hex = nullptr;
-    switch (field)
-    {
-        case SeedField::Background:
-            swatch = this->backgroundSwatch_;
-            hex = this->backgroundHex_;
-            break;
-        case SeedField::Surface:
-            swatch = this->surfaceSwatch_;
-            hex = this->surfaceHex_;
-            break;
-        case SeedField::Accent:
-            swatch = this->accentSwatch_;
-            hex = this->accentHex_;
-            break;
-        case SeedField::Text:
-            swatch = this->textSwatch_;
-            hex = this->textHex_;
-            break;
-    }
-    this->setSwatchColor(swatch, color);
-    if (updateHex)
-    {
-        const QSignalBlocker block(hex);
-        hex->setText(hexForDisplay(color));
-    }
+    // Do not call setColor on the field here — colourChanged already came
+    // from the field (or syncUiFromSeed set it). Re-entering setColor during
+    // a live picker update can fight the hex line while the user edits.
     this->refreshWarnings();
     this->writePreviewAndReload();
 }
@@ -254,58 +182,6 @@ const QColor &LimerinoThemeDialog::fieldColor(SeedField field) const
             return this->seed_.text;
     }
     return this->seed_.background;
-}
-
-void LimerinoThemeDialog::openColorPicker(SeedField field)
-{
-    this->seedBeforePicker_ = this->seed_;
-    this->pickerConfirmed_ = false;
-
-    auto *dialog = new ColorPickerDialog(this->fieldColor(field), this);
-    QObject::connect(dialog, &ColorPickerDialog::colorChanged, this,
-                     [this, field](QColor color) {
-                         this->setFieldColor(field, color, true);
-                     });
-    QObject::connect(dialog, &ColorPickerDialog::colorConfirmed, this,
-                     [this, field](QColor color) {
-                         this->pickerConfirmed_ = true;
-                         this->setFieldColor(field, color, true);
-                     });
-    QObject::connect(dialog, &QObject::destroyed, this, [this] {
-        if (!this->pickerConfirmed_)
-        {
-            this->seed_ = this->seedBeforePicker_;
-            this->syncUiFromSeed();
-            this->writePreviewAndReload();
-        }
-    });
-    dialog->show();
-}
-
-void LimerinoThemeDialog::onHexEdited(SeedField field)
-{
-    QLineEdit *hex = nullptr;
-    switch (field)
-    {
-        case SeedField::Background:
-            hex = this->backgroundHex_;
-            break;
-        case SeedField::Surface:
-            hex = this->surfaceHex_;
-            break;
-        case SeedField::Accent:
-            hex = this->accentHex_;
-            break;
-        case SeedField::Text:
-            hex = this->textHex_;
-            break;
-    }
-    const QColor parsed = parseHex(hex->text());
-    if (!parsed.isValid())
-    {
-        return;
-    }
-    this->setFieldColor(field, parsed, false);
 }
 
 void LimerinoThemeDialog::refreshWarnings()

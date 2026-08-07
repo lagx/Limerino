@@ -920,6 +920,13 @@ public:
     // Limerino: auto-action rules (batch N5). JSON array of rule objects.
     QStringSetting limerinoAutoActions{"/limerino/autoActions", "[]"};
 
+    // Limerino: Appearance chat-colour UI (E7). Recents = last custom colours
+    // (JSON string array via List.hpp). Last = helix name or #hex for restore.
+    QStringSetting limerinoChatColorRecents{"/limerino/appearance/chatColorRecents",
+                                            "[]"};
+    QStringSetting limerinoChatColorLast{"/limerino/appearance/chatColorLast",
+                                         ""};
+
     // Limerino: crossban channel presets (JSON array) + last-selected preset id.
     QStringSetting limerinoCrossbanPresets{"/limerino/crossban/presets", "[]"};
     QStringSetting limerinoCrossbanLastPresetId{

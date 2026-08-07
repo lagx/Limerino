@@ -983,6 +983,8 @@ set(SOURCE_FILES
         providers/limerino/commands/Roles.hpp
         widgets/dialogs/limerino/LimerinoAppearanceWidget.cpp
         widgets/dialogs/limerino/LimerinoAppearanceWidget.hpp
+        widgets/dialogs/limerino/LimerinoColorField.cpp
+        widgets/dialogs/limerino/LimerinoColorField.hpp
         widgets/dialogs/limerino/LimerinoPredictionDialog.cpp
         widgets/dialogs/limerino/LimerinoPredictionDialog.hpp
         widgets/dialogs/limerino/LimerinoResultDialog.cpp
@@ -1041,6 +1043,8 @@ set(SOURCE_FILES
         providers/limerino/theme/LimerinoThemeGenerator.hpp
         providers/limerino/theme/LimerinoThemeStore.cpp
         providers/limerino/theme/LimerinoThemeStore.hpp
+        providers/limerino/appearance/LimerinoChatColor.cpp
+        providers/limerino/appearance/LimerinoChatColor.hpp
         widgets/dialogs/limerino/LimerinoThemeDialog.cpp
         widgets/dialogs/limerino/LimerinoThemeDialog.hpp
 

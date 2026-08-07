@@ -33,6 +33,7 @@ set(test_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoMatcher.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoNukePlan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoAutoActions.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/LimerinoChatColor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/IrcMessageHandler.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/HighlightController.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/FormatTime.cpp

@@ -2,8 +2,8 @@
 // Theme creator dialog (batch T3).
 //
 // Four seed colors in, live preview via Theme::setAutoReload + rewriting a
-// working Themes/_LimerinoPreview.json file. ColorPickerDialog for picking;
-// QToolButton swatch + editable hex for each row. No parallel preview path.
+// working Themes/_LimerinoPreview.json file. Colour rows use shared
+// LimerinoColorField (ColorPickerDialog + swatch + hex). No parallel preview.
 
 #pragma once
 
@@ -15,9 +15,10 @@
 class QCloseEvent;
 class QLabel;
 class QLineEdit;
-class QToolButton;
 
 namespace chatterino::limerino {
+
+class LimerinoColorField;
 
 class LimerinoThemeDialog : public BasePopup
 {
@@ -39,13 +40,10 @@ private:
 
     void buildUi();
     void syncUiFromSeed();
-    void setSwatchColor(QToolButton *swatch, const QColor &color);
-    void setFieldColor(SeedField field, const QColor &color, bool updateHex);
+    void setFieldColor(SeedField field, const QColor &color);
     QColor &fieldColor(SeedField field);
     const QColor &fieldColor(SeedField field) const;
 
-    void openColorPicker(SeedField field);
-    void onHexEdited(SeedField field);
     void refreshWarnings();
     void writePreviewAndReload();
     void startLivePreview();
@@ -63,22 +61,16 @@ private:
     QString previewFilePath() const;
 
     LimerinoThemeSeed seed_ = LimerinoThemeSeed::darkPreset();
-    LimerinoThemeSeed seedBeforePicker_{};
-    bool pickerConfirmed_ = false;
     bool applied_ = false;
     bool previewActive_ = false;
     QString previousThemeName_;
 
     QLineEdit *nameEdit_ = nullptr;
 
-    QToolButton *backgroundSwatch_ = nullptr;
-    QLineEdit *backgroundHex_ = nullptr;
-    QToolButton *surfaceSwatch_ = nullptr;
-    QLineEdit *surfaceHex_ = nullptr;
-    QToolButton *accentSwatch_ = nullptr;
-    QLineEdit *accentHex_ = nullptr;
-    QToolButton *textSwatch_ = nullptr;
-    QLineEdit *textHex_ = nullptr;
+    LimerinoColorField *backgroundField_ = nullptr;
+    LimerinoColorField *surfaceField_ = nullptr;
+    LimerinoColorField *accentField_ = nullptr;
+    LimerinoColorField *textField_ = nullptr;
 
     QLabel *warningsLabel_ = nullptr;
 };

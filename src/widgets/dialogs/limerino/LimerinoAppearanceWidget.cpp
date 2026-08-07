@@ -4,6 +4,7 @@
 
 #include "Application.hpp"
 #include "controllers/accounts/AccountController.hpp"
+#include "providers/limerino/appearance/LimerinoChatColor.hpp"
 #include "providers/limerino/gql/LimerinoGql.hpp"
 #include "providers/limerino/gql/PersistedQueries.hpp"
 #include "providers/limerino/LimerinoAuth.hpp"
@@ -14,16 +15,19 @@
 #include "providers/twitch/TwitchChannel.hpp"
 #include "util/DisplayBadge.hpp"
 #include "util/Twitch.hpp"
+#include "widgets/dialogs/limerino/LimerinoColorField.hpp"
+#include "widgets/helper/color/ColorButton.hpp"
 #include "widgets/splits/Split.hpp"
 
+#include <QAbstractButton>
 #include <QComboBox>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
-#include <QLineEdit>
 #include <QPointer>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -31,6 +35,26 @@
 namespace chatterino::limerino {
 
 namespace gql = chatterino::LimerinoAuth::gql;
+
+namespace {
+
+void clearLayout(QLayout *layout)
+{
+    if (layout == nullptr)
+    {
+        return;
+    }
+    while (auto *item = layout->takeAt(0))
+    {
+        if (auto *w = item->widget())
+        {
+            w->deleteLater();
+        }
+        delete item;
+    }
+}
+
+}  // namespace
 
 LimerinoAppearanceWidget::LimerinoAppearanceWidget(Split *split)
     : BaseWidget(split)
@@ -66,23 +90,57 @@ LimerinoAppearanceWidget::LimerinoAppearanceWidget(Split *split)
 
     // ---- chat color ----
     auto *colorBox = new QGroupBox(QStringLiteral("Chat color"), this);
-    auto *colorForm = new QFormLayout(colorBox);
+    auto *colorLayout = new QVBoxLayout(colorBox);
 
-    this->colorCombo_ = new QComboBox(colorBox);
-    this->colorCombo_->addItems(VALID_HELIX_COLORS);
-    colorForm->addRow(QStringLiteral("Color"), this->colorCombo_);
+    colorLayout->addWidget(new QLabel(QStringLiteral("Twitch named colours")));
+    this->namedSwatchRow_ = new QWidget(colorBox);
+    auto *namedGrid = new QGridLayout(this->namedSwatchRow_);
+    namedGrid->setContentsMargins(0, 0, 0, 0);
+    namedGrid->setSpacing(4);
+    int namedIndex = 0;
+    for (const auto &name : VALID_HELIX_COLORS)
+    {
+        const QColor color = parseChatColor(name);
+        auto *btn = new ColorButton(color, this->namedSwatchRow_);
+        btn->setFixedSize(36, 28);
+        btn->setMinimumSize(36, 28);
+        btn->setToolTip(name);
+        QObject::connect(btn, &QAbstractButton::clicked, this,
+                         [this, name] {
+                             this->selectColorValue(name, false);
+                         });
+        namedGrid->addWidget(btn, namedIndex / 5, namedIndex % 5);
+        ++namedIndex;
+    }
+    colorLayout->addWidget(this->namedSwatchRow_);
 
-    this->colorHexEdit_ = new QLineEdit(colorBox);
-    this->colorHexEdit_->setPlaceholderText(
-        QStringLiteral("or #rrggbb (Turbo/Prime only)"));
-    colorForm->addRow(QStringLiteral("Custom"), this->colorHexEdit_);
+    colorLayout->addWidget(new QLabel(QStringLiteral("Recent custom colours")));
+    this->recentSwatchRow_ = new QWidget(colorBox);
+    auto *recentLayout = new QHBoxLayout(this->recentSwatchRow_);
+    recentLayout->setContentsMargins(0, 0, 0, 0);
+    recentLayout->setSpacing(4);
+    colorLayout->addWidget(this->recentSwatchRow_);
+
+    colorLayout->addWidget(
+        new QLabel(QStringLiteral("Custom (Turbo/Prime hex)")));
+    this->customColorField_ = new LimerinoColorField(colorBox);
+    colorLayout->addWidget(this->customColorField_);
+    QObject::connect(this->customColorField_, &LimerinoColorField::colorChanged,
+                     this, [this](QColor color) {
+                         if (!color.isValid())
+                         {
+                             return;
+                         }
+                         this->selectColorValue(chatColorHexForDisplay(color),
+                                                true);
+                     });
 
     this->colorPreviewLabel_ = new QLabel(colorBox);
-    colorForm->addRow(QStringLiteral("Preview"), this->colorPreviewLabel_);
+    colorLayout->addWidget(this->colorPreviewLabel_);
 
     this->applyColorButton_ =
         new QPushButton(QStringLiteral("Apply color"), colorBox);
-    colorForm->addRow(this->applyColorButton_);
+    colorLayout->addWidget(this->applyColorButton_);
     root->addWidget(colorBox);
 
     this->statusLabel_ = new QLabel(this);
@@ -93,17 +151,79 @@ LimerinoAppearanceWidget::LimerinoAppearanceWidget(Split *split)
     QObject::connect(this->badgeCombo_,
                      QOverload<int>::of(&QComboBox::currentIndexChanged),
                      this, [this] { this->refreshPreview(); });
-    QObject::connect(this->colorCombo_,
-                     QOverload<int>::of(&QComboBox::currentIndexChanged),
-                     this, [this] { this->refreshPreview(); });
-    QObject::connect(this->colorHexEdit_, &QLineEdit::textChanged, this,
-                     [this] { this->refreshPreview(); });
     QObject::connect(this->applyBadgeButton_, &QPushButton::clicked, this,
                      [this] { this->applyBadge(); });
     QObject::connect(this->applyColorButton_, &QPushButton::clicked, this,
                      [this] { this->applyColor(); });
 
+    const QString last = loadLastChatColor();
+    if (!last.isEmpty())
+    {
+        this->selectColorValue(last, isHelixNamedColor(last) ? false : true);
+    }
+    else
+    {
+        this->selectColorValue(VALID_HELIX_COLORS.constFirst(), false);
+    }
+    this->rebuildRecentSwatches();
+
     this->refreshBadges();
+    this->refreshPreview();
+}
+
+void LimerinoAppearanceWidget::rebuildRecentSwatches()
+{
+    auto *layout =
+        qobject_cast<QHBoxLayout *>(this->recentSwatchRow_->layout());
+    if (layout == nullptr)
+    {
+        return;
+    }
+    clearLayout(layout);
+
+    const auto recents = loadChatColorRecents();
+    for (const auto &value : recents)
+    {
+        const QColor color = parseChatColor(value);
+        if (!color.isValid())
+        {
+            continue;
+        }
+        auto *btn = new ColorButton(color, this->recentSwatchRow_);
+        btn->setFixedSize(36, 28);
+        btn->setMinimumSize(36, 28);
+        btn->setToolTip(value);
+        QObject::connect(btn, &QAbstractButton::clicked, this,
+                         [this, value] {
+                             this->selectColorValue(value, true);
+                         });
+        layout->addWidget(btn);
+    }
+    layout->addStretch(1);
+}
+
+void LimerinoAppearanceWidget::selectColorValue(const QString &value,
+                                                bool fromCustomField)
+{
+    const QString normalized = normalizeChatColorValue(value);
+    if (normalized.isEmpty())
+    {
+        return;
+    }
+    this->selectedColorValue_ = normalized;
+    saveLastChatColor(normalized);
+
+    const QColor color = parseChatColor(normalized);
+    if (color.isValid() && !fromCustomField)
+    {
+        this->customColorField_->setColor(color);
+    }
+    else if (color.isValid() && fromCustomField)
+    {
+        // Keep hex field in sync when picking a recent custom swatch.
+        this->customColorField_->setColor(color);
+    }
+
     this->refreshPreview();
 }
 
@@ -152,8 +272,6 @@ void LimerinoAppearanceWidget::refreshBadges()
                 {
                     continue;
                 }
-                // Preview label: badge(setID) via native badge lookup,
-                // user data: setID for the select op.
                 items.append(DisplayBadge(setId, setId));
             }
             for (const DisplayBadge &item : items)
@@ -195,27 +313,21 @@ void LimerinoAppearanceWidget::refreshPreview()
     const QString name =
         self && !self->isAnon() ? self->getUserName() : QStringLiteral("you");
 
-    // Name shown in the selected color next to the chosen badge.
-    QString colorName = this->colorCombo_->currentText();
-    const QString hex = this->colorHexEdit_->text().trimmed();
-    if (!hex.isEmpty())
-    {
-        colorName = hex;
-    }
-    const QColor color(colorName);
     this->previewLabel_->setText(
         QStringLiteral("%1's messages will show the selected badge")
             .arg(name));
+
+    const QColor color = parseChatColor(this->selectedColorValue_);
     if (color.isValid())
     {
         this->colorPreviewLabel_->setText(
-            QStringLiteral("<span style=\"color:%1\">%2: hello this is a preview</span>")
-                .arg(color.name(), name));
+            QStringLiteral(
+                "<span style=\"color:%1\">%2: hello this is a preview</span>")
+                .arg(color.name(QColor::HexRgb), name));
     }
     else
     {
-        this->colorPreviewLabel_->setText(
-            QStringLiteral("(invalid color)"));
+        this->colorPreviewLabel_->setText(QStringLiteral("(invalid color)"));
     }
 }
 
@@ -239,7 +351,6 @@ void LimerinoAppearanceWidget::applyBadge()
         return;
     }
 
-    // Plugin's input shape, verbatim: badgeSetID + badgeSetVersion "1".
     gql::executePersisted(
         gql::PQ_SELECT_GLOBAL_BADGE,
         QJsonObject{{QStringLiteral("input"),
@@ -253,7 +364,6 @@ void LimerinoAppearanceWidget::applyBadge()
             {
                 return;
             }
-            // Plugin's success/failure shape: data.ChatSettings_SelectGlobalBadge.error.code
             const QString code =
                 data[QStringLiteral("ChatSettings_SelectGlobalBadge")]
                     .toObject()[QStringLiteral("error")]
@@ -285,23 +395,34 @@ void LimerinoAppearanceWidget::applyColor()
         return;
     }
 
-    QString colorString = this->colorHexEdit_->text().trimmed();
+    QString colorString = this->selectedColorValue_;
     if (colorString.isEmpty())
     {
-        colorString = this->colorCombo_->currentText();
+        this->statusLabel_->setText(QStringLiteral("pick a colour first"));
+        return;
     }
     cleanHelixColorName(colorString);
 
+    const bool custom = !isHelixNamedColor(colorString);
     const QPointer<LimerinoAppearanceWidget> g(this);
     getHelix()->updateUserChatColor(
         self->getUserId(), colorString,
-        [g, colorString] {
-            if (g)
+        [g, colorString, custom] {
+            if (!g)
             {
-                g->statusLabel_->setText(
-                    QStringLiteral("Your color has been changed to %1.")
-                        .arg(colorString));
+                return;
             }
+            if (custom)
+            {
+                auto recents = loadChatColorRecents();
+                recents = pushChatColorRecent(std::move(recents), colorString);
+                saveChatColorRecents(recents);
+                g->rebuildRecentSwatches();
+            }
+            saveLastChatColor(colorString);
+            g->statusLabel_->setText(
+                QStringLiteral("Your color has been changed to %1.")
+                    .arg(colorString));
         },
         [g, colorString](auto error, auto /*message*/) {
             if (!g)

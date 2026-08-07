@@ -10,16 +10,21 @@
 
 #include "widgets/BaseWidget.hpp"
 
+#include <QString>
+
 class QComboBox;
 class QLabel;
-class QLineEdit;
 class QPushButton;
+class QWidget;
 
 namespace chatterino {
+class ColorButton;
 class Split;
 class TwitchChannel;
 
 namespace limerino {
+
+class LimerinoColorField;
 
 class LimerinoAppearanceWidget final : public BaseWidget
 {
@@ -31,6 +36,8 @@ public:
 private:
     void refreshBadges();
     void refreshPreview();
+    void rebuildRecentSwatches();
+    void selectColorValue(const QString &value, bool fromCustomField);
     void applyBadge();
     void applyColor();
 
@@ -40,10 +47,14 @@ private:
     QComboBox *scopeCombo_ = nullptr;
     QLabel *previewLabel_ = nullptr;
 
-    QComboBox *colorCombo_ = nullptr;
-    QLineEdit *colorHexEdit_ = nullptr;
+    QWidget *namedSwatchRow_ = nullptr;
+    QWidget *recentSwatchRow_ = nullptr;
+    LimerinoColorField *customColorField_ = nullptr;
     QLabel *colorPreviewLabel_ = nullptr;
     QPushButton *applyColorButton_ = nullptr;
+
+    /// Helix name or #hex currently selected for Apply / preview.
+    QString selectedColorValue_;
 
     QPushButton *applyBadgeButton_ = nullptr;
     QLabel *statusLabel_ = nullptr;
