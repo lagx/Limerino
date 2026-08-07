@@ -111,21 +111,27 @@ void LimerinoUserCardWidget::rebuild()
     // Ruling: bare tag exactly as the API returns it; hidden (zero footprint)
     // when absent. Field-level failure is a dim placeholder + tooltip so it is
     // distinguishable from "no preferred language" without an error chip.
+    //
+    // Do not use QWidget::isVisible() for showLang. After refetch() clears
+    // extras_, this widget is hidden; a child's isVisible() stays false while
+    // the parent is hidden, so a language-only result never re-showed the
+    // widget. Team already keyed off the string (and worked); language did
+    // not — hence the tag only appeared when a team also forced show.
+    const bool showLang =
+        this->extras_.settingsFailed ||
+        !this->extras_.preferredLanguageTag.isEmpty();
     if (this->extras_.settingsFailed)
     {
         this->languageTagLabel_->setText(QStringLiteral("—"));
         this->languageTagLabel_->setToolTip(
             QStringLiteral("Could not load preferred language"));
-        this->languageTagLabel_->setVisible(true);
     }
     else
     {
         this->languageTagLabel_->setText(this->extras_.preferredLanguageTag);
         this->languageTagLabel_->setToolTip(QString());
-        this->languageTagLabel_->setVisible(
-            !this->extras_.preferredLanguageTag.isEmpty());
     }
-    const bool showLang = this->languageTagLabel_->isVisible();
+    this->languageTagLabel_->setVisible(showLang);
 
     // Ruling 1: show the team's `name` only; nothing rendered (and no layout
     // space claimed) when the user is on no team or the field was null.
@@ -133,7 +139,7 @@ void LimerinoUserCardWidget::rebuild()
     const bool showTeam = !this->extras_.primaryTeamName.isEmpty();
     this->teamLabel_->setVisible(showTeam);
 
-    // G4: subscription detail is appended by the caller to its own subage row.
+    // G4: subscription detail is appended by the caller to its own sub-age row.
     this->setVisible(showLang || showTeam);
     this->layout()->invalidate();
 }
