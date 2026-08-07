@@ -690,7 +690,7 @@ void LimerinoCrossbanDialog::onPresetSelectionChanged()
     const auto *item = this->presetList_->currentItem();
     if (item == nullptr)
     {
-        this->editingPresetId_ = {};
+        this->editingPresetId_ = QUuid();
         this->presetNameEdit_->clear();
         this->channelList_->clear();
         return;

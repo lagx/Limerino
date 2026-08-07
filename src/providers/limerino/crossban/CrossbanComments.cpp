@@ -41,7 +41,7 @@ QVector<CrossbanComment> parseModComments(const QJsonObject &data)
 
     QVector<CrossbanComment> out;
     out.reserve(edges.size());
-    for (const auto &edgeVal : edges)
+    for (const QJsonValue edgeVal : edges)
     {
         const auto node = edgeVal.toObject()[QStringLiteral("node")].toObject();
         if (node.isEmpty())

@@ -39,7 +39,7 @@ CrossbanPreset presetFromJson(const QJsonObject &o)
         p.id = QUuid::createUuid();
     }
     p.name = o[QStringLiteral("name")].toString().trimmed();
-    for (const auto &v : o[QStringLiteral("channels")].toArray())
+    for (const QJsonValue v : o[QStringLiteral("channels")].toArray())
     {
         if (!v.isObject())
         {
@@ -81,7 +81,7 @@ QVector<CrossbanPreset> loadCrossbanPresets()
         return {};
     }
     QVector<CrossbanPreset> out;
-    for (const auto &v : doc.array())
+    for (const QJsonValue v : doc.array())
     {
         if (!v.isObject())
         {
