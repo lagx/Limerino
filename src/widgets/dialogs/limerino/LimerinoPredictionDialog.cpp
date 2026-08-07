@@ -36,6 +36,7 @@
 #include <QRandomGenerator>
 #include <QScreen>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -122,6 +123,7 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     sidebar->addItem(QStringLiteral("Rewards"));
     sidebar->addItem(QStringLiteral("Appearance"));
     sidebar->setFixedWidth(132);
+    sidebar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     pageRoot->addWidget(sidebar);
     auto *stacked = new QStackedWidget(this);
     auto *scroll = new QScrollArea(this);
@@ -129,6 +131,7 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     scroll->setWidget(stacked);
     pageRoot->addWidget(scroll, 1);
     QObject::connect(sidebar, &QListWidget::currentRowChanged, stacked,
@@ -287,6 +290,22 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     stacked->addWidget(rewardsPage);
     stacked->addWidget(appearancePage);
 
+    // setWidgetResizable would otherwise squash pages into the viewport and
+    // hide scrollbars; pin the stacked minimum to the tallest page's hint.
+    predictionsPage->adjustSize();
+    rewardsPage->adjustSize();
+    appearancePage->adjustSize();
+    const int contentMinW =
+        qMax(predictionsPage->sizeHint().width(),
+             qMax(rewardsPage->sizeHint().width(),
+                  appearancePage->sizeHint().width()));
+    const int contentMinH =
+        qMax(predictionsPage->sizeHint().height(),
+             qMax(rewardsPage->sizeHint().height(),
+                  appearancePage->sizeHint().height()));
+    stacked->setMinimumSize(contentMinW, contentMinH);
+
+    this->setMinimumSize(400, 300);
     fitDialogToAvailableScreen(this, 460, 640);
 
     // ------------------------------ data ------------------------------

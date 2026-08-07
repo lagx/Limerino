@@ -10,13 +10,18 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCursor>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScreen>
+#include <QScrollArea>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -26,6 +31,36 @@ namespace {
 
 constexpr const char *kScopeAllExcept = "everywhere except...";
 constexpr const char *kScopeOnly = "only in...";
+
+// Cap dialog size to the screen it opens on (DPI/multi-monitor safe).
+void fitDialogToAvailableScreen(QWidget *dialog, int preferredWidth,
+                                int preferredHeight)
+{
+    QScreen *screen = dialog->screen();
+    if (screen == nullptr && dialog->parentWidget() != nullptr)
+    {
+        screen = dialog->parentWidget()->screen();
+    }
+    if (screen == nullptr)
+    {
+        screen = QGuiApplication::screenAt(QCursor::pos());
+    }
+    if (screen == nullptr)
+    {
+        screen = QGuiApplication::primaryScreen();
+    }
+    if (screen == nullptr)
+    {
+        dialog->resize(preferredWidth, preferredHeight);
+        return;
+    }
+    const QRect avail = screen->availableGeometry();
+    constexpr int margin = 48;
+    const int maxW = qMax(320, avail.width() - margin);
+    const int maxH = qMax(240, avail.height() - margin);
+    dialog->setMaximumSize(maxW, maxH);
+    dialog->resize(qMin(preferredWidth, maxW), qMin(preferredHeight, maxH));
+}
 
 }  // namespace
 
@@ -39,16 +74,26 @@ LimerinoAutoActionEditor::LimerinoAutoActionEditor(QWidget *parent,
                              : QStringLiteral("Edit auto action - %1 (Limerino)")
                                    .arg(existing.name));
 
-    auto *root = new QVBoxLayout(this);
+    auto *outer = new QVBoxLayout(this);
+
+    auto *scroll = new QScrollArea(this);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    auto *content = new QWidget;
+    auto *root = new QVBoxLayout(content);
     auto *form = new QFormLayout();
     root->addLayout(form);
 
     // Name + enable
-    this->nameEdit_ = new QLineEdit(existing.name, this);
+    this->nameEdit_ = new QLineEdit(existing.name, content);
     this->nameEdit_->setPlaceholderText(QStringLiteral("My rule"));
     form->addRow(QStringLiteral("Name"), this->nameEdit_);
 
-    this->enabledCheck_ = new QCheckBox(QStringLiteral("Enabled"), this);
+    this->enabledCheck_ = new QCheckBox(QStringLiteral("Enabled"), content);
     this->enabledCheck_->setChecked(existing.enabled);
     form->addRow(QString(), this->enabledCheck_);
 
@@ -56,17 +101,18 @@ LimerinoAutoActionEditor::LimerinoAutoActionEditor(QWidget *parent,
     {
         auto *row = new QHBoxLayout();
         row->setContentsMargins(0, 0, 0, 0);
-        this->contentEdit_ = new QLineEdit(existing.content.pattern, this);
-        this->contentRegex_ = new QCheckBox(QStringLiteral("Regex"), this);
+        this->contentEdit_ = new QLineEdit(existing.content.pattern, content);
+        this->contentRegex_ = new QCheckBox(QStringLiteral("Regex"), content);
         this->contentRegex_->setChecked(existing.content.isRegex);
-        this->contentCase_ = new QCheckBox(QStringLiteral("Case sensitive"), this);
+        this->contentCase_ =
+            new QCheckBox(QStringLiteral("Case sensitive"), content);
         this->contentCase_->setChecked(existing.content.caseSensitive);
         row->addWidget(this->contentEdit_, 1);
         row->addWidget(this->contentRegex_);
         row->addWidget(this->contentCase_);
         form->addRow(QStringLiteral("Message matcher"), row);
 
-        this->contentError_ = new QLabel(this);
+        this->contentError_ = new QLabel(content);
         this->contentError_->setStyleSheet(QStringLiteral("color: #d9534f;"));
         this->contentError_->setWordWrap(true);
         form->addRow(QString(), this->contentError_);
@@ -76,35 +122,36 @@ LimerinoAutoActionEditor::LimerinoAutoActionEditor(QWidget *parent,
     {
         auto *row = new QHBoxLayout();
         row->setContentsMargins(0, 0, 0, 0);
-        this->senderEdit_ = new QLineEdit(existing.sender.pattern, this);
-        this->senderRegex_ = new QCheckBox(QStringLiteral("Regex"), this);
+        this->senderEdit_ = new QLineEdit(existing.sender.pattern, content);
+        this->senderRegex_ = new QCheckBox(QStringLiteral("Regex"), content);
         this->senderRegex_->setChecked(existing.sender.isRegex);
-        this->senderCase_ = new QCheckBox(QStringLiteral("Case sensitive"), this);
+        this->senderCase_ =
+            new QCheckBox(QStringLiteral("Case sensitive"), content);
         this->senderCase_->setChecked(existing.sender.caseSensitive);
         row->addWidget(this->senderEdit_, 1);
         row->addWidget(this->senderRegex_);
         row->addWidget(this->senderCase_);
         form->addRow(QStringLiteral("Sender matcher"), row);
 
-        this->senderError_ = new QLabel(this);
+        this->senderError_ = new QLabel(content);
         this->senderError_->setStyleSheet(QStringLiteral("color: #d9534f;"));
         this->senderError_->setWordWrap(true);
         form->addRow(QString(), this->senderError_);
     }
 
     // Action
-    this->actionEdit_ = new QLineEdit(existing.action, this);
+    this->actionEdit_ = new QLineEdit(existing.action, content);
     this->actionEdit_->setPlaceholderText(
         QStringLiteral("/ban {sender.name} spam"));
     form->addRow(QStringLiteral("Action"), this->actionEdit_);
 
-    this->actionError_ = new QLabel(this);
+    this->actionError_ = new QLabel(content);
     this->actionError_->setStyleSheet(QStringLiteral("color: #d9534f;"));
     this->actionError_->setWordWrap(true);
     form->addRow(QString(), this->actionError_);
 
     // Placeholder reference
-    this->placeholderHelp_ = new QPlainTextEdit(this);
+    this->placeholderHelp_ = new QPlainTextEdit(content);
     this->placeholderHelp_->setReadOnly(true);
     this->placeholderHelp_->setMaximumHeight(56);
     this->placeholderHelp_->setPlainText(QStringLiteral(
@@ -114,22 +161,21 @@ LimerinoAutoActionEditor::LimerinoAutoActionEditor(QWidget *parent,
     form->addRow(QString(), this->placeholderHelp_);
 
     // Scope
-    this->scopeCombo_ = new QComboBox(this);
+    this->scopeCombo_ = new QComboBox(content);
     this->scopeCombo_->addItem(QStringLiteral("All except..."), kScopeAllExcept);
-    this->scopeCombo_->addItem(QStringLiteral("Only in..."),    kScopeOnly);
+    this->scopeCombo_->addItem(QStringLiteral("Only in..."), kScopeOnly);
     this->scopeCombo_->setCurrentIndex(
         existing.scope == LimerinoAutoAction::Scope::Only ? 1 : 0);
     form->addRow(QStringLiteral("Scope"), this->scopeCombo_);
 
-    this->channelsEdit_ = new QLineEdit(existing.channels.join(
-                                            QStringLiteral(", ")),
-                                        this);
+    this->channelsEdit_ = new QLineEdit(
+        existing.channels.join(QStringLiteral(", ")), content);
     this->channelsEdit_->setPlaceholderText(
         QStringLiteral("twitch:forsen, kick:amouranth"));
     form->addRow(QStringLiteral("Channel list"), this->channelsEdit_);
 
     // Cooldown
-    this->cooldownSpin_ = new QSpinBox(this);
+    this->cooldownSpin_ = new QSpinBox(content);
     this->cooldownSpin_->setRange(0, 3600);
     this->cooldownSpin_->setSuffix(QStringLiteral(" s"));
     this->cooldownSpin_->setValue(existing.cooldownSeconds);
@@ -137,33 +183,44 @@ LimerinoAutoActionEditor::LimerinoAutoActionEditor(QWidget *parent,
         QStringLiteral("0 = fire on every matching message."));
     form->addRow(QStringLiteral("Cooldown"), this->cooldownSpin_);
 
-    this->addActionRow(root);
-
-    // Test area
-    auto *testLabel = new QLabel(QStringLiteral("Test (dry-run):"), this);
+    // Test area (inside scroll; Save/Test stay outside below)
+    auto *testLabel = new QLabel(QStringLiteral("Test (dry-run):"), content);
     root->addWidget(testLabel);
 
     auto *testForm = new QFormLayout();
     root->addLayout(testForm);
 
-    this->testChannel_ = new QLineEdit(QStringLiteral("twitch:forsen"), this);
+    this->testChannel_ =
+        new QLineEdit(QStringLiteral("twitch:forsen"), content);
     this->testChannel_->setPlaceholderText(QStringLiteral("twitch:channel"));
     testForm->addRow(QStringLiteral("Channel"), this->testChannel_);
 
-    this->testSender_ = new QLineEdit(this);
+    this->testSender_ = new QLineEdit(content);
     this->testSender_->setPlaceholderText(QStringLiteral("someuser"));
     testForm->addRow(QStringLiteral("Sender"), this->testSender_);
 
-    this->testMessage_ = new QPlainTextEdit(this);
-    this->testMessage_->setPlaceholderText(QStringLiteral(
-        "paste a sample message here"));
+    this->testMessage_ = new QPlainTextEdit(content);
+    this->testMessage_->setPlaceholderText(
+        QStringLiteral("paste a sample message here"));
     this->testMessage_->setMaximumHeight(48);
     testForm->addRow(QStringLiteral("Message"), this->testMessage_);
 
-    this->testResult_ = new QPlainTextEdit(this);
+    this->testResult_ = new QPlainTextEdit(content);
     this->testResult_->setReadOnly(true);
     this->testResult_->setMaximumHeight(70);
     testForm->addRow(QString(), this->testResult_);
+
+    // Keep natural content size so AsNeeded scrollbars appear when the
+    // viewport is smaller (setWidgetResizable alone would squash fields).
+    content->adjustSize();
+    content->setMinimumSize(content->sizeHint());
+    scroll->setWidget(content);
+    outer->addWidget(scroll, 1);
+
+    this->addActionRow(outer);
+
+    this->setMinimumSize(360, 280);
+    fitDialogToAvailableScreen(this, 520, 640);
 
     // Wire up validation changes.
     auto onChange = [this] {

@@ -136,7 +136,8 @@ Entirely ours; will never conflict with upstream merges:
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
 | `src/widgets/dialogs/limerino/LimerinoResultDialog.{hpp,cpp}` | thin dialog shell for result lists |
 | `src/widgets/dialogs/limerino/LimerinoPinView.{hpp,cpp}` | on-demand pinned-message banner (mounted via runtime layout insert, zero Split.cpp edits) |
-| `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout); extended by P4 with a Hermes live-data pane and the auto-acknowledge-warnings setting; E2: QScrollArea + screen-bounded size |
+| `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout); extended by P4 with a Hermes live-data pane and the auto-acknowledge-warnings setting; E2: QScrollArea + screen-bounded size; C3: pin stacked min to page sizeHints so vertical scroll works when window is shorter than content |
+| `src/widgets/dialogs/limerino/LimerinoAutoActionEditor.{hpp,cpp}` | per-rule auto-action editor (batch N7); C2: QScrollArea (H/V AsNeeded), Save/Test outside scroll, screen-bounded default size |
 | `resources/buttons/channelPoints-{dark,light}Mode.svg` | mod-toolbar predictions icon |
 | `resources/buttons/{artist,unartist,leadmod}.png` | usercard role icons (E9); 72×72 PNGs, drawn at 30×30 like mod/vip |
 | `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`, `LimerinoPubSubEventDedupe`) | Hermes live-updates transport + topic-intent controller (batch P0); batch F6: `PubSubEvent` gains `category` + raw `payload`, generic fallback never prints raw topics; E1.b: `displayChannelId` + resolve-before-emit; B4.1: payload-identity LRU dedupe (120s raid_update / 30s else) + `limerinoPubSubDedupeEnabled`; B4.2: unresolved ids shown as `id:<n>` |
