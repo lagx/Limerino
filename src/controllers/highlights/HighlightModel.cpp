@@ -132,6 +132,11 @@ void HighlightModel::getRowFromItem(const HighlightPhrase &item,
                    : QStringLiteral("Default");
 
     using Delegate = limerino::HighlightGroupCellDelegate;
+    // QStandardItem is checkable by default; clear that so the Group column
+    // does not paint a stray checkbox before the name (other columns go
+    // through setStringItem/setBoolItem which already set flags).
+    row[Column::Group]->setFlags(
+        Qt::ItemFlags(defaultItemFlags(true) | Qt::ItemIsEditable));
     row[Column::Group]->setData(displayName, Qt::DisplayRole);
     row[Column::Group]->setData(groupId.toString(QUuid::WithoutBraces),
                                 Qt::UserRole);
