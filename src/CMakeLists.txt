@@ -1040,6 +1040,16 @@ set(SOURCE_FILES
         widgets/dialogs/limerino/LimerinoThemeDialog.cpp
         widgets/dialogs/limerino/LimerinoThemeDialog.hpp
 
+        # Limerino crossban (strike status + mod notes across presets)
+        providers/limerino/crossban/CrossbanStrike.cpp
+        providers/limerino/crossban/CrossbanStrike.hpp
+        providers/limerino/crossban/CrossbanComments.cpp
+        providers/limerino/crossban/CrossbanComments.hpp
+        providers/limerino/crossban/CrossbanPresets.cpp
+        providers/limerino/crossban/CrossbanPresets.hpp
+        widgets/dialogs/limerino/LimerinoCrossbanDialog.cpp
+        widgets/dialogs/limerino/LimerinoCrossbanDialog.hpp
+
         # Limerino nuke engine (pure plan builder; execution in N3)
         providers/limerino/nuke/NukePlan.hpp
         providers/limerino/nuke/NukePlan.cpp

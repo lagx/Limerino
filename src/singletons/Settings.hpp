@@ -920,6 +920,11 @@ public:
     // Limerino: auto-action rules (batch N5). JSON array of rule objects.
     QStringSetting limerinoAutoActions{"/limerino/autoActions", "[]"};
 
+    // Limerino: crossban channel presets (JSON array) + last-selected preset id.
+    QStringSetting limerinoCrossbanPresets{"/limerino/crossban/presets", "[]"};
+    QStringSetting limerinoCrossbanLastPresetId{
+        "/limerino/crossban/lastPresetId", ""};
+
 
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =

@@ -41,6 +41,7 @@
 #include "widgets/buttons/LabelButton.hpp"
 #include "widgets/buttons/PixmapButton.hpp"
 #include "widgets/dialogs/EditUserNotesDialog.hpp"
+#include "widgets/dialogs/limerino/LimerinoCrossbanDialog.hpp"
 #include "widgets/dialogs/limerino/LimerinoUserCardWidget.hpp"
 #include "widgets/helper/ChannelView.hpp"
 #include "widgets/helper/InvisibleSizeGrip.hpp"
@@ -563,6 +564,22 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                              LimerinoCommands::showNameHistoryDialog(
                                  this->userName_, nullptr);
                          });
+
+        // Limerino: crossban across moderated-channel presets
+        auto crossban = user.emplace<LabelButton>("Crossban", this);
+        QObject::connect(crossban.getElement(), &Button::leftClicked, [this] {
+            if (this->isKick_ || this->userId_.isEmpty())
+            {
+                return;
+            }
+            const QString display =
+                this->ui_.nameLabel != nullptr ? this->ui_.nameLabel->getText()
+                                               : this->userName_;
+            // No parent: same auto-close UAF rationale as Name history.
+            auto *dialog = new limerino::LimerinoCrossbanDialog(
+                this->userId_, this->userName_, display, nullptr);
+            dialog->show();
+        });
 
         // Limerino fork hooks: artist / unartist / lead mod (own channel only)
         auto artistButton = user.emplace<LabelButton>("Artist", this);

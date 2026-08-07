@@ -461,6 +461,30 @@ QList<LimerinoFeature> buildCatalog()
             {},
             QStringLiteral("Limerino"),
         },
+
+        // --------------------------------------------------- Moderation ---
+        {
+            QStringLiteral("crossban"),
+            QStringLiteral("Crossban"),
+            QStringLiteral("Moderation"),
+            QStringLiteral("Ban, timeout, or unban a user across a channel preset"),
+            QStringLiteral("Opens from the usercard. Build named channel presets "
+                           "(from channels you moderate), refresh live strike "
+                           "status per channel (banned / timed out / clean), "
+                           "act with a shared reason, and read or add mod notes. "
+                           "Ban/timeout/unban use the primary Twitch account "
+                           "(same as Nuke); status and notes use Limerino "
+                           "extra-features auth."),
+            FeatureStatus::Implemented,
+            {
+                {AccessKind::Dialog,
+                 QStringLiteral("usercard > Crossban")},
+            },
+            {},
+            {QStringLiteral("Requires Limerino auth covering the channels; "
+                            "primary account needs ban rights")},
+            QString(),
+        },
     };
 }
 

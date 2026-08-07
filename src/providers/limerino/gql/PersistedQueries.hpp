@@ -97,6 +97,17 @@ constexpr PersistedQuery PQ_ASSIGN_CHANNEL_ROLE{
     "AssignChannelRole",
     "2d373c90d0d0e6d4fe771bc6136febe6a148eb3d5700d2a0575883a043fbd581"};
 
+// Crossban (viewer-card strike + mod comments). Hashes from live captures.
+constexpr PersistedQuery PQ_CHAT_MODERATOR_STRIKE_STATUS{
+    "ChatModeratorStrikeStatus",
+    "7f50f7190a840cd9fe9a91398f34ebb690eeba7cb28bce70e4cbf7ed1d06f268"};
+constexpr PersistedQuery PQ_VIEWER_CARD_MOD_LOGS_COMMENTS{
+    "ViewerCardModLogsComments",
+    "58273e486b4e50dafbad9f736bc1ebcc7db935572664cb9c1e561b8e1e076dc6"};
+constexpr PersistedQuery PQ_CREATE_MOD_COMMENT{
+    "createModComment",
+    "1274e01f38489378e48dbb35f3cd4d11b9bbfbb38171ae7815426d7a56bca3f6"};
+
 // ---------------------------------------------------------------------------
 // Inline (non-persisted) queries, transcribed verbatim
 // ---------------------------------------------------------------------------

@@ -73,7 +73,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged | Low |
 | `src/controllers/commands/CommandController.hpp` | fork commands need a registration extension point | one tiny public passthrough `registerExternalCommand()` wrapping the private `registerCommand()` | Low |
 | `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` + one include + one call `limerino::initializePubSub()` (Hermes bootstrap) at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our lines at the end of the function** |
-| `src/widgets/dialogs/UserInfoPopup.cpp` / `.hpp` | usercard gets a "Name history" option + a GQL-extras label | one include + one `LabelButton` + connect (pre-existing); batch U2: one include + one `LimerinoUserCardWidget` + one `setTarget()` call inside the existing Helix-success lambda (no `ui_` struct changes); batch F1: name-history dialog opened with `nullptr` parent (popup auto-close used to destroy the dialog mid-fetch → UAF crash); batch F4: connect `extrasChanged` → re-append sub suffix (IVR/GQL race fix) + `.hpp` `subageBaseText_` member | Low |
+| `src/widgets/dialogs/UserInfoPopup.cpp` / `.hpp` | usercard gets a "Name history" option + a GQL-extras label | one include + one `LabelButton` + connect (pre-existing); batch U2: one include + one `LimerinoUserCardWidget` + one `setTarget()` call inside the existing Helix-success lambda (no `ui_` struct changes); batch F1: name-history dialog opened with `nullptr` parent (popup auto-close used to destroy the dialog mid-fetch → UAF crash); batch F4: connect `extrasChanged` → re-append sub suffix (IVR/GQL race fix) + `.hpp` `subageBaseText_` member; crossban: one include + one `LabelButton` "Crossban" + connect opening `LimerinoCrossbanDialog` with `nullptr` parent | Low |
 | `src/widgets/splits/SplitHeader.cpp` / `.hpp` | split menus + mod toolbar get fork actions | "Follow channel" + "View followers/following" menu lines (batch 2); predictions button member + creation + layout slot + vis hints in `updateIcons`/`updateAddButtonMargins` (batch 4); "Filter events..." conditional menu entry for `/events` + 2 hook includes (live-updates P0); "Nuke messages..." conditional menu entry gated on `hasModRights() && isTwitchOrKickChannel()` opening `LimerinoNukeDialog` + 1 include (batch N3) | Low |
 | `src/widgets/dialogs/SelectChannelDialog.cpp` / `.hpp` | new-split dialog lists the fork's `/events` special channel like `/mentions` | one include + one "Events" radio block (label + connect) on the Twitch page + one `getSelectedChannel` branch + one `Misc` case in `setSelectedChannel` + 2 focus-chain special cases (last entry wrap, Channel-edit back-tab) + 2 `ui_` struct members | Low |
 | `src/CMakeLists.txt` | compile the Limerino-owned page | 3-line append block at the tail of `SOURCE_FILES` (`# Limerino fork files…`); the same block hosts all future `limerino/` + `providers/limerino/` entries (live-updates P0 added `providers/limerino/pubsub/*`, `PubSubEventsChannel`, `LimerinoEventFilterDialog`; batch U1 added `providers/limerino/gql/LimerinoUserCardExtras`; batch U2 added `widgets/dialogs/limerino/LimerinoUserCardWidget`); F7: `CHATTERINO_VERSION_STR` define (PRIVATE on version lib, PUBLIC on chatterino-lib); F7: macOS bundle name/identifier rebranded | Low — append-only at list tail |
@@ -94,7 +94,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/controllers/highlights/HighlightPhrase.cpp` | same | delegating ctor + `groupId_` init + `std::tie` extension in `operator==` + `groupId()` getter | Low |
 | `src/controllers/highlights/HighlightBadge.hpp` | same | same shape as HighlightPhrase | Low |
 | `src/controllers/highlights/HighlightBadge.cpp` | same | same shape as HighlightPhrase | Low |
-| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups`; batch N4 added `limerinoNukePresets` (`QStringSetting`, presets as JSON); batch N5 added `limerinoAutoActions` (`QStringSetting`, rules as JSON) | Low |
+| `src/singletons/Settings.hpp` | register `/highlighting/groups` store | one include + `ChatterinoSetting<std::vector<HighlightGroup>>` + `SignalVector<HighlightGroup> highlightGroups`; batch N4 added `limerinoNukePresets` (`QStringSetting`, presets as JSON); batch N5 added `limerinoAutoActions` (`QStringSetting`, rules as JSON); crossban added `limerinoCrossbanPresets` + `limerinoCrossbanLastPresetId` | Low |
 | `src/singletons/Settings.cpp` | initialise the vector + create Default group on startup | two includes + one `initializeSignalVector` call + `new HighlightGroupController(*this, this)` after `instance_ = this`; batch N5: constructs `LimerinoAutoActionController` next to it | Low |
 | `src/CMakeLists.txt` | compile the group data model + UI | fourteen entries appended to the tail `# Limerino fork files` block (`providers/limerino/highlights/HighlightGroup*`, `HighlightGroupChannelKey*`, `HighlightGroupChannels*`, `HighlightGroupCellDelegate*`, `HighlightGroupDialog*`, `HighlightGroupMenu*`) | Low — append-only |
 | `src/controllers/highlights/HighlightController.hpp` | resolver needs a channel-keyed overload + caches | added `GroupedHighlightCheck` (check + groupId; null = global), `check(... channelKey)` overload, private `resolveChecks`/`runChecks`, two `QHash` caches | Medium |
@@ -173,6 +173,11 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/theme/LimerinoThemeStore.{hpp,cpp}` | two-file-model seed wrapper (`limerinoThemeVersion`), filename sanitization, Themes/ install + rescan + select; full-theme files imported as-is with no reverse derivation (batch T2) |
 | `tests/src/LimerinoThemeStore.cpp` | seed serde round-trip, version gate, filename sanitizer (batch T2) |
 | `src/widgets/dialogs/limerino/LimerinoThemeDialog.{hpp,cpp}` | theme creator UI: four-color seed editor, ColorPickerDialog + QToolButton/hex swatches, live preview via Themes/_LimerinoPreview.json + setAutoReload, import seed/full theme, export seed/theme, Apply installs+selects (batch T3) |
+| `src/providers/limerino/crossban/CrossbanStrike.{hpp,cpp}` | parse ChatModeratorStrikeStatus → Clean/Banned/TimedOut/Warning (crossban) |
+| `src/providers/limerino/crossban/CrossbanComments.{hpp,cpp}` | parse ViewerCardModLogsComments + createModComment helper (crossban) |
+| `src/providers/limerino/crossban/CrossbanPresets.{hpp,cpp}` | JSON presets under `/limerino/crossban/presets` (crossban) |
+| `src/widgets/dialogs/limerino/LimerinoCrossbanDialog.{hpp,cpp}` | usercard crossban UI: Channels + Presets tabs, strike refresh, Helix ban/timeout/unban, mod notes (crossban) |
+| `tests/src/LimerinoCrossban.cpp` | strike + comment parse fixtures from live captures (crossban) |
 
 ### Feature wiki (settings page)
 
@@ -217,6 +222,26 @@ applies immediately but may not appear in that dropdown until Settings is reopen
 
 Upstream touch: one public `Theme::rescanCustomThemes(paths)` forwarder in
 `Theme.hpp` (logged above). Do not expand it.
+
+### Crossban (multi-channel ban / timeout / notes)
+
+Usercard > Crossban. Named channel presets (empty by default; edited in the
+dialog's Presets tab; completer from `LimerinoAuth::moderatedChannels`). Per
+channel: live `ChatModeratorStrikeStatus` (GQL), Ban / Timeout / Unban via
+`LimerinoApi` (primary Twitch account, same as Nuke), mod notes via
+`ViewerCardModLogsComments` + `createModComment`. Shared reason field; shared
+timeout duration for bulk Timeout.
+
+| Piece | Role |
+|---|---|
+| `CrossbanStrike` | parse banDetails / timeoutDetails / warningDetails |
+| `CrossbanComments` | list + create helpers over persisted queries |
+| `CrossbanPresets` | `/limerino/crossban/presets` + lastPresetId |
+| `LimerinoCrossbanDialog` | Channels + Presets tabs |
+
+GQL hashes live in `PersistedQueries.hpp` (`PQ_CHAT_MODERATOR_STRIKE_STATUS`,
+`PQ_VIEWER_CARD_MOD_LOGS_COMMENTS`, `PQ_CREATE_MOD_COMMENT`). Upstream hook:
+`UserInfoPopup.cpp` only.
 
 ### Extra-features auth (secondary login)
 
