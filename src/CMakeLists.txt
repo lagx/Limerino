@@ -941,6 +941,8 @@ set(SOURCE_FILES
         limerino/LimerinoFeatures.hpp
         limerino/LimerinoPage.cpp
         limerino/LimerinoPage.hpp
+        limerino/LimerinoAutoActionsPage.cpp
+        limerino/LimerinoAutoActionsPage.hpp
         limerino/LimerinoWikiWidget.cpp
         limerino/LimerinoWikiWidget.hpp
         providers/limerino/LimerinoApi.cpp

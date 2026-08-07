@@ -9,6 +9,7 @@
 #include "common/QLogging.hpp"
 #include "controllers/commands/CommandController.hpp"
 #include "controllers/hotkeys/HotkeyController.hpp"
+#include "limerino/LimerinoAutoActionsPage.hpp"
 #include "limerino/LimerinoPage.hpp"
 #include "singletons/Settings.hpp"
 #include "util/LayoutCreator.hpp"
@@ -258,6 +259,9 @@ void SettingsDialog::addTabs()
     this->addTab([]{return new HighlightingPage;},     "Highlights",     ":/settings/notifications.svg", SettingsTabId::Highlights);
     this->addTab([]{return new IgnoresPage;},          "Ignores",        ":/settings/ignore.svg");
     this->addTab([]{return new FiltersPage;},          "Filters",        ":/settings/filters.svg");
+    // Limerino: Auto Actions is its own tab (E5); reuse commands.svg — rules
+    // dispatch chat commands. No new SettingsTabId (nothing deep-links here).
+    this->addTab([]{return new LimerinoAutoActionsPage;}, "Auto Actions", ":/settings/commands.svg");
     this->ui_.tabContainer->addSpacing(16);
     this->addTab([]{return new KeyboardSettingsPage;}, "Hotkeys",        ":/settings/keybinds.svg");
     this->addTab([]{return new ModerationPage;},       "Moderation",     ":/settings/moderation.svg", SettingsTabId::Moderation);

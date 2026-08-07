@@ -426,12 +426,12 @@ QList<LimerinoFeature> buildCatalog()
                            "(regex or plain, case-insensitive by default) and "
                            "sends an action with placeholders like "
                            "{sender.name}, {msg.id} or {channel.name}. Rules "
-                           "run in the background; the Limerino settings page "
-                           "lists and edits them."),
+                           "run in the background; the Auto Actions settings "
+                           "tab lists and edits them."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Dialog,
-                 QStringLiteral("Settings > Limerino > Auto actions > Add rule...")},
+                 QStringLiteral("Settings > Auto Actions > Add rule...")},
                 {AccessKind::Automatic,
                  QStringLiteral("rules fire on matching messages without input")},
             },

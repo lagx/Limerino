@@ -70,7 +70,7 @@ close to zero as possible — every entry is future merge pain.
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino`; F7: `appUserModelID_` → `Limerino.Limerino`, stale buildString example comment fixed | Low — narrow context, rarely touched upstream |
 | `src/common/Version.hpp` | displayed version must not drift from the CMake version | one edit: hardcoded `CHATTERINO_VERSION "2.5.5"` → derived from `CHATTERINO_VERSION_STR` (CMake `PROJECT_VERSION` injected in src/CMakeLists.txt) | Low |
 | `src/singletons/Theme.hpp` | theme creator must make an exported theme selectable in the same session | small public `rescanCustomThemes(const Paths &)` forwarder to the already-idempotent private `loadAvailableThemes` + comment refresh clarifying which reloadability is meant | Low |
-| `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged | Low |
+| `src/widgets/dialogs/SettingsDialog.cpp` | the fork needs its own settings tab | minimal hook: one `#include "limerino/LimerinoPage.hpp"` + one `addTab(...)` line (no id arg, icon `:/icon.png`); upstream Technorino tab label unchanged; E5: `#include "limerino/LimerinoAutoActionsPage.hpp"` + `addTab` for "Auto Actions" immediately after Filters (icon `:/settings/commands.svg`, no SettingsTabId) | Low |
 | `src/controllers/commands/CommandController.hpp` | fork commands need a registration extension point | one tiny public passthrough `registerExternalCommand()` wrapping the private `registerCommand()` | Low |
 | `src/controllers/commands/CommandController.cpp` | fork commands must be wired at startup | one include + one call `LimerinoCommands::initialize(*this)` + one include + one call `limerino::initializePubSub()` (Hermes bootstrap) at the tail of `initializeDefaults` + the passthrough impl | **Highest care — this file gets most upstream command additions; conflict resolution: keep upstream, re-add our lines at the end of the function** |
 | `src/widgets/dialogs/UserInfoPopup.cpp` / `.hpp` | usercard gets a "Name history" option + a GQL-extras label | one include + one `LabelButton` + connect (pre-existing); batch U2: one include + one `LimerinoUserCardWidget` + one `setTarget()` call inside the existing Helix-success lambda (no `ui_` struct changes); batch F1: name-history dialog opened with `nullptr` parent (popup auto-close used to destroy the dialog mid-fetch → UAF crash); batch F4: connect `extrasChanged` → re-append sub suffix (IVR/GQL race fix) + `.hpp` `subageBaseText_` member; crossban: one include + one `LabelButton` "Crossban" + connect opening `LimerinoCrossbanDialog` with `nullptr` parent | Low |
@@ -123,7 +123,7 @@ Entirely ours; will never conflict with upstream merges:
 |---|---|
 | `FORK.md` | fork setup |
 | `AGENTS.md` | fork setup |
-| `src/limerino/` (incl. `src/limerino/LimerinoPage.{hpp,cpp}`, Limerino settings page) | fork setup / Limerino tab |
+| `src/limerino/` (incl. `src/limerino/LimerinoPage.{hpp,cpp}`, Limerino settings page; E5: `LimerinoAutoActionsPage.{hpp,cpp}` owns the Auto Actions list/editor moved off LimerinoPage) | fork setup / Limerino tab |
 | `src/providers/limerino/` (`LimerinoAuth.{hpp,cpp}`) | extra-features auth subsystem |
 | `src/providers/limerino/LimerinoApi.{hpp,cpp}` | Helix client for the ported plugin (tokens: primary-if-scopable else resolvers) |
 | `src/providers/limerino/LimerinoErrors.{hpp,cpp}` | shared user-facing error mapping |
@@ -330,7 +330,7 @@ Two features built on one shared matcher (`src/providers/limerino/matcher/`).
   **Deletes cannot be undone**; this is stated in the dialog before execute.
 - Presets (`limerinoNukePresets`): matchers + lookback + action + params.
 
-**Auto Actions (`limerinoAutoActions`, settings → Limerino tab ➜ Auto actions)**
+**Auto Actions (`limerinoAutoActions`, settings → Auto Actions tab)**
 
 - One rule = matchers + `Scope` (AllExcept-with-empty-list = everywhere, or
   Only-with-list using the shared `highlightChannelKey` scheme) + command
