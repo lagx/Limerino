@@ -109,10 +109,23 @@ void LimerinoUserCardWidget::refetch()
 void LimerinoUserCardWidget::rebuild()
 {
     // Ruling: bare tag exactly as the API returns it; hidden (zero footprint)
-    // when absent / after any failure.
-    this->languageTagLabel_->setText(this->extras_.preferredLanguageTag);
-    const bool show = !this->extras_.preferredLanguageTag.isEmpty();
-    this->languageTagLabel_->setVisible(show);
+    // when absent. Field-level failure is a dim placeholder + tooltip so it is
+    // distinguishable from "no preferred language" without an error chip.
+    if (this->extras_.settingsFailed)
+    {
+        this->languageTagLabel_->setText(QStringLiteral("—"));
+        this->languageTagLabel_->setToolTip(
+            QStringLiteral("Could not load preferred language"));
+        this->languageTagLabel_->setVisible(true);
+    }
+    else
+    {
+        this->languageTagLabel_->setText(this->extras_.preferredLanguageTag);
+        this->languageTagLabel_->setToolTip(QString());
+        this->languageTagLabel_->setVisible(
+            !this->extras_.preferredLanguageTag.isEmpty());
+    }
+    const bool showLang = this->languageTagLabel_->isVisible();
 
     // Ruling 1: show the team's `name` only; nothing rendered (and no layout
     // space claimed) when the user is on no team or the field was null.
@@ -121,7 +134,7 @@ void LimerinoUserCardWidget::rebuild()
     this->teamLabel_->setVisible(showTeam);
 
     // G4: subscription detail is appended by the caller to its own subage row.
-    this->setVisible(show || showTeam);
+    this->setVisible(showLang || showTeam);
     this->layout()->invalidate();
 }
 
@@ -162,7 +175,14 @@ QString LimerinoUserCardWidget::subscriptionSuffix() const
 
     if (sub->isGift)
     {
-        parts << QStringLiteral("gift");
+        if (!sub->gifterDisplayName.isEmpty())
+        {
+            parts << QStringLiteral("gift from %1").arg(sub->gifterDisplayName);
+        }
+        else
+        {
+            parts << QStringLiteral("gift");
+        }
     }
     if (sub->tier == QLatin1String("2000"))
     {

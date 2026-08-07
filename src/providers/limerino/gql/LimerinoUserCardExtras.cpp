@@ -7,6 +7,9 @@
 #include "providers/limerino/gql/LimerinoGql.hpp"
 
 #include <QDateTime>
+#include <QHash>
+#include <QJsonArray>
+#include <QJsonValue>
 #include <QLoggingCategory>
 
 namespace chatterino::LimerinoAuth::gql {
@@ -25,7 +28,16 @@ query LimerinoUserCardExtras($id: ID!, $channelID: ID!) {
         primaryTeam { name owner { login } }
         relationship(targetUserID: $channelID) {
             subscriptionTenure(tenureMethod: CUMULATIVE) { months }
-            subscriptionBenefit { platform purchasedWithPrime tier thirdPartySKU gift { isGift } }
+            subscriptionBenefit {
+                platform
+                purchasedWithPrime
+                tier
+                thirdPartySKU
+                gift {
+                    isGift
+                    gifter { login displayName }
+                }
+            }
         }
     }
 }
@@ -43,6 +55,23 @@ QHash<QString, CacheEntry> &extrasCache()
     return cache;
 }
 
+bool errorPathContains(const QJsonArray &errors, QLatin1String segment)
+{
+    for (int i = 0; i < errors.size(); ++i)
+    {
+        const QJsonArray path =
+            errors.at(i).toObject().value(QStringLiteral("path")).toArray();
+        for (int j = 0; j < path.size(); ++j)
+        {
+            if (path.at(j).toString() == segment)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 LimerinoUserCardExtras parseUserCardExtras(const QJsonObject &userObj,
@@ -50,6 +79,8 @@ LimerinoUserCardExtras parseUserCardExtras(const QJsonObject &userObj,
                                            bool relationshipFailed)
 {
     LimerinoUserCardExtras out;
+    out.settingsFailed = settingsFailed;
+    out.relationshipFailed = relationshipFailed;
 
     if (!settingsFailed)
     {
@@ -79,10 +110,18 @@ LimerinoUserCardExtras parseUserCardExtras(const QJsonObject &userObj,
             det.purchasedWithPrime =
                 sub.value(QStringLiteral("purchasedWithPrime")).toBool();
             det.tier = sub.value(QStringLiteral("tier")).toString();
-            det.isGift = sub.value(QStringLiteral("gift"))
-                             .toObject()
-                             .value(QStringLiteral("isGift"))
-                             .toBool();
+            const QJsonObject gift =
+                sub.value(QStringLiteral("gift")).toObject();
+            det.isGift = gift.value(QStringLiteral("isGift")).toBool();
+            const QJsonObject gifter =
+                gift.value(QStringLiteral("gifter")).toObject();
+            det.gifterDisplayName =
+                gifter.value(QStringLiteral("displayName")).toString();
+            if (det.gifterDisplayName.isEmpty())
+            {
+                det.gifterDisplayName =
+                    gifter.value(QStringLiteral("login")).toString();
+            }
             det.thirdPartySKU =
                 sub.value(QStringLiteral("thirdPartySKU")).toString();
             det.tenureMonths =
@@ -140,10 +179,11 @@ void fetchUserCardExtras(
     variables.insert(QStringLiteral("id"), targetUserId);
     variables.insert(QStringLiteral("channelID"), channelId);
 
-    executeInline(
+    executeInlineAllowPartial(
         QStringLiteral("LimerinoUserCardExtras"), USER_CARD_EXTRAS_QUERY,
         variables, token.token,
-        [targetUserId, channelId, cb](const QJsonObject &data) {
+        [targetUserId, channelId, cb](const QJsonObject &data,
+                                      const QJsonArray &errors) {
             const QJsonObject user =
                 data.value(QStringLiteral("user")).toObject();
             if (user.isEmpty())
@@ -157,15 +197,30 @@ void fetchUserCardExtras(
                 return;  // not cached: transient or deleted user
             }
 
-            const auto extras = parseUserCardExtras(
-                user, /*settingsFailed*/ false, /*relationshipFailed*/ false);
+            const bool settingsFailed =
+                errorPathContains(errors, QLatin1String("settings"));
+            const bool relationshipFailed =
+                errorPathContains(errors, QLatin1String("relationship"));
+            const bool primaryTeamFailed =
+                errorPathContains(errors, QLatin1String("primaryTeam"));
 
-            // A response that carries a user but *no* extras at all is still a
-            // perfectly valid "nothing to show" - cached so repeat opens are free.
-            extrasCache().insert(targetUserId,
-                                 CacheEntry{channelId,
-                                            QDateTime::currentDateTimeUtc(),
-                                            extras});
+            auto extras = parseUserCardExtras(user, settingsFailed,
+                                              relationshipFailed);
+            extras.primaryTeamFailed = primaryTeamFailed;
+            if (primaryTeamFailed)
+            {
+                extras.primaryTeamName.clear();
+            }
+
+            // Do not cache partial field failures — a denied/errored field
+            // must not stick for the 5-minute TTL.
+            if (!extras.hasFieldFailure())
+            {
+                extrasCache().insert(targetUserId,
+                                     CacheEntry{channelId,
+                                                QDateTime::currentDateTimeUtc(),
+                                                extras});
+            }
 
             if (cb)
             {

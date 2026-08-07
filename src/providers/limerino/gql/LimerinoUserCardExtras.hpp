@@ -21,20 +21,33 @@ struct LimerinoSubDetail {
     bool purchasedWithPrime = false;
     QString tier;                  // raw wire value (e.g. "1000"/"2000"/"3000")
     bool isGift = false;
+    QString gifterDisplayName;     // displayName, else login; empty if none
     QString thirdPartySKU;         // raw wire value; empty when field absent
     int tenureMonths = 0;          // 0 when tenure is unknown / not shown
 };
 
 struct LimerinoUserCardExtras {
-    QString preferredLanguageTag;    // empty when absent
+    QString preferredLanguageTag;    // empty when absent or settingsFailed
     QString primaryTeamName;         // empty when user is on no team (ruling 1)
     std::optional<LimerinoSubDetail> subscription;  // nullopt = none / absent
+
+    // True when errors[] reported a failure on that field path. Distinguishes
+    // "honestly empty" from "could not read" for UI (tooltip) and cache policy.
+    bool settingsFailed = false;
+    bool relationshipFailed = false;
+    bool primaryTeamFailed = false;
 
     bool empty() const
     {
         return this->preferredLanguageTag.isEmpty() &&
                this->primaryTeamName.isEmpty() &&
-               !this->subscription.has_value();
+               !this->subscription.has_value() && !this->settingsFailed;
+    }
+
+    bool hasFieldFailure() const
+    {
+        return this->settingsFailed || this->relationshipFailed ||
+               this->primaryTeamFailed;
     }
 };
 
@@ -50,8 +63,9 @@ LimerinoUserCardExtras parseUserCardExtras(const QJsonObject &userObj,
 // `cb` runs on the GUI thread (LimerinoRateLimiter guarantee). `cb(nullopt)`
 // = total failure or resolver-abort (caller renders nothing); `cb(extras)`
 // may be fully filled, partially filled (field-level null), or .empty() (user
-// has no extras). Results are cached per-user for CACHE_TTL_MS; negative
-// results are NOT cached (a transient error does not blank the card forever).
+// has no extras). Results are cached per-user for CACHE_TTL_MS unless a
+// requested field failed (partial errors[] path) — those are displayed but
+// not cached so the next open retries. Negative results are NOT cached.
 void fetchUserCardExtras(
     const QString &targetUserId, const QString &channelId,
     std::function<void(std::optional<LimerinoUserCardExtras>)> cb);

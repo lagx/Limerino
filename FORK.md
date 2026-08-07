@@ -128,9 +128,9 @@ Entirely ours; will never conflict with upstream merges:
 | `src/providers/limerino/LimerinoApi.{hpp,cpp}` | Helix client for the ported plugin (tokens: primary-if-scopable else resolvers) |
 | `src/providers/limerino/LimerinoErrors.{hpp,cpp}` | shared user-facing error mapping |
 | `src/providers/limerino/LimerinoRateLimiter.{hpp,cpp}` | per-host request queue + 429 backoff |
-| `src/providers/limerino/gql/` (`LimerinoGql`, `PersistedQueries`) | GQL client (persisted + inline) with central errors[] extraction; query/hashes transcribed from `pluginforreference/requests.lua` |
-| `src/providers/limerino/gql/LimerinoUserCardExtras.{hpp,cpp}` | combined usercard GQL fetch (language tag / team / sub detail) + 5-min per-user cache; doc authored from `gqlreference/gql/` shapes (batch U1); batch F4: `thirdPartySKU` added to selection set + struct + parse |
-| `src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` | per-usercard extras label (language tag top-right in the header box; team + sub rows later); QPointer + request-generation teardown (batch U2); batch F4: unknown platform strings render raw instead of hidden, SKU chip, `extrasChanged` signal |
+| `src/providers/limerino/gql/` (`LimerinoGql`, `PersistedQueries`) | GQL client (persisted + inline) with central errors[] extraction; query/hashes transcribed from `pluginforreference/requests.lua`; `executeInlineAllowPartial` keeps `data` when sibling field errors exist (usercard) |
+| `src/providers/limerino/gql/LimerinoUserCardExtras.{hpp,cpp}` | combined usercard GQL fetch (language tag / team / sub detail) + 5-min per-user cache; doc authored from `gqlreference/gql/` shapes (batch U1); batch F4: `thirdPartySKU`; E8: partial errors[] flags + no-cache on field failure; gift `gifter` selection |
+| `src/widgets/dialogs/limerino/LimerinoUserCardWidget.{hpp,cpp}` | per-usercard extras label (language tag top-right in the header box; team + sub rows later); QPointer + request-generation teardown (batch U2); batch F4: unknown platform strings render raw instead of hidden, SKU chip, `extrasChanged` signal; E8: settings-failed tooltip placeholder; gift-from-name in sub suffix |
 | `src/providers/limerino/commands/` (`LimerinoCommands.*`) | ported-command registration entry (batches 1-12) |
 | `src/widgets/dialogs/LimerinoAuthDialog.{hpp,cpp}` | extra-features auth dialog (Device/Accounts tabs; Script tab removed in F2 — clickable verification link, button state machine, success line) |
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
@@ -281,9 +281,9 @@ which is the race that used to hide platform/SKU entirely).
 
 | Field | Data path | Auth (G0.2 analysis) | Renders |
 |---|---|---|---|
-| Preferred language tag | `user.settings.preferredLanguageTag` | any user token (resolver: `resolveReadToken`); perm-miss → `null`, no `errors[]` | bare tag top-right of upper half; hidden (zero footprint) when absent |
-| Primary team | `user.primaryTeam.name` (singular, not a list) | any user token; team-less → `null` | one dimmed label under the tag when present; nothing when absent |
-| Subscription detail | `user.relationship(targetUserID).subscriptionBenefit{platform,purchasedWithPrime,tier,gift.isGift}`+`subscriptionTenure.months` | any user token; not mod-gated; `null` → not subbed | appended onto existing `★ Tier…` IVR sub-age row via ` · web/Android/iOS/Prime, gift, Tier 2/3` (unrecognized platforms hidden; field-by-field degradation, never blanks the base row) |
+| Preferred language tag | `user.settings.preferredLanguageTag` | any user token (resolver: `resolveReadToken`); perm-miss → `null`, no `errors[]` | bare tag top-right of upper half; hidden when absent; field-level `errors[]` path → dim "—" + tooltip (not cached) |
+| Primary team | `user.primaryTeam.name` (singular, not a list) | any user token; team-less → `null`; intermittent `service error` on path is tolerated via `executeInlineAllowPartial` | one dimmed label under the tag when present; nothing when absent |
+| Subscription detail | `user.relationship(targetUserID).subscriptionBenefit{platform,purchasedWithPrime,tier,gift.isGift,gift.gifter,thirdPartySKU}`+`subscriptionTenure.months` | any user token; not mod-gated; `null` → not subbed | appended onto existing `★ Tier…` IVR sub-age row via ` · web/Android/iOS/Prime, gift from <name>, Tier 2/3` (unrecognized platforms still raw; field-by-field degradation) |
 
 Open questions (rulings issued before build): show single team only (primaryTeam is not a
 list); platform rendered raw but unrecognized wire values hidden; tag rendered verbatim with no

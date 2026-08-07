@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <QJsonObject>
+#include <QJsonValue>
 
 using namespace chatterino::LimerinoAuth::gql;
 
@@ -24,7 +25,9 @@ QJsonObject makeUser(const QString &languageTag = QString(),
                      const QString &platform = QString(),
                      const QString &tier = QString(),
                      bool purchasedWithPrime = false, bool isGift = false,
-                     int tenureMonths = 0, const QString &thirdPartySKU = QString())
+                     int tenureMonths = 0, const QString &thirdPartySKU = QString(),
+                     const QString &gifterDisplayName = QString(),
+                     const QString &gifterLogin = QString())
 {
     QJsonObject user;
 
@@ -68,8 +71,22 @@ QJsonObject makeUser(const QString &languageTag = QString(),
         }
         if (isGift)
         {
-            sub.insert(QStringLiteral("gift"),
-                       QJsonObject{{QStringLiteral("isGift"), true}});
+            QJsonObject gift{{QStringLiteral("isGift"), true}};
+            if (!gifterDisplayName.isEmpty() || !gifterLogin.isEmpty())
+            {
+                QJsonObject gifter;
+                if (!gifterDisplayName.isEmpty())
+                {
+                    gifter.insert(QStringLiteral("displayName"),
+                                  gifterDisplayName);
+                }
+                if (!gifterLogin.isEmpty())
+                {
+                    gifter.insert(QStringLiteral("login"), gifterLogin);
+                }
+                gift.insert(QStringLiteral("gifter"), gifter);
+            }
+            sub.insert(QStringLiteral("gift"), gift);
         }
         if (!thirdPartySKU.isEmpty())
         {
@@ -114,6 +131,10 @@ TEST(LimerinoUserCardExtrasParse, FullResponse)
               QStringLiteral("twitch_sub_tier_3"));
     EXPECT_FALSE(out.subscription->purchasedWithPrime);
     EXPECT_FALSE(out.subscription->isGift);
+    EXPECT_TRUE(out.subscription->gifterDisplayName.isEmpty());
+    EXPECT_FALSE(out.settingsFailed);
+    EXPECT_FALSE(out.relationshipFailed);
+    EXPECT_FALSE(out.hasFieldFailure());
 }
 
 TEST(LimerinoUserCardExtrasParse, EmptyUserObject)
@@ -129,12 +150,8 @@ TEST(LimerinoUserCardExtrasParse, EmptyUserObject)
 
 TEST(LimerinoUserCardExtrasParse, PartialAfterErrorsArray)
 {
-    // The transport level treats a populated GQL errors[] as a whole-request
-    // failure (rule 9), so this test instead pins down the per-field null
-    // behaviour that partial success leaves in the data object:
-    //   * settings present, team explicitly null, relationship null
-    //   * result: language survives, team/subscription both absent,
-    //     one bad field never blanks a sibling.
+    // Partial success leaves siblings intact in the data object even when a
+    // neighbouring field is null (e.g. primaryTeam service error).
     QJsonObject user;
     QJsonObject settings;
     settings.insert(QStringLiteral("preferredLanguageTag"),
@@ -148,6 +165,29 @@ TEST(LimerinoUserCardExtrasParse, PartialAfterErrorsArray)
     EXPECT_EQ(out.preferredLanguageTag, QStringLiteral("fr"));
     EXPECT_TRUE(out.primaryTeamName.isEmpty());
     EXPECT_FALSE(out.subscription.has_value());
+}
+
+TEST(LimerinoUserCardExtrasParse, SettingsFailedIgnoresPayload)
+{
+    const auto user = makeUser(QStringLiteral("en"));
+    const auto out = parseUserCardExtras(user, /*settingsFailed*/ true,
+                                         /*relationshipFailed*/ false);
+
+    EXPECT_TRUE(out.preferredLanguageTag.isEmpty());
+    EXPECT_TRUE(out.settingsFailed);
+    EXPECT_TRUE(out.hasFieldFailure());
+}
+
+TEST(LimerinoUserCardExtrasParse, RelationshipFailedIgnoresSubscription)
+{
+    const auto user = makeUser(QStringLiteral("en"), true, QString(), false,
+                               true, QStringLiteral("web"), QStringLiteral("1000"));
+    const auto out = parseUserCardExtras(user, false, /*relationshipFailed*/ true);
+
+    EXPECT_EQ(out.preferredLanguageTag, QStringLiteral("en"));
+    EXPECT_FALSE(out.subscription.has_value());
+    EXPECT_TRUE(out.relationshipFailed);
+    EXPECT_TRUE(out.hasFieldFailure());
 }
 
 TEST(LimerinoUserCardExtrasParse, NullTeam)
@@ -177,4 +217,32 @@ TEST(LimerinoUserCardExtrasParse, NullSubscription)
     // Degraded field-by-field: sibling fields still parse.
     EXPECT_TRUE(out.preferredLanguageTag.isEmpty());
     EXPECT_TRUE(out.primaryTeamName.isEmpty());
+}
+
+TEST(LimerinoUserCardExtrasParse, GiftWithGifterDisplayName)
+{
+    const auto user =
+        makeUser(QString(), false, QString(), false, true, QStringLiteral("web"),
+                 QStringLiteral("1000"), false, true, 0, QString(),
+                 QStringLiteral("Alice"), QStringLiteral("alice"));
+
+    const auto out = parseUserCardExtras(user, false, false);
+
+    ASSERT_TRUE(out.subscription.has_value());
+    EXPECT_TRUE(out.subscription->isGift);
+    EXPECT_EQ(out.subscription->gifterDisplayName, QStringLiteral("Alice"));
+}
+
+TEST(LimerinoUserCardExtrasParse, GiftGifterFallsBackToLogin)
+{
+    const auto user =
+        makeUser(QString(), false, QString(), false, true, QStringLiteral("web"),
+                 QStringLiteral("1000"), false, true, 0, QString(), QString(),
+                 QStringLiteral("bob"));
+
+    const auto out = parseUserCardExtras(user, false, false);
+
+    ASSERT_TRUE(out.subscription.has_value());
+    EXPECT_TRUE(out.subscription->isGift);
+    EXPECT_EQ(out.subscription->gifterDisplayName, QStringLiteral("bob"));
 }

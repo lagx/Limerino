@@ -381,8 +381,8 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("Extra facts on Twitch usercards"),
             QStringLiteral("Usercards show the user's preferred language tag, "
                            "primary Twitch team, and subscription detail "
-                           "(months, Prime/gift, tier, platform, SKU) without "
-                           "you doing anything."),
+                           "(months, Prime/gift from <name>, tier, platform, "
+                           "SKU) without you doing anything."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Automatic,
