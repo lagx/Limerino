@@ -16,8 +16,11 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCursor>
 #include <QDateTime>
 #include <QFormLayout>
+#include <QFrame>
+#include <QGuiApplication>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -26,6 +29,8 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QScreen>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -54,6 +59,45 @@ QString actionLabel(NukeAction action)
     return {};
 }
 
+// Cap dialog size to the screen it opens on (DPI/multi-monitor safe).
+void fitDialogToAvailableScreen(QWidget *dialog, int preferredWidth,
+                                int preferredHeight)
+{
+    QScreen *screen = dialog->screen();
+    if (screen == nullptr && dialog->parentWidget() != nullptr)
+    {
+        screen = dialog->parentWidget()->screen();
+    }
+    if (screen == nullptr)
+    {
+        screen = QGuiApplication::screenAt(QCursor::pos());
+    }
+    if (screen == nullptr)
+    {
+        screen = QGuiApplication::primaryScreen();
+    }
+    if (screen == nullptr)
+    {
+        dialog->resize(preferredWidth, preferredHeight);
+        return;
+    }
+    const QRect avail = screen->availableGeometry();
+    constexpr int margin = 48;
+    const int maxW = qMax(320, avail.width() - margin);
+    const int maxH = qMax(240, avail.height() - margin);
+    dialog->setMaximumSize(maxW, maxH);
+    dialog->resize(qMin(preferredWidth, maxW), qMin(preferredHeight, maxH));
+}
+
+void boundPlainTextHeight(QPlainTextEdit *edit, int visibleLines)
+{
+    const int lineH = edit->fontMetrics().lineSpacing();
+    const int pad = edit->contentsMargins().top() +
+                    edit->contentsMargins().bottom() + 8;
+    edit->setMinimumHeight(lineH * 3 + pad);
+    edit->setMaximumHeight(lineH * visibleLines + pad);
+}
+
 }  // namespace
 
 LimerinoNukeDialog::LimerinoNukeDialog(Split *split, ChannelPtr channel)
@@ -66,7 +110,16 @@ LimerinoNukeDialog::LimerinoNukeDialog(Split *split, ChannelPtr channel)
     this->setWindowTitle(
         QStringLiteral("Nuke messages - #%1 (Limerino)").arg(channelName));
 
-    auto *layout = new QVBoxLayout(this);
+    auto *outer = new QVBoxLayout(this);
+
+    auto *scroll = new QScrollArea(this);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    auto *content = new QWidget;
+    auto *layout = new QVBoxLayout(content);
     auto *form = new QFormLayout();
     layout->addLayout(form);
 
@@ -200,27 +253,8 @@ LimerinoNukeDialog::LimerinoNukeDialog(Split *split, ChannelPtr channel)
     {
         this->previewTargets_ = new QPlainTextEdit(this);
         this->previewTargets_->setReadOnly(true);
+        boundPlainTextHeight(this->previewTargets_, 12);
         form->addRow(QStringLiteral("Targets"), this->previewTargets_);
-    }
-
-    // --- execute row ---
-    {
-        auto *row = new QHBoxLayout();
-        row->setContentsMargins(0, 0, 0, 0);
-        this->executeButton_ =
-            new QPushButton(QStringLiteral("Execute"), this);
-        this->cancelButton_ =
-            new QPushButton(QStringLiteral("Cancel"), this);
-        this->cancelButton_->setVisible(false);
-        this->undoButton_ = new QPushButton(QStringLiteral("Undo last"), this);
-        this->undoButton_->setToolTip(QStringLiteral(
-            "Reverse the bans/timeouts from the most recent completed nuke "
-            "in this channel. Deletes cannot be undone."));
-        row->addWidget(this->executeButton_);
-        row->addWidget(this->cancelButton_);
-        row->addWidget(this->undoButton_);
-        row->addStretch(1);
-        form->addRow(QString(), row);
     }
 
     // --- progress ---
@@ -236,6 +270,7 @@ LimerinoNukeDialog::LimerinoNukeDialog(Split *split, ChannelPtr channel)
     {
         this->resultsView_ = new QPlainTextEdit(this);
         this->resultsView_->setReadOnly(true);
+        boundPlainTextHeight(this->resultsView_, 8);
         form->addRow(QStringLiteral("Results"), this->resultsView_);
     }
 
@@ -257,8 +292,30 @@ LimerinoNukeDialog::LimerinoNukeDialog(Split *split, ChannelPtr channel)
         form->addRow(QStringLiteral("Presets"), presetBox);
     }
 
-    this->setLayout(layout);
-    this->resize(520, 560);
+    scroll->setWidget(content);
+    outer->addWidget(scroll, 1);
+
+    // Execute / Cancel / Undo stay fixed outside the scroll area.
+    {
+        auto *row = new QHBoxLayout();
+        row->setContentsMargins(0, 0, 0, 0);
+        this->executeButton_ =
+            new QPushButton(QStringLiteral("Execute"), this);
+        this->cancelButton_ =
+            new QPushButton(QStringLiteral("Cancel"), this);
+        this->cancelButton_->setVisible(false);
+        this->undoButton_ = new QPushButton(QStringLiteral("Undo last"), this);
+        this->undoButton_->setToolTip(QStringLiteral(
+            "Reverse the bans/timeouts from the most recent completed nuke "
+            "in this channel. Deletes cannot be undone."));
+        row->addWidget(this->executeButton_);
+        row->addWidget(this->cancelButton_);
+        row->addWidget(this->undoButton_);
+        row->addStretch(1);
+        outer->addLayout(row);
+    }
+
+    fitDialogToAvailableScreen(this, 520, 560);
 
     // --- wiring -------------------------------------------------------
     auto invalidate = [this] {

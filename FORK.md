@@ -136,7 +136,7 @@ Entirely ours; will never conflict with upstream merges:
 | `src/widgets/dialogs/limerino/LimerinoResultList.{hpp,cpp}` | reusable sortable/paginated result table (batches 1,2,5,9,10) |
 | `src/widgets/dialogs/limerino/LimerinoResultDialog.{hpp,cpp}` | thin dialog shell for result lists |
 | `src/widgets/dialogs/limerino/LimerinoPinView.{hpp,cpp}` | on-demand pinned-message banner (mounted via runtime layout insert, zero Split.cpp edits) |
-| `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout); extended by P4 with a Hermes live-data pane and the auto-acknowledge-warnings setting |
+| `src/widgets/dialogs/limerino/LimerinoPredictionDialog.{hpp,cpp}` | prediction manager window (create/history/lock/payout); extended by P4 with a Hermes live-data pane and the auto-acknowledge-warnings setting; E2: QScrollArea + screen-bounded size |
 | `resources/buttons/channelPoints-{dark,light}Mode.svg` | mod-toolbar predictions icon |
 | `src/providers/limerino/pubsub/` (`HermesMessages/Client/Manager`, `LimerinoPubSubController`, `LimerinoPubSubTopics`) | Hermes live-updates transport + topic-intent controller (batch P0); batch F6: `PubSubEvent` gains `category` + raw `payload`, generic fallback never prints raw topics; E1.b: `displayChannelId` + resolve-before-emit |
 | `src/providers/limerino/pubsub/LimerinoChannelNameResolver.{hpp,cpp}` | session id→login resolver for /events (open channels, auth moderated lists, coalesced Helix `/users` via LimerinoRateLimiter) (E1.b) |
@@ -154,7 +154,7 @@ Entirely ours; will never conflict with upstream merges:
 | `tests/src/LimerinoAutoActions.cpp` | auto-action value-type tests: scope, serde round-trip, normalisation (batch N5) |
 | `tests/src/LimerinoNukePlan.cpp` | nuke plan tests: request validation, empty buffer, lookback-overflow flag, exclusion flags, dedup by user, delete per-message, compound action, invalid regex, Kick warn (batch N2) |
 | `src/providers/limerino/nuke/NukeExecutor.{hpp,cpp}` | serial execution of a NukePlan through `LimerinoApi` moderation wrappers (throttled via LimerinoRateLimiter), Kick via `getKickApi()`; progress signals, cancel(), global `/cancelnuke` singleton (batch N3) |
-| `src/widgets/dialogs/limerino/LimerinoNukeDialog.{hpp,cpp}` | nuke dialog: matchers with live regex validation, Preview->Execute gating, buffer-coverage banner, irreversible-delete note, progress/cancel/results (batch N3) |
+| `src/widgets/dialogs/limerino/LimerinoNukeDialog.{hpp,cpp}` | nuke dialog: matchers with live regex validation, Preview->Execute gating, buffer-coverage banner, irreversible-delete note, progress/cancel/results (batch N3); E3: QScrollArea, fixed Execute row, bounded preview/results height |
 | `src/providers/limerino/highlights/HighlightGroup.{hpp,cpp}` | highlight-group value type: `AllExcept`/`Only` scope, `DEFAULT_ID`, channel-list normalisation, pajlada serde (`/highlighting/groups` schema) (batch H1) |
 | `src/providers/limerino/highlights/HighlightGroupChannelKey.{hpp,cpp}` | `"platform:name"` / `special:*` key derivation from `Channel` and from `MessagePlatform + name` (batch H1) |
 | `src/providers/limerino/highlights/HighlightGroupController.{hpp,cpp}` | guarantees the Default group exists at startup; `findGroup`/`matchingGroupIds` helpers (batch H1) |

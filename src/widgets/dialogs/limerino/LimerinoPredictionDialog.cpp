@@ -15,9 +15,12 @@
 #include "widgets/splits/Split.hpp"
 
 #include <QComboBox>
+#include <QCursor>
 #include <QDateTime>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonArray>
@@ -31,6 +34,8 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QRandomGenerator>
+#include <QScreen>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -72,6 +77,36 @@ void writeDrafts(const QJsonArray &arr)
         QJsonDocument(arr).toJson(QJsonDocument::Compact)));
 }
 
+// Cap dialog size to the screen it opens on (DPI/multi-monitor safe).
+void fitDialogToAvailableScreen(QWidget *dialog, int preferredWidth,
+                                int preferredHeight)
+{
+    QScreen *screen = dialog->screen();
+    if (screen == nullptr && dialog->parentWidget() != nullptr)
+    {
+        screen = dialog->parentWidget()->screen();
+    }
+    if (screen == nullptr)
+    {
+        screen = QGuiApplication::screenAt(QCursor::pos());
+    }
+    if (screen == nullptr)
+    {
+        screen = QGuiApplication::primaryScreen();
+    }
+    if (screen == nullptr)
+    {
+        dialog->resize(preferredWidth, preferredHeight);
+        return;
+    }
+    const QRect avail = screen->availableGeometry();
+    constexpr int margin = 48;
+    const int maxW = qMax(320, avail.width() - margin);
+    const int maxH = qMax(240, avail.height() - margin);
+    dialog->setMaximumSize(maxW, maxH);
+    dialog->resize(qMin(preferredWidth, maxW), qMin(preferredHeight, maxH));
+}
+
 }  // namespace
 
 LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
@@ -79,7 +114,6 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     , split_(split)
 {
     this->setWindowTitle(QStringLiteral("Limerino Actions"));
-    this->resize(460, 640);
     this->setAttribute(Qt::WA_DeleteOnClose);
 
     auto *pageRoot = new QHBoxLayout(this);
@@ -90,7 +124,13 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     sidebar->setFixedWidth(132);
     pageRoot->addWidget(sidebar);
     auto *stacked = new QStackedWidget(this);
-    pageRoot->addWidget(stacked, 1);
+    auto *scroll = new QScrollArea(this);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setWidget(stacked);
+    pageRoot->addWidget(scroll, 1);
     QObject::connect(sidebar, &QListWidget::currentRowChanged, stacked,
                      &QStackedWidget::setCurrentIndex);
     sidebar->setCurrentRow(0);
@@ -247,7 +287,7 @@ LimerinoPredictionDialog::LimerinoPredictionDialog(Split *split)
     stacked->addWidget(rewardsPage);
     stacked->addWidget(appearancePage);
 
-    // ------------------------------ data ------------------------------
+    fitDialogToAvailableScreen(this, 460, 640);
 
     // ------------------------------ data ------------------------------
     this->draftsCombo_->addItem(QStringLiteral("(select a previous prediction)"));
