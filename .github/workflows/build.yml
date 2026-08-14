@@ -468,6 +468,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # allows for tags access
+          fetch-tags: true
+
+      # Limerino origin has no v7.* tags; the changelog script's
+      # git describe --match 'v7.*.[0-9]' needs chatterino7's stable tags
+      # (the warning URL points at SevenTV/chatterino7/releases).
+      - name: Fetch chatterino7 version tags
+        run: git fetch --no-tags --force https://github.com/SevenTV/chatterino7.git "refs/tags/v7.*:refs/tags/v7.*"
+        shell: bash
 
       - uses: actions/download-artifact@v8
         name: Download artifacts
@@ -496,8 +504,9 @@ jobs:
           delimiter=$(openssl rand -hex 32)
           {
             echo "changelog<<$delimiter"
-            python3 ./.CI/format-recent-changes.py --artifacts release-artifacts --include-installer
-            echo $delimiter
+            python3 ./.CI/format-recent-changes.py --artifacts release-artifacts --include-installer \
+              || echo "Nightly Limerino build."
+            echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
         shell: bash
 
