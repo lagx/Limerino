@@ -66,7 +66,8 @@ close to zero as possible — every entry is future merge pain.
 | `.gitignore` | ignore local `.ccache/` dir + reference captures | appended 2-line "Limerino local dev" section at the end; later (batch R-series) appended `pubsubreference/`, `newpubsubhermesreference/`, `pluginforreference/` — untracked-capture roots that may embed live credentials and must never be committed; (batch U1) appended `gqlreference/` — same reason | Low — append-only; re-add if upstream rewrites the tail |
 | `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino`; that job also `fetch-tags: true` and fetches `v7.*` from SevenTV/chatterino7 so `format-recent-changes.py` `git describe` works (Limerino origin has no version tags) | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these Limerino edits.** |
 | `.github/workflows/create-installer.yml` | installer workflow must fire after builds on `limerino` | one edit: `limerino` added to the `workflow_run.branches` filter | **High — same rule as build.yml: keep upstream's file, re-apply this edit** |
-| `.CI/chatterino-installer.iss` | shortcut AppUserModelID must match the app's own identity string | two lines: `"SevenTV.Chatterino7TV"` → `"Limerino.Limerino"` (paired with `Version.cpp`) | Low |
+| `.CI/chatterino-installer.iss` | shortcut AppUserModelID must match the app's own identity string; installer UI must say Limerino 7.x.x not Chatterino 7TV 2.5.5 | `AppUserModelID` → `Limerino.Limerino`; `MyAppName`/`MyAppPublisher` → `Limerino`; `MyAppVersion` → `7.5.5` (keep in sync with root `project(VERSION)`); `MyAppURL` → this repo | Low |
+| `cmake/resources/windows.rc.in` | Windows Explorer/taskbar file description must say Limerino | `ProductName`/`FileDescription`/`InternalName` → `Limerino`; `OriginalFilename` → `chatterino.exe` (exe name stays); CompanyName uses `@PROJECT_HOMEPAGE_URL@` | Low |
 | `src/common/Version.cpp` | fork identity in window title/About; commit links must point at this repo | two string literals: `fullVersion_` `"Technorino "` → `"Limerino "`; commit URL host → `github.com/lagx/Limerino`; F7: `appUserModelID_` → `Limerino.Limerino`, stale buildString example comment fixed | Low — narrow context, rarely touched upstream |
 | `src/common/Version.hpp` | displayed version must not drift from the CMake version | one edit: hardcoded `CHATTERINO_VERSION "2.5.5"` → derived from `CHATTERINO_VERSION_STR` (CMake `PROJECT_VERSION` injected in src/CMakeLists.txt) | Low |
 | `src/singletons/Theme.hpp` | theme creator must make an exported theme selectable in the same session | small public `rescanCustomThemes(const Paths &)` forwarder to the already-idempotent private `loadAvailableThemes` + comment refresh clarifying which reloadability is meant | Low |
@@ -84,6 +85,7 @@ close to zero as possible — every entry is future merge pain.
 | `resources/icon.png` | new Limerino app icon (Linux hicolor install, qrc) | content replaced; same 256x256 as before | Medium — see icon.svg |
 | `resources/icon.ico` | Windows exe icon (via `cmake/resources/windows.rc.in`) | regenerated from new master; same 5 frames as upstream (16/32/48/64/256) | Medium — see icon.svg |
 | `resources/chatterino.icns` | macOS bundle icon (`src/CMakeLists.txt:941`) | regenerated from new master; modern ic07–ic14 PNG chunks only (upstream's pre-OS-X il32/l8mk/is32/s8mk bitmap chunks dropped — irrelevant for Qt6 apps) | Medium — see icon.svg |
+| `resources/settings/aboutlogo.png` | About-page banner (loaded as `:/settings/aboutlogo.png`) | same 1261×264 filename/size as upstream; Limerino mark + wordmark instead of the CHATTERINO banner | Medium — binary; always ours |
 | `src/providers/twitch/PubSubClient.cpp` | inherited bug fix: UNLISTEN responses were recorded as LISTEN (`NonceInfo{.isListen = true}` in `encodeUnsubscription`), corrupting diag counters | one word: `.isListen = true` → `false` | Low |
 | `src/providers/twitch/TwitchIrcServer.cpp` | `/events` must resolve to the Limerino events channel everywhere channel names resolve | one include + one `if` block in `getCustomChannel` | Low — same region as upstream's other special-channel routes |
 | `src/providers/twitch/TwitchChannel.cpp` | per-channel Hermes topics must start/stop with each refresh cycle, and user topics re-resolve on every `userStateChanged` | one include + one call `limerino::ensureHermesChannelTopics(*this)` + one call `limerino::ensureHermesUserTopics()` in `refreshPubSub` | Low — append at that function's existing hook point |
@@ -402,13 +404,8 @@ Two features built on one shared matcher (`src/providers/limerino/matcher/`).
   `src/singletons/Paths.cpp` therefore stay untouched. If coexistence is ever wanted, this is
   the single riskiest change (needs `setApplicationName("limerino")` + Paths rewrite +
   opt-in first-run copy; see Phase 6 plan in git history).
-- Windows AppUserModelID stays `SevenTV.Chatterino7TV` (`src/common/Version.cpp`) and the Inno
-  `AppId` GUID stays upstream's (`.CI/chatterino-installer.iss`) — taskbar/toast identity and
-  installer upgrade path intentionally shared with technorino/c7 (decided 2026-07-31).
-- User-visible "Chatterino"/"Chatterino 7TV" branding (window titles, toasts, windows.rc,
-  macOS bundle, .desktop/appdata, Inno app name/publisher) is kept; only "Technorino"
-  became "Limerino". `TechnorinoPage` class/filenames, `SettingsTabId::Technorino`, and the
-  `technorino.client_detection` filter identifier stay (internal/user-filter compatibility).
+- Windows AppUserModelID is `Limerino.Limerino` (`src/common/Version.cpp` + Inno shortcut). The Inno `AppId` GUID stays upstream's (`.CI/chatterino-installer.iss`) so installer upgrades keep working.
+- User-visible branding is **Limerino** with **7.x.x** version numbers (window title, About banner, Windows version resource, Inno app name). The CMake target and `chatterino.exe` filename stay. `TechnorinoPage` class/filenames, `SettingsTabId::Technorino`, and the `technorino.client_detection` filter identifier stay (internal/user-filter compatibility).
 - Persisted settings keys (e.g. `/x-chatterino7/*`) and filter identifiers
   (e.g. `technorino.client_detection`) stay as-is — renaming orphans user data / breaks filters.
 - No formatting or style changes to upstream code, ever.
