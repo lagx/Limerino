@@ -470,13 +470,6 @@ jobs:
           fetch-depth: 0 # allows for tags access
           fetch-tags: true
 
-      # Limerino origin has no v7.* tags; the changelog script's
-      # git describe --match 'v7.*.[0-9]' needs chatterino7's stable tags
-      # (the warning URL points at SevenTV/chatterino7/releases).
-      - name: Fetch chatterino7 version tags
-        run: git fetch --no-tags --force https://github.com/SevenTV/chatterino7.git "refs/tags/v7.*:refs/tags/v7.*"
-        shell: bash
-
       - uses: actions/download-artifact@v8
         name: Download artifacts
         with:

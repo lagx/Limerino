@@ -6,7 +6,7 @@ import argparse
 
 
 ROOT_DOWNLOAD_URL = (
-    "https://github.com/SevenTV/chatterino7/releases/download/nightly-build"
+    "https://github.com/lagx/Limerino/releases/download/nightly-build"
 )
 WIN_X64_INSTALLERS = ["Chatterino7TV.Nightly.Installer.exe"]
 WIN_ARM64_INSTALLERS = ["Experimental-ARM64-Chatterino7TV.Nightly.Installer.exe"]
@@ -108,17 +108,6 @@ def get_unreleased_commits():
     return unreleased
 
 
-def get_current_stable():
-    p = subprocess.run(
-        ["git", "describe", "--tags", "--abbrev=0", "--match", "v7.*.[0-9]"],
-        cwd=os.path.dirname(os.path.realpath(__file__)),
-        text=True,
-        check=True,
-        capture_output=True,
-    )
-    return p.stdout.strip()
-
-
 unreleased_lines = get_unreleased_commits()
 
 parser = argparse.ArgumentParser()
@@ -129,9 +118,10 @@ args = parser.parse_args()
 
 print("> [!WARNING]")
 print(
-    "> This is an experimental version that may break. "
-    "If you're looking for the latest stable release, see "
-    f"https://github.com/SevenTV/chatterino7/releases/tag/{get_current_stable()}.\n"
+    "> This is an experimental Limerino nightly and may break. "
+    "Downloads are from this repo's "
+    "[nightly-build](https://github.com/lagx/Limerino/releases/tag/nightly-build) "
+    "release.\n"
 )
 
 print("### Downloads\n")
