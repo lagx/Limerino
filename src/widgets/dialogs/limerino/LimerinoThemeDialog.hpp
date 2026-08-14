@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: MIT
 // Theme creator dialog (batch T3).
 //
-// Four seed colors in, live preview via Theme::setAutoReload + rewriting a
-// working Themes/_LimerinoPreview.json file. Colour rows use shared
-// LimerinoColorField (ColorPickerDialog + swatch + hex). No parallel preview.
+// Recolors a real base theme JSON (Dark/Light/Black/White or a recent custom
+// file) using four seed colours. Live preview via Theme::setAutoReload +
+// Themes/_LimerinoPreview.json.
 
 #pragma once
 
+#include "providers/limerino/theme/LimerinoThemeGenerator.hpp"
 #include "providers/limerino/theme/LimerinoThemeSeed.hpp"
 #include "widgets/BasePopup.hpp"
 
+#include <QJsonObject>
 #include <QString>
 
 class QCloseEvent;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 
@@ -49,8 +52,16 @@ private:
     void startLivePreview();
     void teardownPreview(bool restorePreviousTheme);
 
+    void applyBuiltinBase(BuiltinTheme builtin);
+    bool applyBaseJson(const QJsonObject &json, const QString &displayName);
+    void rebuildRecentsCombo();
+    QJsonObject currentThemeJson() const;
+
     void onDarkPreset();
     void onLightPreset();
+    void onBlackPreset();
+    void onWhitePreset();
+    void onRecentSelected(int index);
     void onImport();
     void onExportSeed();
     void onExportTheme();
@@ -60,12 +71,16 @@ private:
     bool isReservedThemeFilename(const QString &filename) const;
     QString previewFilePath() const;
 
+    QJsonObject baseJson_;
+    LimerinoThemeSeed baseSeed_ = LimerinoThemeSeed::darkPreset();
     LimerinoThemeSeed seed_ = LimerinoThemeSeed::darkPreset();
     bool applied_ = false;
     bool previewActive_ = false;
     QString previousThemeName_;
 
     QLineEdit *nameEdit_ = nullptr;
+    QComboBox *recentCombo_ = nullptr;
+    QLabel *baseLabel_ = nullptr;
 
     LimerinoColorField *backgroundField_ = nullptr;
     LimerinoColorField *surfaceField_ = nullptr;

@@ -118,7 +118,9 @@ MessagePtr buildEventMessage(const PubSubEvent &event)
     MessageBuilder builder;
     builder.emplace<TimestampElement>(QTime::currentTime());
     builder.message().flags.set(MessageFlag::System);
-    builder.message().flags.set(MessageFlag::DoNotTriggerNotification);
+    // Do not set DoNotTriggerNotification: ChannelView uses that flag to skip
+    // tabHighlightRequested, which is why /events never showed the unread
+    // tab colour. System-only is enough to avoid highlight pings/sounds.
 
     const QString msgId =
         QUuid::createUuid().toString(QUuid::WithoutBraces);

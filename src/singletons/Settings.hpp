@@ -937,6 +937,9 @@ public:
     QStringSetting limerinoChatColorLast{"/limerino/appearance/chatColorLast",
                                          ""};
 
+    // Limerino: MRU of theme filenames created/saved in the theme builder.
+    QStringSetting limerinoThemeRecents{"/limerino/theme/recents", "[]"};
+
     // Limerino: crossban channel presets (JSON array) + last-selected preset id.
     QStringSetting limerinoCrossbanPresets{"/limerino/crossban/presets", "[]"};
     QStringSetting limerinoCrossbanLastPresetId{

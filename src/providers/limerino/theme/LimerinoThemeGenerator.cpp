@@ -14,6 +14,12 @@
 
 #include "providers/limerino/theme/LimerinoThemeSeed.hpp"
 
+#include <QFile>
+#include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonValue>
+
 namespace chatterino::limerino {
 
 namespace {
@@ -259,9 +265,7 @@ QJsonObject buildSplits(const LimerinoThemeSeed &s)
     };
 }
 
-}  // namespace
-
-QJsonObject generateTheme(const LimerinoThemeSeed &seed)
+QJsonObject synthesizeTheme(const LimerinoThemeSeed &seed)
 {
     QJsonObject root;
     // Canonical public URL form: exports validate in editors outside the
@@ -283,6 +287,198 @@ QJsonObject generateTheme(const LimerinoThemeSeed &seed)
     colors.insert(QStringLiteral("splits"), buildSplits(seed));
     root.insert(QStringLiteral("colors"), colors);
     return root;
+}
+
+QColor parseThemeColor(const QString &raw, const QColor &fallback)
+{
+    if (raw.isEmpty() ||
+        raw.compare(QStringLiteral("transparent"), Qt::CaseInsensitive) == 0)
+    {
+        return fallback;
+    }
+    const QColor c(raw);
+    return c.isValid() ? c : fallback;
+}
+
+QString rgbKey(const QColor &c)
+{
+    return c.name(QColor::HexRgb).toLower();
+}
+
+QString remapColorString(const QString &raw,
+                         const QHash<QString, QColor> &map)
+{
+    if (raw.compare(QStringLiteral("transparent"), Qt::CaseInsensitive) == 0)
+    {
+        return raw;
+    }
+    const QColor c(raw);
+    if (!c.isValid())
+    {
+        return raw;
+    }
+    const auto it = map.constFind(rgbKey(c));
+    if (it == map.cend())
+    {
+        return raw;
+    }
+    QColor next = it.value();
+    next.setAlpha(c.alpha());
+    return encodeColor(next);
+}
+
+QJsonValue remapValue(const QJsonValue &v, const QHash<QString, QColor> &map)
+{
+    if (v.isString())
+    {
+        return remapColorString(v.toString(), map);
+    }
+    if (v.isObject())
+    {
+        const QJsonObject in = v.toObject();
+        QJsonObject out;
+        for (auto it = in.begin(); it != in.end(); ++it)
+        {
+            out.insert(it.key(), remapValue(it.value(), map));
+        }
+        return out;
+    }
+    if (v.isArray())
+    {
+        const QJsonArray in = v.toArray();
+        QJsonArray out;
+        for (int i = 0; i < in.size(); ++i)
+        {
+            out.append(remapValue(in.at(i), map));
+        }
+        return out;
+    }
+    return v;
+}
+
+constexpr const char *PUBLIC_SCHEMA =
+    "https://raw.githubusercontent.com/lagx/Limerino/limerino/docs/"
+    "ChatterinoTheme.schema.json";
+
+void stampSchemaAndIconTheme(QJsonObject &root, const LimerinoThemeSeed &seed)
+{
+    root.insert(QStringLiteral("$schema"), QString::fromUtf8(PUBLIC_SCHEMA));
+    QJsonObject meta = root.value(QStringLiteral("metadata")).toObject();
+    meta.insert(QStringLiteral("iconTheme"),
+                seed.isLight() ? QStringLiteral("dark")
+                               : QStringLiteral("light"));
+    root.insert(QStringLiteral("metadata"), meta);
+}
+
+}  // namespace
+
+QString builtinThemeName(BuiltinTheme builtin)
+{
+    switch (builtin)
+    {
+        case BuiltinTheme::Light:
+            return QStringLiteral("Light");
+        case BuiltinTheme::Black:
+            return QStringLiteral("Black");
+        case BuiltinTheme::White:
+            return QStringLiteral("White");
+        case BuiltinTheme::Dark:
+        default:
+            return QStringLiteral("Dark");
+    }
+}
+
+std::optional<QJsonObject> loadBuiltinThemeJson(BuiltinTheme builtin)
+{
+    QFile file(QStringLiteral(":/themes/%1.json").arg(builtinThemeName(builtin)));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        return std::nullopt;
+    }
+    const auto doc = QJsonDocument::fromJson(file.readAll());
+    if (!doc.isObject() || doc.object().isEmpty())
+    {
+        return std::nullopt;
+    }
+    return doc.object();
+}
+
+LimerinoThemeSeed seedFromThemeJson(const QJsonObject &theme)
+{
+    const LimerinoThemeSeed fallback = LimerinoThemeSeed::darkPreset();
+    const QJsonObject colors = theme.value(QStringLiteral("colors")).toObject();
+    const QJsonObject messages =
+        colors.value(QStringLiteral("messages")).toObject();
+    const QJsonObject splits =
+        colors.value(QStringLiteral("splits")).toObject();
+    const QJsonObject window =
+        colors.value(QStringLiteral("window")).toObject();
+    const QJsonObject header =
+        splits.value(QStringLiteral("header")).toObject();
+    const QJsonObject msgBg =
+        messages.value(QStringLiteral("backgrounds")).toObject();
+    const QJsonObject msgText =
+        messages.value(QStringLiteral("textColors")).toObject();
+
+    LimerinoThemeSeed seed = fallback;
+    seed.accent = parseThemeColor(
+        colors.value(QStringLiteral("accent")).toString(), fallback.accent);
+
+    const QString bgRaw = msgBg.value(QStringLiteral("regular")).toString();
+    seed.background = parseThemeColor(
+        bgRaw.isEmpty() ? window.value(QStringLiteral("background")).toString()
+                        : bgRaw,
+        fallback.background);
+    if (!seed.background.isValid())
+    {
+        seed.background = parseThemeColor(
+            splits.value(QStringLiteral("background")).toString(),
+            fallback.background);
+    }
+
+    seed.surface = parseThemeColor(
+        header.value(QStringLiteral("background")).toString(),
+        fallback.surface);
+
+    const QString textRaw = msgText.value(QStringLiteral("regular")).toString();
+    seed.text = parseThemeColor(
+        textRaw.isEmpty() ? window.value(QStringLiteral("text")).toString()
+                          : textRaw,
+        fallback.text);
+    return seed;
+}
+
+QJsonObject recolorTheme(const QJsonObject &base, const LimerinoThemeSeed &from,
+                         const LimerinoThemeSeed &to)
+{
+    QHash<QString, QColor> map;
+    // Later inserts win on RGB collisions (text over accent over surface).
+    map.insert(rgbKey(from.background), to.background);
+    map.insert(rgbKey(from.surface), to.surface);
+    map.insert(rgbKey(from.accent), to.accent);
+    map.insert(rgbKey(from.text), to.text);
+    return remapValue(base, map).toObject();
+}
+
+QJsonObject generateThemeFromBase(const QJsonObject &base,
+                                  const LimerinoThemeSeed &baseSeed,
+                                  const LimerinoThemeSeed &seed)
+{
+    QJsonObject out = recolorTheme(base, baseSeed, seed);
+    stampSchemaAndIconTheme(out, seed);
+    return out;
+}
+
+QJsonObject generateTheme(const LimerinoThemeSeed &seed)
+{
+    const BuiltinTheme builtin =
+        seed.isLight() ? BuiltinTheme::Light : BuiltinTheme::Dark;
+    const auto base = loadBuiltinThemeJson(builtin);
+    if (!base.has_value())
+    {
+        return synthesizeTheme(seed);
+    }
+    return generateThemeFromBase(*base, seedFromThemeJson(*base), seed);
 }
 
 QStringList contrastWarnings(const LimerinoThemeSeed &seed)

@@ -7,26 +7,65 @@
 #include "util/LayoutCreator.hpp"
 #include "widgets/dialogs/limerino/LimerinoAutoActionEditor.hpp"
 
+#include <QAbstractItemView>
+#include <QAbstractScrollArea>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QSizePolicy>
 #include <QVBoxLayout>
 
 namespace chatterino {
+
+namespace {
+
+// QListView::sizeHint follows the longest item. Settings uses a QStackedLayout
+// that sizes to that hint, so long actions used to stretch the whole window.
+class AutoActionRuleList : public QListWidget
+{
+public:
+    explicit AutoActionRuleList(QWidget *parent = nullptr)
+        : QListWidget(parent)
+    {
+        this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        this->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        this->setTextElideMode(Qt::ElideNone);
+        this->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
+        this->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
+        this->setMinimumWidth(0);
+        this->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+    }
+
+    QSize sizeHint() const override
+    {
+        return {1, 200};
+    }
+
+    QSize minimumSizeHint() const override
+    {
+        return {0, 80};
+    }
+};
+
+}  // namespace
 
 LimerinoAutoActionsPage::LimerinoAutoActionsPage()
 {
     LayoutCreator<LimerinoAutoActionsPage> layoutCreator(this);
     auto layout = layoutCreator.setLayoutType<QVBoxLayout>();
 
-    layout.emplace<QLabel>(QStringLiteral(
-        "Rules that run automatically when a message arrives. A rule matches "
-        "message text and/or sender (regex or plain text, case-insensitive by "
-        "default). The action string supports placeholders like "
-        "{sender.name}, {msg.id}, {channel.name}."));
+    auto *intro = layout
+                      .emplace<QLabel>(QStringLiteral(
+                          "Rules that run automatically when a message arrives. "
+                          "A rule matches message text and/or sender (regex or "
+                          "plain text, case-insensitive by default). The action "
+                          "string supports placeholders like {sender.name}, "
+                          "{msg.id}, {channel.name}."))
+                      .getElement();
+    intro->setWordWrap(true);
 
-    this->list_ = layout.emplace<QListWidget>().getElement();
+    this->list_ = layout.emplace<AutoActionRuleList>().getElement();
 
     auto *buttonRow = layout.emplace<QHBoxLayout>().getElement();
     buttonRow->setContentsMargins(0, 0, 0, 0);
@@ -110,7 +149,7 @@ void LimerinoAutoActionsPage::rebuildList()
                 .arg(rule.name)
                 .arg(rule.action.isEmpty()
                          ? QString()
-                         : QStringLiteral("   ->   ") + rule.action.left(64));
+                         : QStringLiteral("   ->   ") + rule.action);
         auto *item = new QListWidgetItem(label, this->list_);
         item->setData(Qt::UserRole, rule.id.toString(QUuid::WithoutBraces));
     }

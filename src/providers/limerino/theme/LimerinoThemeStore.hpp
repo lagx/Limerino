@@ -18,6 +18,7 @@
 
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
 
 #include <optional>
 
@@ -48,9 +49,19 @@ QString sanitizeThemeFilename(const QString &name);
 bool installGeneratedTheme(const QString &name, const LimerinoThemeSeed &seed,
                            QString *err);
 
+/// Write an already-built theme JSON to Themes/<Name>.json and select it.
+bool installThemeJson(const QString &name, const QJsonObject &themeJson,
+                      QString *err);
+
 /// Copy an already-valid full-theme JSON file into Themes/ as-is. Used by
 /// Import when the input is a themes.json (not reducible to a seed).
 bool installFullThemeFile(const QString &sourcePath, const QString &name,
                           QString *err);
+
+constexpr int kThemeRecentsLimit = 8;
+
+/// MRU of installed theme filenames (with .json). Newest first.
+QStringList loadThemeRecents();
+void pushThemeRecent(const QString &filename);
 
 }  // namespace chatterino::limerino

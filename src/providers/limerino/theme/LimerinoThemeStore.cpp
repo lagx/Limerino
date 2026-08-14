@@ -5,10 +5,12 @@
 #include "Application.hpp"
 #include "providers/limerino/theme/LimerinoThemeGenerator.hpp"
 #include "singletons/Paths.hpp"
+#include "singletons/Settings.hpp"
 #include "singletons/Theme.hpp"
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 
 namespace chatterino::limerino {
@@ -128,8 +130,8 @@ QString sanitizeThemeFilename(const QString &name)
     return out;
 }
 
-bool installGeneratedTheme(const QString &name, const LimerinoThemeSeed &seed,
-                           QString *err)
+bool installThemeJson(const QString &name, const QJsonObject &themeJson,
+                      QString *err)
 {
     const auto setErr = [&](const QString &e) {
         if (err)
@@ -139,29 +141,36 @@ bool installGeneratedTheme(const QString &name, const LimerinoThemeSeed &seed,
         return false;
     };
 
+    if (themeJson.isEmpty() || !themeJson.contains(QStringLiteral("colors")) ||
+        !themeJson.contains(QStringLiteral("metadata")))
+    {
+        return setErr(QStringLiteral("not a theme JSON (no colors/metadata)"));
+    }
+
     const QString filename = sanitizeThemeFilename(name);
     const QString path = QDir(getApp()->getPaths().themesDirectory)
                              .filePath(filename);
-    const QJsonObject json = generateTheme(seed);
-
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
         return setErr(QStringLiteral("failed to write %1").arg(path));
     }
-    file.write(QJsonDocument(json).toJson(QJsonDocument::Indented));
+    file.write(QJsonDocument(themeJson).toJson(QJsonDocument::Indented));
     file.close();
 
-    // Make it selectable immediately (no restart). loadAvailableThemes is
-    // designed to be re-runnable (idempotent rescan); it was only private-ish
-    // in practice and never re-called from code outside the Theme ctor.
     if (auto *theme = getTheme(); theme != nullptr)
     {
         theme->rescanCustomThemes(getApp()->getPaths());
-        // Key is the file name with extension (see loadAvailableThemes).
         theme->themeName.setValue(filename);
     }
+    pushThemeRecent(filename);
     return true;
+}
+
+bool installGeneratedTheme(const QString &name, const LimerinoThemeSeed &seed,
+                           QString *err)
+{
+    return installThemeJson(name, generateTheme(seed), err);
 }
 
 bool installFullThemeFile(const QString &sourcePath, const QString &name,
@@ -207,7 +216,66 @@ bool installFullThemeFile(const QString &sourcePath, const QString &name,
         theme->rescanCustomThemes(getApp()->getPaths());
         theme->themeName.setValue(filename);
     }
+    pushThemeRecent(filename);
     return true;
+}
+
+QStringList loadThemeRecents()
+{
+    if (!Settings::hasInstance())
+    {
+        return {};
+    }
+    QJsonParseError err{};
+    const auto doc = QJsonDocument::fromJson(
+        getSettings()->limerinoThemeRecents.getValue().toUtf8(), &err);
+    if (err.error != QJsonParseError::NoError || !doc.isArray())
+    {
+        return {};
+    }
+    QStringList out;
+    const auto arr = doc.array();
+    for (int i = 0; i < arr.size(); ++i)
+    {
+        const QString name = arr.at(i).toString().trimmed();
+        if (name.isEmpty() || out.contains(name, Qt::CaseInsensitive))
+        {
+            continue;
+        }
+        out.append(name);
+        if (out.size() >= kThemeRecentsLimit)
+        {
+            break;
+        }
+    }
+    return out;
+}
+
+void pushThemeRecent(const QString &filename)
+{
+    if (!Settings::hasInstance())
+    {
+        return;
+    }
+    const QString clean = sanitizeThemeFilename(filename);
+    if (clean.startsWith(QLatin1Char('_')))
+    {
+        return;  // preview files
+    }
+    QStringList recents = loadThemeRecents();
+    recents.removeAll(clean);
+    recents.prepend(clean);
+    while (recents.size() > kThemeRecentsLimit)
+    {
+        recents.removeLast();
+    }
+    QJsonArray arr;
+    for (const auto &item : recents)
+    {
+        arr.append(item);
+    }
+    getSettings()->limerinoThemeRecents.setValue(
+        QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
 }
 
 }  // namespace chatterino::limerino

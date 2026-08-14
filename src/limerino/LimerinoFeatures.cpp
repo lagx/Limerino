@@ -451,17 +451,17 @@ QList<LimerinoFeature> buildCatalog()
             QStringLiteral("theme-creator"),
             QStringLiteral("Theme creator"),
             QStringLiteral("Appearance"),
-            QStringLiteral("Build a Chatterino theme from four colors"),
-            QStringLiteral("Pick background, surface, accent, and text/font "
-                           "color; the rest of the theme JSON is derived. Live "
-                           "preview uses the existing theme auto-reload path. "
-                           "Apply installs Themes/<Name>.json and selects it. "
-                           "Export a Limerino seed (limerino_theme.json) or a "
-                           "full themes.json usable by vanilla Chatterino. "
-                           "Import accepts both; a full theme installs as-is "
-                           "and is not editable as a seed. Font family/size/"
-                           "weight stay in Settings > Appearance, not in the "
-                           "theme."),
+            QStringLiteral("Recolor a real Chatterino theme from four colors"),
+            QStringLiteral("Pick a base (Dark/Light/Black/White.json or a "
+                           "recent saved theme) and four seed colours. Matching "
+                           "RGB values in the base file are replaced; other "
+                           "leaves (links, system text, tab banding, …) stay "
+                           "as in that JSON. Live preview uses theme "
+                           "auto-reload. Apply installs Themes/<Name>.json, "
+                           "selects it, and adds it to Recents in the creator. "
+                           "Export a Limerino seed or a full themes.json. "
+                           "Font family/size/weight stay in Settings > "
+                           "Appearance, not in the theme."),
             FeatureStatus::Implemented,
             {
                 {AccessKind::Dialog,

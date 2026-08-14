@@ -10,6 +10,7 @@
 #include "widgets/dialogs/limerino/LimerinoColorField.hpp"
 
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
@@ -20,6 +21,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 namespace chatterino::limerino {
@@ -36,6 +38,58 @@ LimerinoThemeDialog::LimerinoThemeDialog(QWidget *parent)
     this->setWindowTitle(QStringLiteral("Create theme (Limerino)"));
     this->setAttribute(Qt::WA_DeleteOnClose);
     this->buildUi();
+
+    bool loadedCurrent = false;
+    if (auto *theme = getTheme(); theme != nullptr)
+    {
+        const QString current = theme->themeName.getValue();
+        if (!current.isEmpty() &&
+            !current.startsWith(QLatin1Char('_')) &&
+            current.compare(QStringLiteral("System"), Qt::CaseInsensitive) != 0)
+        {
+            const QString path =
+                QDir(getApp()->getPaths().themesDirectory).filePath(current);
+            QFile file(path);
+            if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+            {
+                const auto doc = QJsonDocument::fromJson(file.readAll());
+                loadedCurrent = this->applyBaseJson(doc.object(), current);
+            }
+            if (!loadedCurrent)
+            {
+                if (current.compare(QStringLiteral("Dark"),
+                                    Qt::CaseInsensitive) == 0)
+                {
+                    this->applyBuiltinBase(BuiltinTheme::Dark);
+                    loadedCurrent = true;
+                }
+                else if (current.compare(QStringLiteral("Light"),
+                                         Qt::CaseInsensitive) == 0)
+                {
+                    this->applyBuiltinBase(BuiltinTheme::Light);
+                    loadedCurrent = true;
+                }
+                else if (current.compare(QStringLiteral("Black"),
+                                         Qt::CaseInsensitive) == 0)
+                {
+                    this->applyBuiltinBase(BuiltinTheme::Black);
+                    loadedCurrent = true;
+                }
+                else if (current.compare(QStringLiteral("White"),
+                                         Qt::CaseInsensitive) == 0)
+                {
+                    this->applyBuiltinBase(BuiltinTheme::White);
+                    loadedCurrent = true;
+                }
+            }
+        }
+    }
+    if (!loadedCurrent)
+    {
+        this->applyBuiltinBase(BuiltinTheme::Dark);
+    }
+
+    this->rebuildRecentsCombo();
     this->syncUiFromSeed();
     this->startLivePreview();
 }
@@ -59,15 +113,38 @@ void LimerinoThemeDialog::buildUi()
     }
 
     {
+        auto *recentRow = new QHBoxLayout;
+        recentRow->addWidget(new QLabel(QStringLiteral("Recent")));
+        this->recentCombo_ = new QComboBox(this);
+        QObject::connect(this->recentCombo_,
+                         QOverload<int>::of(&QComboBox::activated), this,
+                         &LimerinoThemeDialog::onRecentSelected);
+        recentRow->addWidget(this->recentCombo_, 1);
+        root->addLayout(recentRow);
+    }
+
+    this->baseLabel_ = new QLabel(this);
+    this->baseLabel_->setWordWrap(true);
+    root->addWidget(this->baseLabel_);
+
+    {
         auto *presetRow = new QHBoxLayout;
-        auto *darkBtn = new QPushButton(QStringLiteral("Dark preset"), this);
-        auto *lightBtn = new QPushButton(QStringLiteral("Light preset"), this);
+        auto *darkBtn = new QPushButton(QStringLiteral("Dark.json"), this);
+        auto *lightBtn = new QPushButton(QStringLiteral("Light.json"), this);
+        auto *blackBtn = new QPushButton(QStringLiteral("Black.json"), this);
+        auto *whiteBtn = new QPushButton(QStringLiteral("White.json"), this);
         QObject::connect(darkBtn, &QPushButton::clicked, this,
                          &LimerinoThemeDialog::onDarkPreset);
         QObject::connect(lightBtn, &QPushButton::clicked, this,
                          &LimerinoThemeDialog::onLightPreset);
+        QObject::connect(blackBtn, &QPushButton::clicked, this,
+                         &LimerinoThemeDialog::onBlackPreset);
+        QObject::connect(whiteBtn, &QPushButton::clicked, this,
+                         &LimerinoThemeDialog::onWhitePreset);
         presetRow->addWidget(darkBtn);
         presetRow->addWidget(lightBtn);
+        presetRow->addWidget(blackBtn);
+        presetRow->addWidget(whiteBtn);
         presetRow->addStretch(1);
         root->addLayout(presetRow);
     }
@@ -145,9 +222,6 @@ void LimerinoThemeDialog::setFieldColor(SeedField field, const QColor &color)
         return;
     }
     this->fieldColor(field) = color;
-    // Do not call setColor on the field here — colourChanged already came
-    // from the field (or syncUiFromSeed set it). Re-entering setColor during
-    // a live picker update can fight the hex line while the user edits.
     this->refreshWarnings();
     this->writePreviewAndReload();
 }
@@ -202,6 +276,15 @@ QString LimerinoThemeDialog::previewFilePath() const
         .filePath(QString::fromUtf8(PREVIEW_FILENAME));
 }
 
+QJsonObject LimerinoThemeDialog::currentThemeJson() const
+{
+    if (this->baseJson_.isEmpty())
+    {
+        return generateTheme(this->seed_);
+    }
+    return generateThemeFromBase(this->baseJson_, this->baseSeed_, this->seed_);
+}
+
 void LimerinoThemeDialog::writePreviewAndReload()
 {
     if (!this->previewActive_)
@@ -215,13 +298,12 @@ void LimerinoThemeDialog::writePreviewAndReload()
     {
         return;
     }
-    file.write(QJsonDocument(generateTheme(this->seed_))
+    file.write(QJsonDocument(this->currentThemeJson())
                    .toJson(QJsonDocument::Indented));
     file.close();
 
     if (auto *theme = getTheme(); theme != nullptr)
     {
-        // Same path auto-reload uses: load file, diff currentThemeJson_, paint.
         theme->update();
     }
 }
@@ -247,7 +329,7 @@ void LimerinoThemeDialog::startLivePreview()
             QStringLiteral("Could not write preview theme to:\n%1").arg(path));
         return;
     }
-    file.write(QJsonDocument(generateTheme(this->seed_))
+    file.write(QJsonDocument(this->currentThemeJson())
                    .toJson(QJsonDocument::Indented));
     file.close();
 
@@ -288,16 +370,121 @@ bool LimerinoThemeDialog::isReservedThemeFilename(
     return reserved.contains(filename, Qt::CaseInsensitive);
 }
 
+bool LimerinoThemeDialog::applyBaseJson(const QJsonObject &json,
+                                        const QString &displayName)
+{
+    if (json.isEmpty() || !json.contains(QStringLiteral("colors")))
+    {
+        return false;
+    }
+    this->baseJson_ = json;
+    this->baseSeed_ = seedFromThemeJson(json);
+    this->seed_ = this->baseSeed_;
+    if (this->baseLabel_ != nullptr)
+    {
+        this->baseLabel_->setText(
+            QStringLiteral("Base: %1 (only matching seed colours are "
+                           "recolored; other leaves stay from this file).")
+                .arg(displayName));
+    }
+    return true;
+}
+
+void LimerinoThemeDialog::applyBuiltinBase(BuiltinTheme builtin)
+{
+    const auto json = loadBuiltinThemeJson(builtin);
+    if (!json.has_value() ||
+        !this->applyBaseJson(*json, builtinThemeName(builtin) +
+                                        QStringLiteral(".json")))
+    {
+        this->baseJson_ = {};
+        this->baseSeed_ = builtin == BuiltinTheme::Light ||
+                                  builtin == BuiltinTheme::White
+                              ? LimerinoThemeSeed::lightPreset()
+                              : LimerinoThemeSeed::darkPreset();
+        this->seed_ = this->baseSeed_;
+        if (this->baseLabel_ != nullptr)
+        {
+            this->baseLabel_->setText(QStringLiteral(
+                "Base JSON missing from resources; using synthesized colours."));
+        }
+    }
+}
+
+void LimerinoThemeDialog::rebuildRecentsCombo()
+{
+    if (this->recentCombo_ == nullptr)
+    {
+        return;
+    }
+    const QSignalBlocker block(this->recentCombo_);
+    this->recentCombo_->clear();
+    this->recentCombo_->addItem(QStringLiteral("(recent themes)"));
+    for (const auto &filename : loadThemeRecents())
+    {
+        this->recentCombo_->addItem(QFileInfo(filename).completeBaseName(),
+                                    filename);
+    }
+}
+
 void LimerinoThemeDialog::onDarkPreset()
 {
-    this->seed_ = LimerinoThemeSeed::darkPreset();
+    this->applyBuiltinBase(BuiltinTheme::Dark);
     this->syncUiFromSeed();
     this->writePreviewAndReload();
 }
 
 void LimerinoThemeDialog::onLightPreset()
 {
-    this->seed_ = LimerinoThemeSeed::lightPreset();
+    this->applyBuiltinBase(BuiltinTheme::Light);
+    this->syncUiFromSeed();
+    this->writePreviewAndReload();
+}
+
+void LimerinoThemeDialog::onBlackPreset()
+{
+    this->applyBuiltinBase(BuiltinTheme::Black);
+    this->syncUiFromSeed();
+    this->writePreviewAndReload();
+}
+
+void LimerinoThemeDialog::onWhitePreset()
+{
+    this->applyBuiltinBase(BuiltinTheme::White);
+    this->syncUiFromSeed();
+    this->writePreviewAndReload();
+}
+
+void LimerinoThemeDialog::onRecentSelected(int index)
+{
+    if (index <= 0)
+    {
+        return;
+    }
+    const QString filename = this->recentCombo_->itemData(index).toString();
+    if (filename.isEmpty())
+    {
+        return;
+    }
+    const QString path =
+        QDir(getApp()->getPaths().themesDirectory).filePath(filename);
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        QMessageBox::warning(
+            this, QStringLiteral("Recent theme"),
+            QStringLiteral("Could not read %1").arg(path));
+        return;
+    }
+    const auto doc = QJsonDocument::fromJson(file.readAll());
+    if (!this->applyBaseJson(doc.object(), filename))
+    {
+        QMessageBox::warning(this, QStringLiteral("Recent theme"),
+                             QStringLiteral("%1 is not a theme JSON.")
+                                 .arg(filename));
+        return;
+    }
+    this->nameEdit_->setText(QFileInfo(filename).completeBaseName());
     this->syncUiFromSeed();
     this->writePreviewAndReload();
 }
@@ -347,42 +534,16 @@ void LimerinoThemeDialog::onImport()
         return;
     }
 
-    // Full theme: install as-is, not editable as a seed.
-    QString name = QFileInfo(path).completeBaseName();
-    if (name.isEmpty())
+    if (this->applyBaseJson(root, QFileInfo(path).fileName()))
     {
-        name = QStringLiteral("Imported theme");
-    }
-    if (this->isReservedThemeFilename(sanitizeThemeFilename(name)))
-    {
-        name += QStringLiteral(" (imported)");
-    }
-
-    QString err;
-    if (!installFullThemeFile(path, name, &err))
-    {
-        QMessageBox::warning(
-            this, QStringLiteral("Import"),
-            err.isEmpty() ? QStringLiteral("Could not install theme.") : err);
+        this->nameEdit_->setText(QFileInfo(path).completeBaseName());
+        this->syncUiFromSeed();
+        this->writePreviewAndReload();
         return;
     }
 
-    this->applied_ = true;
-    this->previewActive_ = false;
-    if (auto *theme = getTheme(); theme != nullptr)
-    {
-        theme->setAutoReload(false);
-    }
-    QFile::remove(this->previewFilePath());
-
-    QMessageBox::information(
-        this, QStringLiteral("Import"),
-        QStringLiteral(
-            "Installed and selected \"%1\".\n\n"
-            "This is a full theme file, not a Limerino seed — it cannot be "
-            "edited in the creator.")
-            .arg(sanitizeThemeFilename(name)));
-    this->close();
+    QMessageBox::warning(this, QStringLiteral("Import"),
+                         QStringLiteral("File is not a theme JSON or seed."));
 }
 
 void LimerinoThemeDialog::onExportSeed()
@@ -424,7 +585,7 @@ void LimerinoThemeDialog::onExportTheme()
                              QStringLiteral("Could not write %1").arg(path));
         return;
     }
-    out.write(QJsonDocument(generateTheme(this->seed_))
+    out.write(QJsonDocument(this->currentThemeJson())
                   .toJson(QJsonDocument::Indented));
 }
 
@@ -450,7 +611,7 @@ void LimerinoThemeDialog::onApply()
     }
 
     QString err;
-    if (!installGeneratedTheme(name, this->seed_, &err))
+    if (!installThemeJson(name, this->currentThemeJson(), &err))
     {
         QMessageBox::warning(
             this, QStringLiteral("Apply"),

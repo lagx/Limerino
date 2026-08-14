@@ -62,9 +62,11 @@ void LimerinoPage::initLayout(GeneralPageView &layout)
 
     layout.addTitle("Theme creator");
     layout.addDescription(QStringLiteral(
-        "Build a Chatterino theme from four colors (background, surface, "
-        "accent, text/font). Live-previews while you edit; Apply installs it "
-        "into Themes/ and selects it immediately."));
+        "Recolor a real Chatterino theme (Dark.json / Light.json / Black.json "
+        "/ White.json, or a recently saved custom theme). Only the four seed "
+        "colours are replaced; every other leaf stays from the base file. "
+        "Live-previews while you edit; Apply installs it into Themes/ and "
+        "selects it immediately."));
     layout.addButton(QStringLiteral("Create theme..."), [this] {
         auto *dialog = new limerino::LimerinoThemeDialog(this);
         dialog->show();
