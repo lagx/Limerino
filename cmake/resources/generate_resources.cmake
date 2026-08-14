@@ -95,7 +95,10 @@ if (WIN32)
     endif()
     string(TIMESTAMP CURRENT_YEAR "%Y")
     configure_file(${CMAKE_CURRENT_LIST_DIR}/windows.rc.in ${CMAKE_BINARY_DIR}/autogen/windows.rc @ONLY)
-    list(APPEND RES_AUTOGEN_FILES "${CMAKE_BINARY_DIR}/autogen/windows.rc")
+    # Limerino: do not add windows.rc to RES_AUTOGEN_FILES (those go into the
+    # OBJECT library). The ICON resource must live on chatterino.exe or
+    # Explorer/taskbar keep the default/upstream icon. src/CMakeLists.txt
+    # attaches it to the executable.
 endif ()
 
 list(APPEND RES_AUTOGEN_FILES

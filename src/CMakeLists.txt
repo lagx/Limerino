@@ -1226,6 +1226,13 @@ if (BUILD_APP)
     else()
         add_executable(${EXECUTABLE_PROJECT} main.cpp)
     endif()
+
+    # Limerino: Windows Explorer/taskbar icon comes from the EXE's RT_GROUP_ICON,
+    # not from Qt's :/icon.ico. Attach the generated rc to the executable.
+    if (WIN32)
+        target_sources(${EXECUTABLE_PROJECT} PRIVATE
+            "${CMAKE_BINARY_DIR}/autogen/windows.rc")
+    endif()
     
     if (CHATTERINO_WITH_AVIF_PLUGIN)
         target_link_libraries(${EXECUTABLE_PROJECT} PRIVATE kimageformats)
