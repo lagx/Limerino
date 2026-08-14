@@ -162,7 +162,7 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
       options: --privileged
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0 # tag access
