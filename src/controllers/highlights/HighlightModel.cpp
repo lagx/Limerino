@@ -271,33 +271,6 @@ void HighlightModel::afterInit()
     this->insertCustomRow(firstMessageRow,
                           HighlightRowIndexes::FirstMessageRow);
 
-    // Highlight settings for hype chats
-    std::vector<QStandardItem *> elevatedMessageRow = this->createRow();
-    setBoolItem(elevatedMessageRow[Column::Pattern],
-                getSettings()->enableElevatedMessageHighlight.getValue(), true,
-                false);
-    elevatedMessageRow[Column::Pattern]->setData("Hype Chats", Qt::DisplayRole);
-    elevatedMessageRow[Column::ShowInMentions]->setFlags({});
-    //    setBoolItem(elevatedMessageRow[Column::FlashTaskbar],
-    //                getSettings()->enableElevatedMessageHighlightTaskbar.getValue(),
-    //                true, false);
-    //    setBoolItem(elevatedMessageRow[Column::PlaySound],
-    //                getSettings()->enableElevatedMessageHighlightSound.getValue(),
-    //                true, false);
-    elevatedMessageRow[Column::FlashTaskbar]->setFlags({});
-    elevatedMessageRow[Column::PlaySound]->setFlags({});
-    elevatedMessageRow[Column::UseRegex]->setFlags({});
-    elevatedMessageRow[Column::CaseSensitive]->setFlags({});
-    elevatedMessageRow[Column::SoundPath]->setFlags(Qt::NoItemFlags);
-
-    auto elevatedMessageColor =
-        ColorProvider::instance().color(ColorType::ElevatedMessageHighlight);
-    setColorItem(elevatedMessageRow[Column::Color], *elevatedMessageColor,
-                 false);
-
-    this->insertCustomRow(elevatedMessageRow,
-                          HighlightRowIndexes::ElevatedMessageRow);
-
     // Highlight settings for reply threads
     std::vector<QStandardItem *> threadMessageRow = this->createRow();
     setBoolItem(threadMessageRow[Column::Pattern],
@@ -459,11 +432,6 @@ void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
                     getSettings()->enableFirstMessageHighlight.setValue(
                         value.toBool());
                 }
-                else if (rowIndex == HighlightRowIndexes::ElevatedMessageRow)
-                {
-                    getSettings()->enableElevatedMessageHighlight.setValue(
-                        value.toBool());
-                }
                 else if (rowIndex == HighlightRowIndexes::ThreadMessageRow)
                 {
                     getSettings()->enableThreadHighlight.setValue(
@@ -537,12 +505,6 @@ void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
                     // getSettings()->enableFirstMessageHighlightTaskbar.setValue(
                     //     value.toBool());
                 }
-                else if (rowIndex == HighlightRowIndexes::ElevatedMessageRow)
-                {
-                    // getSettings()
-                    //     ->enableElevatedMessageHighlightTaskbar.setvalue(
-                    //         value.toBool());
-                }
                 else if (rowIndex == HighlightRowIndexes::ThreadMessageRow)
                 {
                     getSettings()->enableThreadHighlightTaskbar.setValue(
@@ -582,11 +544,6 @@ void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
                 else if (rowIndex == HighlightRowIndexes::FirstMessageRow)
                 {
                     // getSettings()->enableFirstMessageHighlightSound.setValue(
-                    //     value.toBool());
-                }
-                else if (rowIndex == HighlightRowIndexes::ElevatedMessageRow)
-                {
-                    // getSettings()->enableElevatedMessageHighlightSound.setValue(
                     //     value.toBool());
                 }
                 else if (rowIndex == HighlightRowIndexes::ThreadMessageRow)
@@ -680,11 +637,6 @@ void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
                 {
                     setColor(getSettings()->firstMessageHighlightColor,
                              ColorType::FirstMessageHighlight);
-                }
-                else if (rowIndex == HighlightRowIndexes::ElevatedMessageRow)
-                {
-                    setColor(getSettings()->elevatedMessageHighlightColor,
-                             ColorType::ElevatedMessageHighlight);
                 }
                 else if (rowIndex == HighlightRowIndexes::ThreadMessageRow)
                 {

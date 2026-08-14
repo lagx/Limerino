@@ -132,6 +132,10 @@ TwitchChannel::TwitchChannel(const QString &name, bool isWatching)
     this->signalHolder_.managedConnect(
         getApp()->getAccounts()->twitch.currentUserAboutToChange,
         [this](const auto & /*oldAccount*/, const auto & /*newAccount*/) {
+            qCDebug(chatterinoTwitchEventSub)
+                << "Current user about to change, drop all eventsub handles in "
+                   "preparation"
+                << this->roomId();
             this->eventSubChannelChatUserMessageHoldHandle.reset();
             this->eventSubChannelChatUserMessageUpdateHandle.reset();
             this->eventSubChannelModerateHandle.reset();
@@ -1590,6 +1594,9 @@ void TwitchChannel::refreshPubSub()
 
     if (currentAccount->isAnon())
     {
+        qCDebug(chatterinoTwitchEventSub)
+            << "Current account is anon - drop all privileged eventsub handles"
+            << this->roomId();
         this->eventSubChannelModerateHandle.reset();
         this->eventSubAutomodMessageHoldHandle.reset();
         this->eventSubAutomodMessageUpdateHandle.reset();
@@ -1604,6 +1611,10 @@ void TwitchChannel::refreshPubSub()
 
     if (this->hasModRights())
     {
+        qCDebug(chatterinoTwitchEventSub)
+            << "Current account is mod - subscribe to privileged eventsub "
+               "handles"
+            << this->roomId();
         this->eventSubChannelModerateHandle =
             getApp()->getEventSub()->subscribe(eventsub::SubscriptionRequest{
                 .subscriptionType = "channel.moderate",
@@ -1695,6 +1706,10 @@ void TwitchChannel::refreshPubSub()
     }
     else
     {
+        qCDebug(chatterinoTwitchEventSub)
+            << "Current account is no longer a moderator - drop privileged "
+               "eventsub handles"
+            << this->roomId();
         this->eventSubChannelModerateHandle.reset();
         this->eventSubAutomodMessageHoldHandle.reset();
         this->eventSubAutomodMessageUpdateHandle.reset();
