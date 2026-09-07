@@ -48,7 +48,8 @@ Repo-local git config worth knowing (reapply on fresh clones): `rerere.enabled=t
       git submodule update --init --recursive
 
   (`scripts/merge-upstream.sh` automates exactly this cycle; it refuses dirty trees and never
-  auto-resolves conflicts.)
+  auto-resolves conflicts.) After a clean auto-merge, still grep for Limerino branding and
+  `lagx/Limerino` download URLs — those files often take upstream's side without conflicting.
 - Cherry-picks from c2/c7 are a last resort, always with `git cherry-pick -x`, and MUST be
   logged in the Cherry-picks table below (upstream SHA, repo, date, reason). When upstream later
   merges the same commit, resolve the conflict in favor of upstream and mark the row resolved.
@@ -64,7 +65,7 @@ close to zero as possible — every entry is future merge pain.
 | File | Why | Hook description | Risk on merge |
 |---|---|---|---|
 | `.gitignore` | ignore local `.ccache/` dir + reference captures | appended 2-line "Limerino local dev" section at the end; later (batch R-series) appended `pubsubreference/`, `newpubsubhermesreference/`, `pluginforreference/` — untracked-capture roots that may embed live credentials and must never be committed; (batch U1) appended `gqlreference/` — same reason | Low — append-only; re-add if upstream rewrites the tail |
-| `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino`; that job uses `fetch-tags: true` | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these Limerino edits.** |
+| `.github/workflows/build.yml` | CI must build the `limerino` branch; the `nightly-build` prerelease (which force-moves a tag) must point at `limerino`, not upstream | `limerino` added to `on.push.branches`; `create-release` job `if:` now `refs/heads/limerino`; that job's checkout keeps `fetch-tags: true` (Limerino) **and** upstream's `persist-credentials: true` (needed to move the nightly tag) | **High — this file is updated upstream all the time. Expect a conflict on most merges. Resolution is always: keep upstream's version of the file, then re-apply these Limerino edits (do not drop `persist-credentials`).** |
 | `.CI/format-recent-changes.py` | nightly release body must download from this repo, not chatterino7 | `ROOT_DOWNLOAD_URL` → `lagx/Limerino/releases/download/nightly-build`; warning links this repo's nightly tag (no `git describe` of c7 `v7.*`) | Low |
 | `.github/workflows/create-installer.yml` | installer workflow must fire after builds on `limerino` | one edit: `limerino` added to the `workflow_run.branches` filter | **High — same rule as build.yml: keep upstream's file, re-apply this edit** |
 | `.CI/chatterino-installer.iss` | shortcut AppUserModelID must match the app's own identity string; installer UI must say Limerino 7.x.x not Chatterino 7TV 2.5.5 | `AppUserModelID` → `Limerino.Limerino`; `MyAppName`/`MyAppPublisher` → `Limerino`; `MyAppVersion` → `7.5.5` (keep in sync with root `project(VERSION)`); `MyAppURL` → this repo | Low |
